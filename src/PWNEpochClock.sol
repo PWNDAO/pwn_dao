@@ -4,6 +4,7 @@ pragma solidity 0.8.18;
 contract PWNEpochClock {
 
     // # INVARIANTS
+    // - first epoch is epoch 1
     // - timestamps prior to `INITIAL_EPOCH_TIMESTAMP` are considered to be in epoch 0
 
 
@@ -44,7 +45,7 @@ contract PWNEpochClock {
     function _epochFor(uint256 timestamp) internal view returns (uint256) {
         // timestamps prior to `INITIAL_EPOCH_TIMESTAMP` are considered to be in epoch 0
         if (timestamp < INITIAL_EPOCH_TIMESTAMP) return 0;
-        return (timestamp - INITIAL_EPOCH_TIMESTAMP) / SECONDS_IN_EPOCH;
+        return (timestamp - INITIAL_EPOCH_TIMESTAMP) / SECONDS_IN_EPOCH + 1;
     }
 
 }
