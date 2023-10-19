@@ -16,4 +16,9 @@ library SlotComputingLib {
         return keccak256(abi.encode(key, slot));
     }
 
+
+    function withArrayIndex(bytes32 slot, uint256 index) internal pure returns (bytes32) {
+        return bytes32(uint256(slot) + index);
+    }
+
 }
