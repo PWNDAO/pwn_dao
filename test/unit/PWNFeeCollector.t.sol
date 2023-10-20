@@ -8,9 +8,10 @@ import {PWNEpochClock} from "../../src/PWNEpochClock.sol";
 
 import {SlotComputingLib} from "../utils/SlotComputingLib.sol";
 import {MockWallet} from "../mock/MockWallet.sol";
+import {BasePWNTest} from "../BasePWNTest.t.sol";
 
 
-abstract contract PWNFeeCollectorTest is Test {
+abstract contract PWNFeeCollectorTest is BasePWNTest {
     using SlotComputingLib for bytes32;
 
     bytes32 public constant CLAIMED_FEES_SLOT = bytes32(uint256(0));
@@ -100,7 +101,9 @@ contract PWNFeeCollector_CollectFeesHook_Test is PWNFeeCollectorTest {
         collector.collectFeesHook(makeAddr("asset"), 420);
     }
 
-    function testFuzz_shouldIncreaseAssetAmount(uint256 epoch, address asset, uint256 prevAmount, uint256 amount) external {
+    function testFuzz_shouldIncreaseAssetAmount(
+        uint256 epoch, address asset, uint256 prevAmount, uint256 amount
+    ) external {
         amount = bound(amount, 0, type(uint256).max - prevAmount);
 
         vm.mockCall(
@@ -166,26 +169,11 @@ contract PWNFeeCollector_ClaimFees_Test is PWNFeeCollectorTest {
         _;
     }
 
-    modifier checkAddress(address addr) {
-        _checkAddress(addr, false);
-        _;
-    }
-
-    modifier checkAddressAllowZero(address addr) {
-        _checkAddress(addr, true);
-        _;
-    }
-
     // # HELPERS
 
-    function _checkAddress(address addr, bool allowZero) internal {
-        if (!allowZero) vm.assume(addr != address(0));
-        assumeAddressIsNot(addr, AddressType.Precompile, AddressType.ForgeAddress);
+    function _checkAddress(address addr, bool allowZero) internal override {
+        super._checkAddress(addr, allowZero);
         vm.assume(addr != address(collector) && addr != claimController && addr != clock && addr != hub);
-        // Need before merging https://github.com/foundry-rs/forge-std/pull/430
-        vm.assume(addr != 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D); // forge vm
-        vm.assume(addr != 0x000000000000000000636F6e736F6c652e6c6f67); // forge console
-        vm.assume(addr != 0x4e59b44847b379578588920cA78FbF26c0B4956C); // Create2Deployer
     }
 
     function _boundEpoch(uint256 epoch) internal view returns (uint256) {
@@ -348,7 +336,9 @@ contract PWNFeeCollector_ClaimFees_Test is PWNFeeCollectorTest {
         });
     }
 
-    function testFuzz_shouldFail_whenERC20TransferFails(address staker, uint256 epoch, address asset, uint256 amount) external
+    function testFuzz_shouldFail_whenERC20TransferFails(
+        address staker, uint256 epoch, address asset, uint256 amount
+    ) external
         checkAddress(staker)
         checkAddress(asset)
         mockCollectedFees(_boundEpoch(epoch), asset, amount)
@@ -420,7 +410,8 @@ contract PWNFeeCollector_ClaimFees_Test is PWNFeeCollectorTest {
     }
 
     function testFuzz_shouldClaimCorrectAmount(uint256 stakerPower, uint256 totalPower) external {
-        uint256 maxStakerPower = 100_000_000e18 * 3.5 * 7; // total supply with max multiplier after claiming all 1000 voting rewards
+        // total supply with max multiplier after claiming all 1000 voting rewards
+        uint256 maxStakerPower = 100_000_000e18 * 3.5 * 7;
         stakerPower = bound(stakerPower, 1, maxStakerPower);
         totalPower = bound(totalPower, stakerPower, type(uint256).max);
 
