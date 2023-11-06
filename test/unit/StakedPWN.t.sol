@@ -3,10 +3,10 @@ pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 
-import {StakedPWN} from "../../src/StakedPWN.sol";
+import { StakedPWN } from "../../src/StakedPWN.sol";
 
-import {BasePWNTest} from "../BasePWNTest.t.sol";
-import {SlotComputingLib} from "../utils/SlotComputingLib.sol";
+import { BasePWNTest } from "../BasePWNTest.t.sol";
+import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 
 
 abstract contract StakedPWNTest is BasePWNTest {
@@ -14,13 +14,14 @@ abstract contract StakedPWNTest is BasePWNTest {
 
     bytes32 public constant OWNERS_SLOT = bytes32(uint256(2));
     bytes32 public constant BALANCES_SLOT = bytes32(uint256(3));
+    bytes4 public constant ON_ERC721_RECEIVED_SELECTOR = bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
 
-    StakedPWN public stakedPwn;
+    StakedPWN public stakedPWN;
 
     address public stakingContract = makeAddr("stakingContract");
 
     function setUp() virtual public {
-        stakedPwn = new StakedPWN(stakingContract);
+        stakedPWN = new StakedPWN(stakingContract);
 
         vm.mockCall(
             stakingContract,
@@ -32,10 +33,10 @@ abstract contract StakedPWNTest is BasePWNTest {
 
     function _mockToken(address owner, uint256 tokenId) internal {
         vm.store(
-            address(stakedPwn), OWNERS_SLOT.withMappingKey(tokenId), bytes32(uint256(uint160(owner)))
+            address(stakedPWN), OWNERS_SLOT.withMappingKey(tokenId), bytes32(uint256(uint160(owner)))
         );
         vm.store(
-            address(stakedPwn), OWNERS_SLOT.withMappingKey(owner), bytes32(uint256(1))
+            address(stakedPWN), BALANCES_SLOT.withMappingKey(owner), bytes32(uint256(1))
         );
     }
 
@@ -49,9 +50,9 @@ abstract contract StakedPWNTest is BasePWNTest {
 contract StakedPWN_Constructor_Test is StakedPWNTest {
 
     function testFuzz_shouldSetInitialParams(address stakingContract) external {
-        stakedPwn = new StakedPWN(stakingContract);
+        stakedPWN = new StakedPWN(stakingContract);
 
-        assertEq(address(stakedPwn.stakingContract()), stakingContract);
+        assertEq(address(stakedPWN.stakingContract()), stakingContract);
     }
 
 }
@@ -68,7 +69,7 @@ contract StakedPWN_Mint_Test is StakedPWNTest {
 
         vm.expectRevert("StakedPWN: caller is not staking contract");
         vm.prank(caller);
-        stakedPwn.mint(caller, 420);
+        stakedPWN.mint(caller, 420);
     }
 
     function testFuzz_shouldMintStakedPWNToken(address to, uint256 tokenId) external checkAddress(to) {
@@ -78,9 +79,25 @@ contract StakedPWN_Mint_Test is StakedPWNTest {
         );
 
         vm.prank(stakingContract);
-        stakedPwn.mint(to, tokenId);
+        stakedPWN.mint(to, tokenId);
 
-        assertEq(stakedPwn.ownerOf(tokenId), to);
+        assertEq(stakedPWN.ownerOf(tokenId), to);
+    }
+
+    function testFuzz_shouldCallSafeCallback_whenCallerIsContract(address to, uint256 tokenId) external checkAddress(to) {
+        vm.mockCall(
+            to,
+            abi.encodeWithSelector(ON_ERC721_RECEIVED_SELECTOR),
+            abi.encode(ON_ERC721_RECEIVED_SELECTOR)
+        );
+
+        vm.expectCall(
+            to,
+            abi.encodeWithSelector(ON_ERC721_RECEIVED_SELECTOR, stakingContract, address(0), tokenId, bytes(""))
+        );
+
+        vm.prank(stakingContract);
+        stakedPWN.mint(to, tokenId);
     }
 
 }
@@ -98,7 +115,7 @@ contract StakedPWN_Burn_Test is StakedPWNTest {
 
         vm.expectRevert("StakedPWN: caller is not staking contract");
         vm.prank(caller);
-        stakedPwn.burn(420);
+        stakedPWN.burn(420);
     }
 
     function testFuzz_shouldBurnStakedPWNToken(address from, uint256 tokenId) external checkAddress(from) {
@@ -109,10 +126,10 @@ contract StakedPWN_Burn_Test is StakedPWNTest {
         );
 
         vm.prank(stakingContract);
-        stakedPwn.burn(tokenId);
+        stakedPWN.burn(tokenId);
 
         vm.expectRevert();
-        stakedPwn.ownerOf(tokenId);
+        stakedPWN.ownerOf(tokenId);
     }
 
 }
@@ -124,7 +141,7 @@ contract StakedPWN_Burn_Test is StakedPWNTest {
 
 contract StakedPWN_TransferCallback_Test is StakedPWNTest {
 
-    function test_shouldCallCallback_whenTransferFrom(
+    function testFuzz_shouldCallCallback_whenTransferFrom(
         address from, address to, uint256 tokenId
     ) external checkAddress(from) checkAddress(to) {
         _mockToken(from, tokenId);
@@ -136,10 +153,10 @@ contract StakedPWN_TransferCallback_Test is StakedPWNTest {
         });
 
         vm.prank(from);
-        stakedPwn.transferFrom(from, to, tokenId);
+        stakedPWN.transferFrom(from, to, tokenId);
     }
 
-    function test_shouldNotCallCallback_whenTransferFromFails(
+    function testFuzz_shouldNotCallCallback_whenTransferFromFails(
         address from, address to, uint256 tokenId
     ) external checkAddress(from) checkAddress(to) {
         vm.expectCall({
@@ -150,13 +167,18 @@ contract StakedPWN_TransferCallback_Test is StakedPWNTest {
 
         vm.expectRevert();
         vm.prank(from);
-        stakedPwn.transferFrom(from, to, tokenId);
+        stakedPWN.transferFrom(from, to, tokenId);
     }
 
-    function test_shouldCallCallback_whenSafeTransferFrom(
+    function testFuzz_shouldCallCallback_whenSafeTransferFrom(
         address from, address to, uint256 tokenId
     ) external checkAddress(from) checkAddress(to) {
         _mockToken(from, tokenId);
+        vm.mockCall(
+            to,
+            abi.encodeWithSelector(ON_ERC721_RECEIVED_SELECTOR),
+            abi.encode(ON_ERC721_RECEIVED_SELECTOR)
+        );
 
         vm.expectCall({
             callee: stakingContract,
@@ -165,12 +187,18 @@ contract StakedPWN_TransferCallback_Test is StakedPWNTest {
         });
 
         vm.prank(from);
-        stakedPwn.safeTransferFrom(from, to, tokenId);
+        stakedPWN.safeTransferFrom(from, to, tokenId);
     }
 
-    function test_shouldNotCallCallback_whenSafeTransferFromFails(
+    function testFuzz_shouldNotCallCallback_whenSafeTransferFromFails(
         address from, address to, uint256 tokenId
     ) external checkAddress(from) checkAddress(to) {
+        vm.mockCall(
+            to,
+            abi.encodeWithSelector(ON_ERC721_RECEIVED_SELECTOR),
+            abi.encode(ON_ERC721_RECEIVED_SELECTOR)
+        );
+
         vm.expectCall({
             callee: stakingContract,
             data: abi.encodeWithSignature("transferStake(address,address,uint256)", from, to, tokenId),
@@ -179,7 +207,7 @@ contract StakedPWN_TransferCallback_Test is StakedPWNTest {
 
         vm.expectRevert();
         vm.prank(from);
-        stakedPwn.safeTransferFrom(from, to, tokenId);
+        stakedPWN.safeTransferFrom(from, to, tokenId);
     }
 
 }

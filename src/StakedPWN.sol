@@ -45,7 +45,7 @@ contract StakedPWN is ERC721 {
     |*----------------------------------------------------------*/
 
     function mint(address to, uint256 tokenId) external onlyStakingContract {
-        _mint(to, tokenId);
+        _safeMint(to, tokenId);
     }
 
     function burn(uint256 tokenId) external onlyStakingContract {
