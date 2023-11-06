@@ -3,12 +3,12 @@ pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 
-import {PWNFeeCollector, IPWNHub} from "../../src/PWNFeeCollector.sol";
-import {PWNEpochClock} from "../../src/PWNEpochClock.sol";
+import { PWNFeeCollector, IPWNHub } from "../../src/PWNFeeCollector.sol";
+import { PWNEpochClock } from "../../src/PWNEpochClock.sol";
 
-import {SlotComputingLib} from "../utils/SlotComputingLib.sol";
-import {MockWallet} from "../mock/MockWallet.sol";
-import {BasePWNTest} from "../BasePWNTest.t.sol";
+import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
+import { MockWallet } from "../mock/MockWallet.sol";
+import { BasePWNTest } from "../BasePWNTest.t.sol";
 
 
 abstract contract PWNFeeCollectorTest is BasePWNTest {

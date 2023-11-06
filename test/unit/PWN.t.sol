@@ -3,10 +3,10 @@ pragma solidity 0.8.18;
 
 import "forge-std/Test.sol";
 
-import {PWN} from "../../src/PWN.sol";
+import { PWN } from "../../src/PWN.sol";
 
-import {BasePWNTest} from "../BasePWNTest.t.sol";
-import {SlotComputingLib} from "../utils/SlotComputingLib.sol";
+import { BasePWNTest } from "../BasePWNTest.t.sol";
+import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 
 
 abstract contract PWNTest is BasePWNTest {
