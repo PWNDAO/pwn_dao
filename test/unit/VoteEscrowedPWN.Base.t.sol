@@ -38,7 +38,7 @@ contract VoteEscrowedPWN_BaseExposed is VoteEscrowedPWN {
     }
 
 
-    // helpers
+    // setters
 
     function _setStakerPowerInput(StakerPowerInput memory input) external {
         stakerPowerInput = input;
@@ -93,7 +93,7 @@ abstract contract VoteEscrowedPWN_Base_Test is BasePWNTest {
 
 
 /*----------------------------------------------------------*|
-|*  # EXPOSED FUNCTIONS                                      *|
+|*  # EXPOSED FUNCTIONS                                     *|
 |*----------------------------------------------------------*/
 
 contract VoteEscrowedPWN_Base_Exposed_Test is VoteEscrowedPWN_Base_Test {

@@ -60,17 +60,17 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
 
 
     /*----------------------------------------------------------*|
-    |*  # DAO FEE PORTION                                       *|
+    |*  # DAO REVENUE PORTION                                   *|
     |*----------------------------------------------------------*/
 
-    struct DaoFeePortionCheckpoint {
+    struct PortionCheckpoint {
         uint16 initialEpoch;
-        uint16 value; // % with 2 decimals (1234 = 12.34%)
+        uint16 portion; // % with 2 decimals (1234 = 12.34%)
         // uint224 ___padding;
     }
 
-    // checkpoints are sorted by `initialEpoch` in ascending order
-    DaoFeePortionCheckpoint[] public daoFeePortion;
+    // checkpoints are sorted by `initialEpoch` in ascending order without duplicates
+    PortionCheckpoint[] public daoRevenuePortion;
 
 
     /*----------------------------------------------------------*|

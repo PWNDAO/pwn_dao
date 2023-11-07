@@ -25,12 +25,8 @@ contract PowerChangeEpochsLib_Test is Test {
             uint16 value = uint16(bound(uint256(keccak256(abi.encode(seed + i))), 1, 10));
             powerChangeEpochs.push(value);
             if (i > 0) {
-                if (type(uint16).max - powerChangeEpochs[i] >= powerChangeEpochs[i - 1]) {
-                    powerChangeEpochs[i] += powerChangeEpochs[i - 1];
-                } else {
-                    length = i;
-                    break;
-                }
+                // cannot override because max length is 1000 and max value is 10 => max epoch is 10000 < type(uint16).max
+                powerChangeEpochs[i] += powerChangeEpochs[i - 1];
             }
         }
     }
