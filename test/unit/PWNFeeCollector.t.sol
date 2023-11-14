@@ -8,7 +8,7 @@ import { PWNEpochClock } from "../../src/PWNEpochClock.sol";
 
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 import { MockWallet } from "../mock/MockWallet.sol";
-import { BasePWNTest } from "../BasePWNTest.t.sol";
+import { BasePWNTest } from "../BasePWNTest.sol";
 
 
 abstract contract PWNFeeCollectorTest is BasePWNTest {

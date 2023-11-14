@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import { StakedPWN } from "../../src/StakedPWN.sol";
 
-import { BasePWNTest } from "../BasePWNTest.t.sol";
+import { BasePWNTest } from "../BasePWNTest.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 
 
@@ -73,6 +73,7 @@ contract StakedPWN_Mint_Test is StakedPWNTest {
     }
 
     function testFuzz_shouldMintStakedPWNToken(address to, uint256 tokenId) external checkAddress(to) {
+        vm.assume(to.code.length == 0);
         vm.expectCall(
             stakingContract,
             abi.encodeWithSignature("transferStake(address,address,uint256)", address(0), to, tokenId)

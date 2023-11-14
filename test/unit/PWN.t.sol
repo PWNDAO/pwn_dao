@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import { PWN } from "../../src/PWN.sol";
 
-import { BasePWNTest } from "../BasePWNTest.t.sol";
+import { BasePWNTest } from "../BasePWNTest.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 
 
@@ -62,6 +62,10 @@ contract PWN_Constructor_Test is PWNTest {
     function testFuzz_shouldSetInitialParams(
         address _owner, address _clock, address _governor, uint256 _initialEpochTimestamp
     ) external checkAddress(_clock) {
+        // `0x2e23...470b` will be an address of the PWN token in this test
+        // foundry sometimes provide this address as a clock address
+        vm.assume(_clock != 0x2e234DAe75C793f67A35089C9d99245E1C58470b);
+
         vm.mockCall(
             _clock,
             abi.encodeWithSignature("currentEpoch()"),
