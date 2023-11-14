@@ -108,12 +108,8 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
     |*  # POWER FUNCTION PLACEHOLDERS                           *|
     |*----------------------------------------------------------*/
 
-    function stakerPower(address, uint256) virtual public view returns (uint256) {
-        revert("vePWN: must be overriden");
-    }
+    function stakerPower(address, uint256) virtual public view returns (uint256);
 
-    function totalPowerAt(uint256) virtual public view returns (uint256) {
-        revert("vePWN: must be overriden");
-    }
+    function totalPowerAt(uint256) virtual public view returns (uint256);
 
 }
