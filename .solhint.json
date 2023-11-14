@@ -1,0 +1,11 @@
+{
+    "extends": "solhint:recommended",
+    "rules": {
+        "reason-string": "off",
+        "custom-errors": "off",
+        "max-line-length": ["error", 120],
+        "quotes": ["error", "double"],
+        "immutable-vars-naming": ["error", { "immutablesAsConstants": false }],
+        "func-visibility": ["error", { "ignoreConstructors": true }]
+    }
+}

@@ -3,9 +3,11 @@ pragma solidity 0.8.18;
 
 import { Governor, IGovernor } from "openzeppelin-contracts/contracts/governance/Governor.sol";
 import { GovernorSettings } from "openzeppelin-contracts/contracts/governance/extensions/GovernorSettings.sol";
-import { GovernorCountingSimple } from "openzeppelin-contracts/contracts/governance/extensions/GovernorCountingSimple.sol";
+import { GovernorCountingSimple }
+    from "openzeppelin-contracts/contracts/governance/extensions/GovernorCountingSimple.sol";
 import { GovernorVotes } from "openzeppelin-contracts/contracts/governance/extensions/GovernorVotes.sol";
-import { GovernorVotesQuorumFraction } from "openzeppelin-contracts/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
+import { GovernorVotesQuorumFraction }
+    from "openzeppelin-contracts/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
 import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
 
@@ -22,12 +24,6 @@ contract PWNGovernor is Governor, GovernorSettings, GovernorCountingSimple, Gove
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(20) // 20%
     {}
-
-
-    function _setVotingPeriod(uint256 newVotingPeriod) internal override virtual {
-        require(newVotingPeriod < MAX_VOTING_PERIOD, "PWNGovernor: voting period too long");
-        super._setVotingPeriod(newVotingPeriod);
-    }
 
     // The following functions are overrides required by Solidity.
 
@@ -66,4 +62,11 @@ contract PWNGovernor is Governor, GovernorSettings, GovernorCountingSimple, Gove
     {
         return super.proposalThreshold();
     }
+
+
+    function _setVotingPeriod(uint256 newVotingPeriod) internal override virtual {
+        require(newVotingPeriod < MAX_VOTING_PERIOD, "PWNGovernor: voting period too long");
+        super._setVotingPeriod(newVotingPeriod);
+    }
+
 }

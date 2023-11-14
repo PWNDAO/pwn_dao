@@ -9,6 +9,7 @@ contract PWNEpochClock {
 
 
     uint256 public constant EPOCH_IN_SECONDS = 2_419_200; // 4 weeks
+    // solhint-disable-next-line immutable-vars-naming
     uint256 public immutable INITIAL_EPOCH_TIMESTAMP;
 
 
@@ -26,6 +27,7 @@ contract PWNEpochClock {
         return uint48(block.timestamp);
     }
 
+    // solhint-disable-next-line func-name-mixedcase
     function CLOCK_MODE() external pure returns (string memory) {
         return "mode=timestamp";
     }

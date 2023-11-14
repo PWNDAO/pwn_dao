@@ -57,7 +57,9 @@ contract StakedPWN is ERC721 {
     |*  # TRANSFER CALLBACK                                     *|
     |*----------------------------------------------------------*/
 
-    function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 /* batchSize */) override internal {
+    function _beforeTokenTransfer(
+        address from, address to, uint256 firstTokenId, uint256 /* batchSize */
+    ) override internal {
         stakingContract.transferStake(from, to, firstTokenId);
     }
 

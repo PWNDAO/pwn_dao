@@ -79,7 +79,10 @@ contract PWN is Ownable2Step, ERC20 {
 
     // can be assigned only once
     function assignVotingReward(uint256 proposalId, uint256 reward) external onlyOwner {
-        require(epochClock.currentEpoch() - initialEpochTimestamp >= IMMUTABLE_PERIOD, "PWN: immutable period not reached");
+        require(
+            epochClock.currentEpoch() - initialEpochTimestamp >= IMMUTABLE_PERIOD,
+            "PWN: immutable period not reached"
+        );
         require(reward <= totalSupply() * MAX_INFLATION_RATE / 1000, "PWN: reward too high");
         require(reward > 0, "PWN: reward cannot be zero");
         require(rewards[proposalId] == 0, "PWN: reward already assigned");

@@ -39,6 +39,7 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower, VoteEscr
     |*  # CONSTRUCTOR                                           *|
     |*----------------------------------------------------------*/
 
+    // solhint-disable-next-line no-empty-blocks
     constructor() {
         // Is used as a proxy. Use initializer to setup initial properties.
     }

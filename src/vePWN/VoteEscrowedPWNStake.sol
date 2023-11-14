@@ -17,11 +17,28 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     |*----------------------------------------------------------*/
 
     event StakeCreated(uint256 indexed stakeId, address indexed staker, uint256 amount, uint256 lockUpEpochs);
-    event StakeSplit(uint256 indexed stakeId, address indexed staker, uint256 amount, uint256 newStakeId1, uint256 newStakeId2);
-    event StakeMerged(uint256 indexed stakeId1, uint256 indexed stakeId2, address indexed staker, uint256 amount, uint256 remainingLockup, uint256 newStakeId);
-    event StakeIncreased(uint256 indexed stakeId, address indexed staker, uint256 additionalAmount, uint256 additionalEpochs, uint256 newStakeId);
+    event StakeSplit(
+        uint256 indexed stakeId, address indexed staker, uint256 amount, uint256 newStakeId1, uint256 newStakeId2
+    );
+    event StakeMerged(
+        uint256 indexed stakeId1,
+        uint256 indexed stakeId2,
+        address indexed staker,
+        uint256 amount,
+        uint256 remainingLockup,
+        uint256 newStakeId
+    );
+    event StakeIncreased(
+        uint256 indexed stakeId,
+        address indexed staker,
+        uint256 additionalAmount,
+        uint256 additionalEpochs,
+        uint256 newStakeId
+    );
     event StakeWithdrawn(address indexed staker, uint256 amount);
-    event StakeTransferred(uint256 indexed stakeId, address indexed fromStaker, address indexed toStaker, uint256 amount);
+    event StakeTransferred(
+        uint256 indexed stakeId, address indexed fromStaker, address indexed toStaker, uint256 amount
+    );
 
 
     /*----------------------------------------------------------*|
@@ -35,11 +52,15 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @return stakeId Id of the created stake.
     function createStake(uint256 amount, uint256 lockUpEpochs) external returns (uint256 stakeId) {
         require(amount >= 100 && amount <= type(uint88).max, "vePWN: staked amount out of bounds");
-        require(amount % 100 == 0, "vePWN: staked amount must be a multiple of 100"); // to prevent rounding errors when computing power
+        // to prevent rounding errors when computing power
+        require(amount % 100 == 0, "vePWN: staked amount must be a multiple of 100");
 
         // lock up for <1; 5> + {10} years
         require(lockUpEpochs >= EPOCHS_IN_PERIOD, "vePWN: invalid lock up period range");
-        require(lockUpEpochs <= 5 * EPOCHS_IN_PERIOD || lockUpEpochs == 10 * EPOCHS_IN_PERIOD, "vePWN: invalid lock up period range");
+        require(
+            lockUpEpochs <= 5 * EPOCHS_IN_PERIOD || lockUpEpochs == 10 * EPOCHS_IN_PERIOD,
+            "vePWN: invalid lock up period range"
+        );
 
         address staker = msg.sender;
         uint16 initialEpoch = _currentEpoch() + 1;
@@ -85,7 +106,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         _deleteStake(stakeId);
 
         // create new stakes
-        newStakeId1 = _createStake(staker, originalInitialEpoch, originalAmount - uint104(amount), originalRemainingLockup);
+        newStakeId1 = _createStake(
+            staker, originalInitialEpoch, originalAmount - uint104(amount), originalRemainingLockup
+        );
         newStakeId2 = _createStake(staker, originalInitialEpoch, uint104(amount), originalRemainingLockup);
 
         // emit event
@@ -144,14 +167,17 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @param additionalAmount Amount of PWN tokens to increase the stake by.
     /// @param additionalEpochs Number of epochs to add to exisitng stake lockup.
     /// @return newStakeId Id of the new stake.
-    function increaseStake(uint256 stakeId, uint256 additionalAmount, uint256 additionalEpochs) external returns (uint256 newStakeId) {
+    function increaseStake(
+        uint256 stakeId, uint256 additionalAmount, uint256 additionalEpochs
+    ) external returns (uint256 newStakeId) {
         Stake storage stake = stakes[stakeId];
         address staker = msg.sender;
 
         require(stakedPWN.ownerOf(stakeId) == staker, "vePWN: caller is not the stake owner");
         require(additionalAmount > 0 || additionalEpochs > 0, "vePWN: nothing to increase");
         require(additionalAmount <= type(uint88).max, "vePWN: staked amount out of bounds");
-        require(additionalAmount % 100 == 0, "vePWN: staked amount must be a multiple of 100"); // to prevent rounding errors when computing power
+        // to prevent rounding errors when computing power
+        require(additionalAmount % 100 == 0, "vePWN: staked amount must be a multiple of 100");
         require(additionalEpochs <= 10 * EPOCHS_IN_PERIOD, "vePWN: additional epochs out of bounds");
 
         uint16 newInitialEpoch = _currentEpoch() + 1;
@@ -161,7 +187,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         );
         // extended lockup must be in <1; 5> + {10} years
         require(newRemainingLockup >= EPOCHS_IN_PERIOD, "vePWN: invalid lock up period range");
-        require(newRemainingLockup <= 5 * EPOCHS_IN_PERIOD || newRemainingLockup == 10 * EPOCHS_IN_PERIOD, "vePWN: invalid lock up period range");
+        require(
+            newRemainingLockup <= 5 * EPOCHS_IN_PERIOD || newRemainingLockup == 10 * EPOCHS_IN_PERIOD,
+            "vePWN: invalid lock up period range"
+        );
 
         uint104 oldAmount = stake.amount;
         uint104 newAmount = oldAmount + uint104(additionalAmount); // safe cast
@@ -208,7 +237,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         address staker = msg.sender;
 
         require(stakedPWN.ownerOf(stakeId) == staker, "vePWN: caller is not the stake owner");
-        require(stake.initialEpoch + stake.remainingLockup <= _currentEpoch(), "vePWN: staker cannot withdraw before lockup period");
+        require(
+            stake.initialEpoch + stake.remainingLockup <= _currentEpoch(),
+            "vePWN: staker cannot withdraw before lockup period"
+        );
 
         // delete data before external call
         uint256 amount = uint256(stake.amount);
@@ -277,7 +309,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     |*----------------------------------------------------------*/
 
     /// @dev Store stake data, mint stPWN token and return new stake id
-    function _createStake(address staker, uint16 initialEpoch, uint104 amount, uint8 remainingLockup) internal returns (uint256 newStakeId) {
+    function _createStake(
+        address staker, uint16 initialEpoch, uint104 amount, uint8 remainingLockup
+    ) internal returns (uint256 newStakeId) {
         newStakeId = ++lastStakeId;
         Stake storage stake = stakes[newStakeId];
         stake.initialEpoch = initialEpoch;
@@ -293,7 +327,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         stakedPWN.burn(stakeId);
     }
 
-    function _updatePowerChanges(address staker, int104 amount, uint16 powerChangeEpoch, uint8 remainingLockup, bool addition) internal {
+    function _updatePowerChanges(
+        address staker, int104 amount, uint16 powerChangeEpoch, uint8 remainingLockup, bool addition
+    ) internal {
         int104 sign = addition ? int104(1) : -1;
         int104 powerChange = _initialPower(amount, remainingLockup);
         uint256 epochIndex = _unsafe_updateEpochPower(staker, powerChangeEpoch, 0, powerChange * sign);
@@ -310,7 +346,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// but `lowEpochIndex` can force to insert epoch at a wrong index.
     /// Use `lowEpochIndex` only if you are sure that the epoch cannot be found before the index.
     // solhint-disable-next-line func-name-mixedcase
-    function _unsafe_updateEpochPower(address staker, uint16 epoch, uint256 lowEpochIndex, int104 power) internal returns (uint256 epochIndex) {
+    function _unsafe_updateEpochPower(
+        address staker, uint16 epoch, uint256 lowEpochIndex, int104 power
+    ) internal returns (uint256 epochIndex) {
         // update total epoch power
         _totalPowerNamespace().updateEpochPower(epoch, power);
 
@@ -331,7 +369,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     }
 
     /// @dev `remainingLockup` must be > 0
-    function _nextEpochAndRemainingLockup(int104 amount, uint16 epoch, uint8 remainingLockup) internal pure returns (int104, uint16, uint8) {
+    function _nextEpochAndRemainingLockup(
+        int104 amount, uint16 epoch, uint8 remainingLockup
+    ) internal pure returns (int104, uint16, uint8) {
         uint8 nextPowerChangeEpochDelta;
         if (remainingLockup > 5 * EPOCHS_IN_PERIOD) {
             nextPowerChangeEpochDelta = remainingLockup - (5 * EPOCHS_IN_PERIOD);
