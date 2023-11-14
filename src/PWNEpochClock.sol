@@ -8,7 +8,7 @@ contract PWNEpochClock {
     // - timestamps prior to `INITIAL_EPOCH_TIMESTAMP` are considered to be in epoch 0
 
 
-    uint256 public constant SECONDS_IN_EPOCH = 2_419_200; // 4 weeks
+    uint256 public constant EPOCH_IN_SECONDS = 2_419_200; // 4 weeks
     uint256 public immutable INITIAL_EPOCH_TIMESTAMP;
 
 
@@ -46,7 +46,7 @@ contract PWNEpochClock {
     function _epochFor(uint256 timestamp) internal view returns (uint256) {
         // timestamps prior to `INITIAL_EPOCH_TIMESTAMP` are considered to be in epoch 0
         if (timestamp < INITIAL_EPOCH_TIMESTAMP) return 0;
-        return (timestamp - INITIAL_EPOCH_TIMESTAMP) / SECONDS_IN_EPOCH + 1;
+        return (timestamp - INITIAL_EPOCH_TIMESTAMP) / EPOCH_IN_SECONDS + 1;
     }
 
 }

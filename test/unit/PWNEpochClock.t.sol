@@ -79,13 +79,13 @@ contract PWNEpochClock_Epoch_Test is PWNEpochClockTest {
 
         vm.warp(timestamp);
 
-        uint256 epoch = (timestamp - initialTimestamp) / clock.SECONDS_IN_EPOCH() + 1;
+        uint256 epoch = (timestamp - initialTimestamp) / clock.EPOCH_IN_SECONDS() + 1;
         assertEq(clock.currentEpoch(), epoch);
     }
 
     function testFuzz_epochFor_shouldReturnCorrectEpoch_whenTimestampAfterInitialTimestamp(uint256 timestamp) external {
         timestamp = bound(timestamp, initialTimestamp, type(uint256).max);
-        uint256 epoch = (timestamp - initialTimestamp) / clock.SECONDS_IN_EPOCH() + 1;
+        uint256 epoch = (timestamp - initialTimestamp) / clock.EPOCH_IN_SECONDS() + 1;
         assertTrue(epoch > 0);
         assertEq(clock.epochFor(timestamp), epoch);
     }
