@@ -13,6 +13,7 @@ contract PWNEpochClock {
 
 
     constructor(uint256 initialEpochTimestamp) {
+        require(initialEpochTimestamp <= block.timestamp, "PWNEpochClock: initial epoch timestamp is in the future");
         INITIAL_EPOCH_TIMESTAMP = initialEpochTimestamp;
     }
 

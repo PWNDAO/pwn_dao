@@ -13,6 +13,7 @@ abstract contract PWNEpochClockTest is Test {
 
     function setUp() external {
         initialTimestamp = 123456;
+        vm.warp(initialTimestamp);
         clock = new PWNEpochClock(initialTimestamp);
     }
 
@@ -25,7 +26,20 @@ abstract contract PWNEpochClockTest is Test {
 
 contract PWNEpochClock_Constructor_Test is PWNEpochClockTest {
 
+    function testFuzz_shouldFail_whenInitialEpochTimestampIsInTheFuture(
+        uint256 initialEpochTimestamp, uint256 currentTimestamp
+    ) external {
+        currentTimestamp = bound(currentTimestamp, 0, type(uint256).max - 1);
+        initialEpochTimestamp = bound(initialEpochTimestamp, currentTimestamp + 1, type(uint256).max);
+        vm.warp(currentTimestamp);
+
+        vm.expectRevert("PWNEpochClock: initial epoch timestamp is in the future");
+        new PWNEpochClock(initialEpochTimestamp);
+    }
+
     function testFuzz_shouldSetInitialEpoch(uint256 initialEpochTimestamp) external {
+        vm.warp(initialEpochTimestamp);
+
         clock = new PWNEpochClock(initialEpochTimestamp);
 
         assertEq(clock.INITIAL_EPOCH_TIMESTAMP(), initialEpochTimestamp);
