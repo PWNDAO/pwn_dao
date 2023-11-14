@@ -46,7 +46,7 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
             return 0;
 
         bytes32 stakerNamespace = _stakerPowerNamespace(staker);
-        EpochWithPosition storage lastCalculatedEpoch = lastCalculatedStakerEpoch[staker];
+        EpochWithPosition storage lastCalculatedEpoch = _lastCalculatedStakerEpoch[staker];
         uint16 lcEpoch = lastCalculatedEpoch.epoch;
         uint16 lcIndex = lastCalculatedEpoch.index;
         if (lcEpoch == _epoch) {
@@ -87,7 +87,7 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
         // for voting purposes where `lastCalculatedEpoch` is up to date
         require(epoch < epochClock.currentEpoch(), "vePWN: epoch hasn't ended yet");
 
-        EpochWithPosition storage lastCalculatedEpoch = lastCalculatedStakerEpoch[staker];
+        EpochWithPosition storage lastCalculatedEpoch = _lastCalculatedStakerEpoch[staker];
         // set last calculated epoch as first epoch if necessary
         if (lastCalculatedEpoch.epoch == 0)
             lastCalculatedEpoch.epoch = _powerChangeEpochs[0];

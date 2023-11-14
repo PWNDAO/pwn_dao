@@ -68,17 +68,17 @@ abstract contract VoteEscrowedPWNTest is BasePWNTest {
         int104 powerChange;
     }
 
-    function _createPowerChangesArray(uint256 _amount, uint256 _lockUpEpochs) internal returns (TestPowerChangeEpoch[] memory) {
-        return _createPowerChangesArray(uint16(currentEpoch + 1), _amount, _lockUpEpochs);
+    function _createPowerChangesArray(uint256 _lockUpEpochs, uint256 _amount) internal returns (TestPowerChangeEpoch[] memory) {
+        return _createPowerChangesArray(uint16(currentEpoch + 1), _lockUpEpochs, _amount);
     }
 
-    function _createPowerChangesArray(uint16 _initialEpoch, uint256 _amount, uint256 _lockUpEpochs) internal returns (TestPowerChangeEpoch[] memory) {
-        return _createPowerChangesArray(_initialEpoch, type(uint16).max, _amount, _lockUpEpochs);
+    function _createPowerChangesArray(uint16 _initialEpoch, uint256 _lockUpEpochs, uint256 _amount) internal returns (TestPowerChangeEpoch[] memory) {
+        return _createPowerChangesArray(_initialEpoch, type(uint16).max, _lockUpEpochs, _amount);
     }
 
     TestPowerChangeEpoch[] private helper_powerChanges;
     function _createPowerChangesArray(
-        uint16 _initialEpoch, uint16 _finalEpoch, uint256 _amount, uint256 _lockUpEpochs
+        uint16 _initialEpoch, uint16 _finalEpoch, uint256 _lockUpEpochs, uint256 _amount
     ) internal returns (TestPowerChangeEpoch[] memory) {
         if (_initialEpoch >= _finalEpoch)
             return new TestPowerChangeEpoch[](0);
@@ -133,8 +133,8 @@ abstract contract VoteEscrowedPWNTest is BasePWNTest {
         return array;
     }
 
-    function _storeStake(uint256 _stakeId, uint16 _initialEpoch, uint104 _amount, uint8 _remainingLockup) internal {
-        bytes memory rawStakeData = abi.encodePacked(uint128(0), _remainingLockup, _amount, _initialEpoch);
+    function _storeStake(uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount) internal {
+        bytes memory rawStakeData = abi.encodePacked(uint128(0), _amount, _remainingLockup, _initialEpoch);
         vm.store(
             address(vePWN), STAKES_SLOT.withMappingKey(_stakeId), abi.decode(rawStakeData, (bytes32))
         );
@@ -169,15 +169,15 @@ abstract contract VoteEscrowedPWNTest is BasePWNTest {
     }
 
     function _mockStake(
-        address _staker, uint256 _stakeId, uint16 _initialEpoch, uint104 _amount, uint8 _remainingLockup
+        address _staker, uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount
     ) internal returns (TestPowerChangeEpoch[] memory) {
         vm.mockCall(
             address(stakedPWN),
             abi.encodeWithSignature("ownerOf(uint256)", _stakeId),
             abi.encode(_staker)
         );
-        _storeStake(_stakeId, _initialEpoch, _amount, _remainingLockup);
-        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(_initialEpoch, _amount, _remainingLockup);
+        _storeStake(_stakeId, _initialEpoch, _remainingLockup, _amount);
+        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(_initialEpoch, _remainingLockup, _amount);
         _storePowerChanges(_staker, powerChanges);
         return powerChanges;
     }
@@ -231,19 +231,19 @@ abstract contract VoteEscrowedPWNTest is BasePWNTest {
 
 contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWNTest {
 
-    function testFuzzHelper_storeStake(uint256 _stakeId, uint16 _initialEpoch, uint104 _amount, uint8 _remainingLockup) external {
-        _storeStake(_stakeId, _initialEpoch, _amount, _remainingLockup);
+    function testFuzzHelper_storeStake(uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount) external {
+        _storeStake(_stakeId, _initialEpoch, _remainingLockup, _amount);
 
-        (uint16 initialEpoch, uint104 amount, uint8 remainingLockup) = vePWN.stakes(_stakeId);
+        (uint16 initialEpoch, uint8 remainingLockup, uint104 amount) = vePWN.stakes(_stakeId);
         assertEq(_initialEpoch, initialEpoch);
-        assertEq(_amount, amount);
         assertEq(_remainingLockup, remainingLockup);
+        assertEq(_amount, amount);
     }
 
     function testFuzzHelper_storePowerChanges(address _staker, uint88 _amount, uint8 _lockUpEpochs) external {
         _amount = uint88(bound(_amount, 1, type(uint88).max));
         _lockUpEpochs = _boundLockUpEpochs(_lockUpEpochs);
-        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(_amount, _lockUpEpochs);
+        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(_lockUpEpochs, _amount);
         _storePowerChanges(_staker, powerChanges);
 
         for (uint256 i; i < powerChanges.length; ++i) {

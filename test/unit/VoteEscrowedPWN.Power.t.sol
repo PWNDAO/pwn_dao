@@ -285,8 +285,7 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
         );
         assertEq(lastCalculatedEpochValue.maskUint16(0), powerChanges[index].epoch);
         assertEq(lastCalculatedEpochValue.maskUint16(16), uint16(index));
-        (uint16 lastCalculatedStakerEpoch, ) = vePWN.lastCalculatedStakerEpoch(staker);
-        assertEq(lastCalculatedStakerEpoch, powerChanges[index].epoch);
+        assertEq(vePWN.lastCalculatedStakerEpoch(staker), uint256(powerChanges[index].epoch));
     }
 
     function testFuzz_shouldEmit_StakerPowerCalculated(uint256 seed, uint256 index, uint256 epoch) external {

@@ -33,8 +33,8 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
     // StakedPWN data
     struct Stake {
         uint16 initialEpoch;
-        uint104 amount;
         uint8 remainingLockup;
+        uint104 amount;
         // uint128 __padding;
     }
     mapping (uint256 stakeId => Stake) public stakes;
@@ -73,8 +73,11 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
         uint16 index;
         // uint224 __padding;
     }
-    // lastCalculatedStakerEpoch.epoch < current epoch
-    mapping (address staker => EpochWithPosition) public lastCalculatedStakerEpoch; // TODO: return only epoch, not index
+    mapping (address staker => EpochWithPosition) internal _lastCalculatedStakerEpoch;
+    function lastCalculatedStakerEpoch(address staker) public view returns (uint256) {
+        return uint256(_lastCalculatedStakerEpoch[staker].epoch);
+    }
+
     uint256 public lastCalculatedTotalPowerEpoch;
 
 
