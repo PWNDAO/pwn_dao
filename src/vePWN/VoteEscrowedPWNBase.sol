@@ -105,27 +105,15 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
 
 
     /*----------------------------------------------------------*|
-    |*  # POWER CHANGE GETTER                                   *|
-    |*----------------------------------------------------------*/
-
-    function _powerChangeFor(address staker, uint256 epoch) internal pure returns (PowerChange storage pch) {
-        uint256 stakerNamespace = uint256(keccak256(abi.encode(staker, STAKERS_NAMESPACE)));
-        bytes32 slot = bytes32(stakerNamespace + epoch);
-        // solhint-disable-next-line no-inline-assembly
-        assembly { pch.slot := slot }
-    }
-
-
-    /*----------------------------------------------------------*|
     |*  # POWER FUNCTION PLACEHOLDERS                           *|
     |*----------------------------------------------------------*/
 
     function stakerPower(address, uint256) virtual public view returns (uint256) {
-        revert("vePWN: not implemented");
+        revert("vePWN: must be overriden");
     }
 
     function totalPowerAt(uint256) virtual public view returns (uint256) {
-        revert("vePWN: not implemented");
+        revert("vePWN: must be overriden");
     }
 
 }

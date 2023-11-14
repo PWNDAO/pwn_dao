@@ -6,11 +6,16 @@ import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
 
 contract VoteEscrowedPWNRevenue is VoteEscrowedPWNBase {
 
-    // # Invariants
-    // - `daoRevenuePortion` is sorted in ascending order without duplicates
-    // - `daoRevenuePortion.initialEpoch` cannot be more than current epoch + 1
+    /*----------------------------------------------------------*|
+    |*  # EVENTS                                                *|
+    |*----------------------------------------------------------*/
 
     event DaoRevenuePortionChanged(uint256 indexed epoch, uint16 oldValue, uint16 newValue);
+
+
+    /*----------------------------------------------------------*|
+    |*  # MODIFIERS                                             *|
+    |*----------------------------------------------------------*/
 
     modifier checkClaimableEpoch(uint256 epoch) {
         require(epoch < epochClock.currentEpoch(), "vePWN: epoch not finished");

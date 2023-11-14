@@ -4,28 +4,13 @@ pragma solidity 0.8.18;
 import { SafeCast } from "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 
 import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
-import { PowerChangeEpochsLib } from "../libs/PowerChangeEpochsLib.sol";
+import { EpochPowerLib } from "../lib/EpochPowerLib.sol";
+import { PowerChangeEpochsLib } from "../lib/PowerChangeEpochsLib.sol";
 
 
 contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
+    using EpochPowerLib for bytes32;
     using PowerChangeEpochsLib for uint16[];
-
-    // - `lastCalculatedStakerEpoch` is 0 if there where never any stakes
-    // - `lastCalculatedStakerEpoch.value` < current epoch (to have a low index when looking up `currect epoch - 1`)
-    // - address without stake has empty `powerChangeEpochs`
-    // - `powerChangeEpochs` is always sorted in ascending order without duplicates
-    // - `initialEpoch` is always > 0
-    // - `remainingLockup` is always > 0
-    // - sum of all address power changes == 0
-    // - for every stake, there has to be 1:1 stPWN token
-
-    // max stake ≈ 7e28 < max int104 (1e31)
-    //  - total initial supply with decimals (1e26)
-    //  - max multiplier with decimals (350)
-    //  - 350 max inflation claims (2)
-    // epoch number for the next 5.4k years < max uint16 (65535)
-    // max epoch lock up number 130 < max uint8 (255)
-
 
     /*----------------------------------------------------------*|
     |*  # EVENTS                                                *|
@@ -310,46 +295,32 @@ contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
     function _updatePowerChanges(address staker, int104 amount, uint16 powerChangeEpoch, uint8 remainingLockup, bool addition) internal {
         int104 sign = addition ? int104(1) : -1;
-        int104 powerChange = _initialEpochPower(amount, remainingLockup);
-        uint256 epochIndex = _unsafe_updatePowerChangeEpoch(staker, powerChangeEpoch, 0, powerChange * sign);
+        int104 powerChange = _initialPower(amount, remainingLockup);
+        uint256 epochIndex = _unsafe_updateEpochPower(staker, powerChangeEpoch, 0, powerChange * sign);
         do {
             (powerChange, powerChangeEpoch, remainingLockup) =
-                _nextPowerChangeAndRemainingLockup(amount, powerChangeEpoch, remainingLockup);
-            epochIndex = _unsafe_updatePowerChangeEpoch(staker, powerChangeEpoch, epochIndex, powerChange * sign);
+                _nextEpochAndRemainingLockup(amount, powerChangeEpoch, remainingLockup);
+            epochIndex = _unsafe_updateEpochPower(staker, powerChangeEpoch, epochIndex, powerChange * sign);
         } while (remainingLockup > 0);
     }
 
-    /// @dev `remainingLockup` must be > 0
-    function _nextPowerChangeAndRemainingLockup(int104 amount, uint16 epoch, uint8 remainingLockup) internal pure returns (int104, uint16, uint8) {
-        uint8 nextPowerChangeEpochDelta;
-        if (remainingLockup > 5 * EPOCHS_IN_PERIOD) {
-            nextPowerChangeEpochDelta = remainingLockup - (5 * EPOCHS_IN_PERIOD);
-        } else {
-            nextPowerChangeEpochDelta = remainingLockup % EPOCHS_IN_PERIOD;
-            nextPowerChangeEpochDelta = nextPowerChangeEpochDelta == 0 ? EPOCHS_IN_PERIOD : nextPowerChangeEpochDelta;
-        }
-
-        return (
-            _remainingEpochsDecreasePower(amount, remainingLockup - nextPowerChangeEpochDelta),
-            epoch + nextPowerChangeEpochDelta,
-            remainingLockup - nextPowerChangeEpochDelta
-        );
-    }
 
     /// @dev Updates power change for a staker at an epoch and add/remove epoch from `powerChangeEpochs`.
     /// WARNING: `powerChangeEpochs` should be sorted in ascending order without duplicates,
     /// but `lowEpochIndex` can force to insert epoch at a wrong index.
     /// Use `lowEpochIndex` only if you are sure that the epoch cannot be found before the index.
     // solhint-disable-next-line func-name-mixedcase
-    function _unsafe_updatePowerChangeEpoch(address staker, uint16 epoch, uint256 lowEpochIndex, int104 power) internal returns (uint256 epochIndex) {
-        // update epoch power
-        PowerChange storage powerChange = _powerChangeFor(staker, epoch);
-        powerChange.power += power;
+    function _unsafe_updateEpochPower(address staker, uint16 epoch, uint256 lowEpochIndex, int104 power) internal returns (uint256 epochIndex) {
+        // update total epoch power
+        _totalPowerNamespace().updateEpochPower(epoch, power);
+
+        // update staker epoch power
+        bytes32 stakerNamespace = _stakerPowerNamespace(staker);
+        stakerNamespace.updateEpochPower(epoch, power);
 
         uint16[] storage stakersPowerChangeEpochs = powerChangeEpochs[staker];
-
-        // update epoch index
-        bool epochWithPowerChange = powerChange.power != 0;
+        // update stakers power changes epochs
+        bool epochWithPowerChange = stakerNamespace.getEpochPower(epoch) != 0;
         epochIndex = stakersPowerChangeEpochs.findIndex(epoch, lowEpochIndex);
         bool indexFound = epochIndex < stakersPowerChangeEpochs.length && stakersPowerChangeEpochs[epochIndex] == epoch;
 
@@ -359,22 +330,39 @@ contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             stakersPowerChangeEpochs.removeEpoch(epochIndex);
     }
 
-    function _initialEpochPower(int104 amount, uint8 epochs) internal pure returns (int104) {
-        if (epochs <= EPOCHS_IN_PERIOD) return amount;
-        else if (epochs <= EPOCHS_IN_PERIOD * 2) return amount * 115 / 100;
-        else if (epochs <= EPOCHS_IN_PERIOD * 3) return amount * 130 / 100;
-        else if (epochs <= EPOCHS_IN_PERIOD * 4) return amount * 150 / 100;
-        else if (epochs <= EPOCHS_IN_PERIOD * 5) return amount * 175 / 100;
+    /// @dev `remainingLockup` must be > 0
+    function _nextEpochAndRemainingLockup(int104 amount, uint16 epoch, uint8 remainingLockup) internal pure returns (int104, uint16, uint8) {
+        uint8 nextPowerChangeEpochDelta;
+        if (remainingLockup > 5 * EPOCHS_IN_PERIOD) {
+            nextPowerChangeEpochDelta = remainingLockup - (5 * EPOCHS_IN_PERIOD);
+        } else {
+            nextPowerChangeEpochDelta = remainingLockup % EPOCHS_IN_PERIOD;
+            nextPowerChangeEpochDelta = nextPowerChangeEpochDelta == 0 ? EPOCHS_IN_PERIOD : nextPowerChangeEpochDelta;
+        }
+
+        return (
+            _decreasePower(amount, remainingLockup - nextPowerChangeEpochDelta),
+            epoch + nextPowerChangeEpochDelta,
+            remainingLockup - nextPowerChangeEpochDelta
+        );
+    }
+
+    function _initialPower(int104 amount, uint8 remainingLockup) internal pure returns (int104) {
+        if (remainingLockup <= EPOCHS_IN_PERIOD) return amount;
+        else if (remainingLockup <= EPOCHS_IN_PERIOD * 2) return amount * 115 / 100;
+        else if (remainingLockup <= EPOCHS_IN_PERIOD * 3) return amount * 130 / 100;
+        else if (remainingLockup <= EPOCHS_IN_PERIOD * 4) return amount * 150 / 100;
+        else if (remainingLockup <= EPOCHS_IN_PERIOD * 5) return amount * 175 / 100;
         else return amount * 350 / 100;
     }
 
-    function _remainingEpochsDecreasePower(int104 amount, uint8 epochs) internal pure returns (int104) {
-        if (epochs == 0) return -amount; // Final power loss
-        else if (epochs <= EPOCHS_IN_PERIOD) return -amount * 15 / 100;
-        else if (epochs <= EPOCHS_IN_PERIOD * 2) return -amount * 15 / 100;
-        else if (epochs <= EPOCHS_IN_PERIOD * 3) return -amount * 20 / 100;
-        else if (epochs <= EPOCHS_IN_PERIOD * 4) return -amount * 25 / 100;
-        else if (epochs <= EPOCHS_IN_PERIOD * 5) return -amount * 175 / 100;
+    function _decreasePower(int104 amount, uint8 remainingLockup) internal pure returns (int104) {
+        if (remainingLockup == 0) return -amount; // Final power loss
+        else if (remainingLockup <= EPOCHS_IN_PERIOD) return -amount * 15 / 100;
+        else if (remainingLockup <= EPOCHS_IN_PERIOD * 2) return -amount * 15 / 100;
+        else if (remainingLockup <= EPOCHS_IN_PERIOD * 3) return -amount * 20 / 100;
+        else if (remainingLockup <= EPOCHS_IN_PERIOD * 4) return -amount * 25 / 100;
+        else if (remainingLockup <= EPOCHS_IN_PERIOD * 5) return -amount * 175 / 100;
         else return 0;
     }
 
