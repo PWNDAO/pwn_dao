@@ -5,110 +5,11 @@ import "forge-std/Test.sol";
 
 import { VoteEscrowedPWN } from "../../src/VoteEscrowedPWN.sol";
 
-import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
-import { BasePWNTest } from "../BasePWNTest.t.sol";
+import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
+import { VoteEscrowedPWNTest } from "./VoteEscrowedPWNTest.t.sol";
 
 
-contract VoteEscrowedPWN_BaseExposed is VoteEscrowedPWN {
-
-    function exposed_powerChangeFor(address staker, uint256 epoch) external pure returns (PowerChange memory pch) {
-        return _powerChangeFor(staker, epoch);
-    }
-
-    struct StakerPowerInput {
-        address staker;
-        uint256 epoch;
-    }
-    StakerPowerInput public stakerPowerInput;
-    uint256 public stakerPowerReturn;
-    function stakerPower(address staker, uint256 epoch) virtual public view override returns (uint256) {
-        require(stakerPowerInput.staker == staker, "stakerPower: staker");
-        require(stakerPowerInput.epoch == epoch, "stakerPower: epoch");
-        return stakerPowerReturn;
-    }
-
-    struct TotalPowerAtInput {
-        uint256 epoch;
-    }
-    TotalPowerAtInput public totalPowerAtInput;
-    uint256 public totalPowerAtReturn;
-    function totalPowerAt(uint256 epoch) virtual public view override returns (uint256) {
-        require(totalPowerAtInput.epoch == epoch, "totalPowerAt: epoch");
-        return totalPowerAtReturn;
-    }
-
-
-    // setters
-
-    function _setStakerPowerInput(StakerPowerInput memory input) external {
-        stakerPowerInput = input;
-    }
-
-    function _setStakerPowerReturn(uint256 value) external {
-        stakerPowerReturn = value;
-    }
-
-    function _setTotalPowerAtInput(TotalPowerAtInput memory input) external {
-        totalPowerAtInput = input;
-    }
-
-    function _setTotalPowerAtReturn(uint256 value) external {
-        totalPowerAtReturn = value;
-    }
-
-}
-
-abstract contract VoteEscrowedPWN_Base_Test is BasePWNTest {
-
-    bytes32 public constant STAKERS_NAMESPACE = bytes32(uint256(keccak256("vePWN.stakers_namespace")) - 1);
-
-    VoteEscrowedPWN_BaseExposed public vePWN;
-
-    address public pwnToken = makeAddr("pwnToken");
-    address public stakedPWN = makeAddr("stakedPWN");
-    address public epochClock = makeAddr("epochClock");
-    address public feeCollector = makeAddr("feeCollector");
-    address public owner = makeAddr("owner");
-
-    uint256 public currentEpoch = 420;
-
-    function setUp() public virtual {
-        vm.mockCall(
-            epochClock,
-            abi.encodeWithSignature("currentEpoch()"),
-            abi.encode(currentEpoch)
-        );
-
-        vePWN = new VoteEscrowedPWN_BaseExposed();
-        vePWN.initialize({
-            _pwnToken: pwnToken,
-            _stakedPWN: stakedPWN,
-            _epochClock: epochClock,
-            _feeCollector: feeCollector,
-            _owner: owner
-        });
-    }
-
-}
-
-
-/*----------------------------------------------------------*|
-|*  # EXPOSED FUNCTIONS                                     *|
-|*----------------------------------------------------------*/
-
-contract VoteEscrowedPWN_Base_Exposed_Test is VoteEscrowedPWN_Base_Test {
-    using SlotComputingLib for bytes32;
-
-    function testFuzz_shouldReturnCorrectPowerChange(address staker, uint256 epoch, int104 power) external {
-        epoch = bound(epoch, 0, type(uint16).max);
-        vm.store(
-            address(vePWN),
-            STAKERS_NAMESPACE.withMappingKey(staker).withArrayIndex(epoch),
-            bytes32(uint256(uint104(power)))
-        );
-
-        assertEq(vePWN.exposed_powerChangeFor(staker, epoch).power, power);
-    }
+abstract contract VoteEscrowedPWN_Base_Test is VoteEscrowedPWNTest {
 
 }
 
@@ -126,7 +27,7 @@ contract VoteEscrowedPWN_Base_IERC20_Test is VoteEscrowedPWN_Base_Test {
     }
 
     function testFuzz_shouldReturnTotalPower_forTotalSupply(uint256 _totalSupply) external {
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWN_BaseExposed.TotalPowerAtInput({ epoch: currentEpoch }));
+        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput({ epoch: currentEpoch }));
         vePWN._setTotalPowerAtReturn(_totalSupply);
 
         uint256 totalSupply = vePWN.totalSupply();
@@ -135,7 +36,7 @@ contract VoteEscrowedPWN_Base_IERC20_Test is VoteEscrowedPWN_Base_Test {
     }
 
     function testFuzz_shouldReturnStakerPower_forBalanceOf(address holder, uint256 power) external {
-        vePWN._setStakerPowerInput(VoteEscrowedPWN_BaseExposed.StakerPowerInput({ staker: holder, epoch: currentEpoch }));
+        vePWN._setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput({ staker: holder, epoch: currentEpoch }));
         vePWN._setStakerPowerReturn(power);
 
         uint256 balance = vePWN.balanceOf(holder);
@@ -171,7 +72,7 @@ contract VoteEscrowedPWN_Base_IERC20_Test is VoteEscrowedPWN_Base_Test {
 contract VoteEscrowedPWN_Base_Votes_Test is VoteEscrowedPWN_Base_Test {
 
     function testFuzz_shouldReturnStakerPower_forGetVotes(address voter, uint256 power) external {
-        vePWN._setStakerPowerInput(VoteEscrowedPWN_BaseExposed.StakerPowerInput({ staker: voter, epoch: currentEpoch }));
+        vePWN._setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput({ staker: voter, epoch: currentEpoch }));
         vePWN._setStakerPowerReturn(power);
 
         uint256 votes = vePWN.getVotes(voter);
@@ -183,7 +84,7 @@ contract VoteEscrowedPWN_Base_Votes_Test is VoteEscrowedPWN_Base_Test {
         vm.expectCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint));
         vm.mockCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint), abi.encode(epoch));
 
-        vePWN._setStakerPowerInput(VoteEscrowedPWN_BaseExposed.StakerPowerInput({ staker: voter, epoch: epoch }));
+        vePWN._setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput({ staker: voter, epoch: epoch }));
         vePWN._setStakerPowerReturn(power);
 
         uint256 votes = vePWN.getPastVotes(voter, timepoint);
@@ -195,7 +96,7 @@ contract VoteEscrowedPWN_Base_Votes_Test is VoteEscrowedPWN_Base_Test {
         vm.expectCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint));
         vm.mockCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint), abi.encode(epoch));
 
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWN_BaseExposed.TotalPowerAtInput({ epoch: epoch }));
+        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput({ epoch: epoch }));
         vePWN._setTotalPowerAtReturn(_totalSupply);
 
         uint256 totalSupply = vePWN.getPastTotalSupply(timepoint);

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import {Ownable2Step} from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
-import {IGovernor} from "openzeppelin-contracts/contracts/governance/IGovernor.sol";
-import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
+import { IGovernor } from "openzeppelin-contracts/contracts/governance/IGovernor.sol";
+import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 
-import {PWNEpochClock} from "./PWNEpochClock.sol";
-import {PWNGovernor} from "./PWNGovernor.sol";
+import { PWNEpochClock } from "./PWNEpochClock.sol";
+import { PWNGovernor } from "./PWNGovernor.sol";
 
 
 contract PWN is Ownable2Step, ERC20 {

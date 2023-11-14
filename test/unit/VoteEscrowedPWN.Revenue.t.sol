@@ -5,109 +5,12 @@ import "forge-std/Test.sol";
 
 import { VoteEscrowedPWN } from "../../src/VoteEscrowedPWN.sol";
 
+import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
-import { BasePWNTest } from "../BasePWNTest.t.sol";
+import { VoteEscrowedPWNTest } from "./VoteEscrowedPWNTest.t.sol";
 
 
-contract VoteEscrowedPWN_RevenueExposed is VoteEscrowedPWN {
-
-    function workaround_pushDaoRevenuePortionCheckpoint(uint16 initialEpoch, uint16 portion) external {
-        daoRevenuePortion.push(PortionCheckpoint(initialEpoch, portion));
-    }
-
-    function workaround_getDaoRevenuePortionCheckpointAt(uint256 index) external returns (PortionCheckpoint memory) {
-        return daoRevenuePortion[index];
-    }
-
-    function workaround_clearDaoRevenuePortionCheckpoints() external {
-        delete daoRevenuePortion;
-    }
-
-    function workaround_getDaoRevenuePortionCheckpointsLength() external view returns (uint256) {
-        return daoRevenuePortion.length;
-    }
-
-
-    struct StakerPowerInput {
-        address staker;
-        uint256 epoch;
-    }
-    StakerPowerInput public expectedStakerPowerInput;
-    uint256 public stakerPowerReturn;
-    function stakerPower(address staker, uint256 epoch) virtual public view override returns (uint256) {
-        require(expectedStakerPowerInput.staker == staker, "stakerPower: staker");
-        require(expectedStakerPowerInput.epoch == epoch, "stakerPower: epoch");
-        return stakerPowerReturn;
-    }
-
-    struct TotalPowerAtInput {
-        uint256 epoch;
-    }
-    TotalPowerAtInput public expectedTotalPowerAtInput;
-    uint256 public totalPowerAtReturn;
-    function totalPowerAt(uint256 epoch) virtual public view override returns (uint256) {
-        require(expectedTotalPowerAtInput.epoch == epoch, "totalPowerAt: epoch");
-        return totalPowerAtReturn;
-    }
-
-
-    // setters
-
-    function _setStakerPowerInput(StakerPowerInput memory input) external {
-        expectedStakerPowerInput = input;
-    }
-
-    function _setStakerPowerReturn(uint256 value) external {
-        stakerPowerReturn = value;
-    }
-
-    function _setTotalPowerAtInput(TotalPowerAtInput memory input) external {
-        expectedTotalPowerAtInput = input;
-    }
-
-    function _setTotalPowerAtReturn(uint256 value) external {
-        totalPowerAtReturn = value;
-    }
-
-}
-
-abstract contract VoteEscrowedPWN_Revenue_Test is BasePWNTest {
-
-    bytes32 public constant LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT = bytes32(uint256(12));
-
-    VoteEscrowedPWN_RevenueExposed public vePWN;
-
-    address public pwnToken = makeAddr("pwnToken");
-    address public stakedPWN = makeAddr("stakedPWN");
-    address public epochClock = makeAddr("epochClock");
-    address public feeCollector = makeAddr("feeCollector");
-    address public owner = makeAddr("owner");
-    address public staker = makeAddr("staker");
-
-    uint256 public currentEpoch = 420;
-
-    function setUp() public virtual {
-        vm.mockCall(
-            epochClock,
-            abi.encodeWithSignature("currentEpoch()"),
-            abi.encode(currentEpoch)
-        );
-        vm.mockCall(
-            feeCollector,
-            abi.encodeWithSignature("claimFees(address,uint256,address[],uint256,uint256)"),
-            abi.encode(0)
-        );
-
-        vePWN = new VoteEscrowedPWN_RevenueExposed();
-        vePWN.initialize({
-            _pwnToken: pwnToken,
-            _stakedPWN: stakedPWN,
-            _epochClock: epochClock,
-            _feeCollector: feeCollector,
-            _owner: owner
-        });
-    }
-
+abstract contract VoteEscrowedPWN_Revenue_Test is VoteEscrowedPWNTest {
 
     function _setupDaoRevenuePortionCheckpoints(uint256 seed) internal returns (uint256) {
         return _setupDaoRevenuePortionCheckpoints(seed, type(uint16).max);
@@ -188,7 +91,7 @@ contract VoteEscrowedPWN_Revenue_ClaimRevenue_Test is VoteEscrowedPWN_Revenue_Te
     function test_shouldFail_whenTotalPowerZero() external {
         uint256 epoch = currentEpoch - 1;
         vm.store(address(vePWN), LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT, bytes32(epoch));
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWN_RevenueExposed.TotalPowerAtInput(epoch));
+        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
         vePWN._setTotalPowerAtReturn(0);
 
         vm.expectRevert("vePWN: no stakers");
@@ -208,11 +111,11 @@ contract VoteEscrowedPWN_Revenue_ClaimRevenue_Test is VoteEscrowedPWN_Revenue_Te
         vm.store(address(vePWN), LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT, bytes32(epoch));
 
         totalPower = bound(totalPower, 100, type(uint256).max / 10000);
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWN_RevenueExposed.TotalPowerAtInput(epoch));
+        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
         vePWN._setTotalPowerAtReturn(totalPower);
 
         stakerPower = bound(stakerPower, 100, totalPower);
-        vePWN._setStakerPowerInput(VoteEscrowedPWN_RevenueExposed.StakerPowerInput(caller, epoch));
+        vePWN._setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput(caller, epoch));
         vePWN._setStakerPowerReturn(stakerPower);
 
         daoRevenuePortion = bound(daoRevenuePortion, 0, 10000);
@@ -279,7 +182,7 @@ contract VoteEscrowedPWN_Revenue_ClaimDaoRevenue_Test is VoteEscrowedPWN_Revenue
         vm.store(address(vePWN), LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT, bytes32(epoch));
 
         totalPower = bound(totalPower, 100, type(uint256).max / 10000);
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWN_RevenueExposed.TotalPowerAtInput(epoch));
+        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
         vePWN._setTotalPowerAtReturn(totalPower);
 
         daoRevenuePortion = bound(daoRevenuePortion, 0, 10000);
@@ -303,7 +206,7 @@ contract VoteEscrowedPWN_Revenue_ClaimDaoRevenue_Test is VoteEscrowedPWN_Revenue
         epoch = bound(epoch, 1, currentEpoch - 1);
         vm.store(address(vePWN), LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT, bytes32(epoch));
 
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWN_RevenueExposed.TotalPowerAtInput(epoch));
+        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
         vePWN._setTotalPowerAtReturn(0);
 
         vm.expectCall(
