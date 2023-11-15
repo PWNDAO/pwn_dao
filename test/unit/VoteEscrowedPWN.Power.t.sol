@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
-import { VoteEscrowedPWN } from "../../src/VoteEscrowedPWN.sol";
-
 import { BitMaskLib } from "../utils/BitMaskLib.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 import { VoteEscrowedPWNTest } from "./VoteEscrowedPWNTest.t.sol";
@@ -16,13 +12,16 @@ abstract contract VoteEscrowedPWN_Power_Test is VoteEscrowedPWNTest {
     function setUp() override virtual public {
         super.setUp();
 
-        vePWN._setMockStakerPower(false);
-        vePWN._setMockTotalPowerAt(false);
+        vePWN.workaround_setMockStakerPower(false);
+        vePWN.workaround_setMockTotalPowerAt(false);
     }
 
-    TestPowerChangeEpoch[] public powerChanges;
+    // solhint-disable-next-line var-name-mixedcase
+    TestPowerChangeEpoch[] public helper_powerChanges;
     // helper function to make sorted increasing array with no duplicates
-    function _createPowerChangeEpochs(uint256 seed, uint256 minLength) internal returns (TestPowerChangeEpoch[] memory epochs) {
+    function _createPowerChangeEpochs(
+        uint256 seed, uint256 minLength
+    ) internal returns (TestPowerChangeEpoch[] memory epochs) {
         uint256 maxLength = 100;
         seed = bound(seed, 1, type(uint256).max / 2);
         uint256 length = bound(seed, minLength, maxLength);
@@ -31,16 +30,16 @@ abstract contract VoteEscrowedPWN_Power_Test is VoteEscrowedPWNTest {
             uint256 iSeed = uint256(keccak256(abi.encode(seed + i)));
             uint256 epoch = bound(iSeed, 1, 10);
             uint256 power = bound(iSeed, 1, uint104(type(int104).max) / maxLength);
-            powerChanges.push(TestPowerChangeEpoch(uint16(epoch), int104(int256(power))));
+            helper_powerChanges.push(TestPowerChangeEpoch(uint16(epoch), int104(int256(power))));
             if (i > 0) {
                 // cannot override because max length is 100 and max value is 10
                 // => max epoch is 1000 < type(uint16).max (65535)
-                powerChanges[i].epoch += powerChanges[i - 1].epoch;
+                helper_powerChanges[i].epoch += helper_powerChanges[i - 1].epoch;
             }
         }
 
-        epochs = powerChanges;
-        delete powerChanges;
+        epochs = helper_powerChanges;
+        delete helper_powerChanges;
     }
 
     function _createPowerChangeEpochs(uint256 seed) internal returns (TestPowerChangeEpoch[] memory epochs) {
@@ -119,7 +118,9 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
     }
 
     /// forge-config: default.fuzz.runs = 512
-    function testFuzz_shouldReturnStoredPower_whenEpochIsCalculated_whenEpochIsEqulLastCalculatedEpoch(uint256 seed, uint256 lcIndex) external {
+    function testFuzz_shouldReturnStoredPower_whenEpochIsCalculated_whenEpochIsEqulLastCalculatedEpoch(
+        uint256 seed, uint256 lcIndex
+    ) external {
         TestPowerChangeEpoch[] memory powerChanges = _createPowerChangeEpochs(seed);
         _storePowerChanges(staker, powerChanges);
         uint256 lastCalculatedEpochIndex = bound(lcIndex, 0, powerChanges.length - 1);
@@ -132,7 +133,9 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
     }
 
     /// forge-config: default.fuzz.runs = 512
-    function testFuzz_shouldReturnStoredPower_whenEpochIsCalculated_whenEpochIsLessThanLastCalculatedEpoch(uint256 seed, uint256 lcIndex, uint256 index, uint256 epoch) external {
+    function testFuzz_shouldReturnStoredPower_whenEpochIsCalculated_whenEpochIsLessThanLastCalculatedEpoch(
+        uint256 seed, uint256 lcIndex, uint256 index, uint256 epoch
+    ) external {
         TestPowerChangeEpoch[] memory powerChanges = _createPowerChangeEpochs(seed, 2);
         _storePowerChanges(staker, powerChanges);
         uint256 lastCalculatedEpochIndex = bound(lcIndex, 1, powerChanges.length - 1);
@@ -153,7 +156,9 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
     }
 
     /// forge-config: default.fuzz.runs = 512
-    function testFuzz_shouldReturnComputedPower_whenEpochIsNotCalculated(uint256 seed, uint256 lcIndex, uint256 index, uint256 epoch) external {
+    function testFuzz_shouldReturnComputedPower_whenEpochIsNotCalculated(
+        uint256 seed, uint256 lcIndex, uint256 index, uint256 epoch
+    ) external {
         TestPowerChangeEpoch[] memory powerChanges = _createPowerChangeEpochs(seed, 2);
         _storePowerChanges(staker, powerChanges);
         uint256 lastCalculatedEpochIndex = bound(lcIndex, 0, powerChanges.length - 2);
@@ -203,7 +208,9 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
         vePWN.calculateStakerPowerUpTo(staker, epoch);
     }
 
-    function testFuzz_shouldFail_whenStakerPowerAlreadyCalculated(uint256 seed, uint256 lcIndex, uint256 epoch) external {
+    function testFuzz_shouldFail_whenStakerPowerAlreadyCalculated(
+        uint256 seed, uint256 lcIndex, uint256 epoch
+    ) external {
         TestPowerChangeEpoch[] memory powerChanges = _createPowerChangeEpochs(seed, 2);
         _storePowerChanges(staker, powerChanges);
         uint256 lastCalculatedEpochIndex = bound(lcIndex, 1, powerChanges.length - 1);
@@ -240,7 +247,9 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
         }
     }
 
-    function testFuzz_shouldCalculateStakingPowers_whenHasBeenCalculatedBefore(uint256 seed, uint256 index, uint256 epoch, uint256 lcIndex) external {
+    function testFuzz_shouldCalculateStakingPowers_whenHasBeenCalculatedBefore(
+        uint256 seed, uint256 index, uint256 epoch, uint256 lcIndex
+    ) external {
         TestPowerChangeEpoch[] memory powerChanges = _createPowerChangeEpochs(seed, 2);
         _storePowerChanges(staker, powerChanges);
         index = bound(index, 1, powerChanges.length - 1);
@@ -317,7 +326,9 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
 contract VoteEscrowedPWN_Power_TotalPowerAt_Test is VoteEscrowedPWN_Power_Test {
 
     /// forge-config: default.fuzz.runs = 512
-    function testFuzz_shouldReturnStoredPower_whenEpochIsCalculated(uint256 seed, uint256 lcEpoch, uint256 epoch) external {
+    function testFuzz_shouldReturnStoredPower_whenEpochIsCalculated(
+        uint256 seed, uint256 lcEpoch, uint256 epoch
+    ) external {
         // mock total power changes
         int104[] memory totalPowerChanges = _createTotalPowerChangeEpochs(seed, 2);
         for (uint256 i; i < totalPowerChanges.length; ++i)
@@ -335,7 +346,9 @@ contract VoteEscrowedPWN_Power_TotalPowerAt_Test is VoteEscrowedPWN_Power_Test {
     }
 
     /// forge-config: default.fuzz.runs = 512
-    function testFuzz_shouldReturnComputedPower_whenEpochIsNotYetCalculated(uint256 seed, uint256 lcEpoch, uint256 epoch) external {
+    function testFuzz_shouldReturnComputedPower_whenEpochIsNotYetCalculated(
+        uint256 seed, uint256 lcEpoch, uint256 epoch
+    ) external {
         // mock total power changes
         int104[] memory totalPowerChanges = _createTotalPowerChangeEpochs(seed, 2);
         for (uint256 i; i < totalPowerChanges.length; ++i)

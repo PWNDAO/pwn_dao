@@ -1,17 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
-import { VoteEscrowedPWN } from "../../src/VoteEscrowedPWN.sol";
-
 import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
 import { VoteEscrowedPWNTest } from "./VoteEscrowedPWNTest.t.sol";
 
 
-abstract contract VoteEscrowedPWN_Base_Test is VoteEscrowedPWNTest {
-
-}
+// solhint-disable-next-line no-empty-blocks
+abstract contract VoteEscrowedPWN_Base_Test is VoteEscrowedPWNTest {}
 
 
 /*----------------------------------------------------------*|
@@ -27,8 +22,8 @@ contract VoteEscrowedPWN_Base_IERC20_Test is VoteEscrowedPWN_Base_Test {
     }
 
     function testFuzz_shouldReturnTotalPower_forTotalSupply(uint256 _totalSupply) external {
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput({ epoch: currentEpoch }));
-        vePWN._setTotalPowerAtReturn(_totalSupply);
+        vePWN.workaround_setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput({ epoch: currentEpoch }));
+        vePWN.workaround_setTotalPowerAtReturn(_totalSupply);
 
         uint256 totalSupply = vePWN.totalSupply();
 
@@ -36,8 +31,10 @@ contract VoteEscrowedPWN_Base_IERC20_Test is VoteEscrowedPWN_Base_Test {
     }
 
     function testFuzz_shouldReturnStakerPower_forBalanceOf(address holder, uint256 power) external {
-        vePWN._setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput({ staker: holder, epoch: currentEpoch }));
-        vePWN._setStakerPowerReturn(power);
+        vePWN.workaround_setStakerPowerInput(
+            VoteEscrowedPWNHarness.StakerPowerInput({ staker: holder, epoch: currentEpoch })
+        );
+        vePWN.workaround_setStakerPowerReturn(power);
 
         uint256 balance = vePWN.balanceOf(holder);
 
@@ -72,32 +69,38 @@ contract VoteEscrowedPWN_Base_IERC20_Test is VoteEscrowedPWN_Base_Test {
 contract VoteEscrowedPWN_Base_Votes_Test is VoteEscrowedPWN_Base_Test {
 
     function testFuzz_shouldReturnStakerPower_forGetVotes(address voter, uint256 power) external {
-        vePWN._setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput({ staker: voter, epoch: currentEpoch }));
-        vePWN._setStakerPowerReturn(power);
+        vePWN.workaround_setStakerPowerInput(
+            VoteEscrowedPWNHarness.StakerPowerInput({ staker: voter, epoch: currentEpoch })
+        );
+        vePWN.workaround_setStakerPowerReturn(power);
 
         uint256 votes = vePWN.getVotes(voter);
 
         assertEq(votes, power);
     }
 
-    function testFuzz_shouldReturnStakerPower_forGetPastVotes(address voter, uint256 power, uint256 timepoint, uint16 epoch) external {
+    function testFuzz_shouldReturnStakerPower_forGetPastVotes(
+        address voter, uint256 power, uint256 timepoint, uint16 epoch
+    ) external {
         vm.expectCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint));
         vm.mockCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint), abi.encode(epoch));
 
-        vePWN._setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput({ staker: voter, epoch: epoch }));
-        vePWN._setStakerPowerReturn(power);
+        vePWN.workaround_setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput({ staker: voter, epoch: epoch }));
+        vePWN.workaround_setStakerPowerReturn(power);
 
         uint256 votes = vePWN.getPastVotes(voter, timepoint);
 
         assertEq(votes, power);
     }
 
-    function testFuzz_shouldReturnTotalPower_forGetPastTotalSupply(uint256 _totalSupply, uint256 timepoint, uint16 epoch) external {
+    function testFuzz_shouldReturnTotalPower_forGetPastTotalSupply(
+        uint256 _totalSupply, uint256 timepoint, uint16 epoch
+    ) external {
         vm.expectCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint));
         vm.mockCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint), abi.encode(epoch));
 
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput({ epoch: epoch }));
-        vePWN._setTotalPowerAtReturn(_totalSupply);
+        vePWN.workaround_setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput({ epoch: epoch }));
+        vePWN.workaround_setTotalPowerAtReturn(_totalSupply);
 
         uint256 totalSupply = vePWN.getPastTotalSupply(timepoint);
 

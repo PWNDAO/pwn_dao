@@ -1,21 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-
-import { PWNEpochClock } from "../../src/PWNEpochClock.sol";
-import { VoteEscrowedPWN } from "../../src/VoteEscrowedPWN.sol";
 
 import { BitMaskLib } from "../utils/BitMaskLib.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 import { VoteEscrowedPWNTest } from "./VoteEscrowedPWNTest.t.sol";
 
 
-abstract contract VoteEscrowedPWN_Stake_Test is VoteEscrowedPWNTest {
-
-}
+// solhint-disable-next-line no-empty-blocks
+abstract contract VoteEscrowedPWN_Stake_Test is VoteEscrowedPWNTest {}
 
 
 /*----------------------------------------------------------*|
@@ -246,7 +240,9 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
     uint16 public initialEpoch = 543;
     uint8 public lockUpEpochs = 13;
 
-    event StakeSplit(uint256 indexed stakeId, address indexed staker, uint256 amount, uint256 newStakeId1, uint256 newStakeId2);
+    event StakeSplit(
+        uint256 indexed stakeId, address indexed staker, uint256 amount, uint256 newStakeId1, uint256 newStakeId2
+    );
 
     function setUp() override public {
         super.setUp();
@@ -303,7 +299,9 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
     }
 
     function test_shouldNotUpdatePowerChanges() external {
-        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(initialEpoch, lockUpEpochs, uint104(amount));
+        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(
+            initialEpoch, lockUpEpochs, uint104(amount)
+        );
 
         vm.prank(staker);
         vePWN.splitStake(stakeId, amount / 3);
@@ -374,7 +372,14 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
     uint104 public amount = 1 ether;
     uint8 public remainingLockup = 30;
 
-    event StakeMerged(uint256 indexed stakeId1, uint256 indexed stakeId2, address indexed staker, uint256 amount, uint256 remainingLockup, uint256 newStakeId);
+    event StakeMerged(
+        uint256 indexed stakeId1,
+        uint256 indexed stakeId2,
+        address indexed staker,
+        uint256 amount,
+        uint256 remainingLockup,
+        uint256 newStakeId
+    );
 
 
     function test_shouldFail_whenCallerNotFirstStakeOwner() external {
@@ -422,8 +427,12 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         uint256 _amount1, uint256 _amount2
     ) external {
         uint8 maxLockup = 10 * EPOCHS_IN_PERIOD;
-        uint16 initialEpoch1 = uint16(bound(_initialEpoch1, uint16(currentEpoch + 2 - maxLockup), uint16(currentEpoch + 1)));
-        uint16 initialEpoch2 = uint16(bound(_initialEpoch2, uint16(currentEpoch + 2 - maxLockup), uint16(currentEpoch + 1)));
+        uint16 initialEpoch1 = uint16(bound(
+            _initialEpoch1, uint16(currentEpoch + 2 - maxLockup), uint16(currentEpoch + 1)
+        ));
+        uint16 initialEpoch2 = uint16(bound(
+            _initialEpoch2, uint16(currentEpoch + 2 - maxLockup), uint16(currentEpoch + 1)
+        ));
         uint8 remainingLockup1 = uint8(bound(_remainingLockup1, uint16(currentEpoch) + 2 - initialEpoch1, maxLockup));
         uint8 remainingLockup2 = uint8(bound(_remainingLockup2, 1, initialEpoch1 + remainingLockup1 - initialEpoch2));
         uint104 amount1 = uint104(_boundAmount(_amount1));
@@ -439,8 +448,12 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         );
         _storeStake(stakeId1, initialEpoch1, remainingLockup1, amount1);
         _storeStake(stakeId2, initialEpoch2, remainingLockup2, amount2);
-        TestPowerChangeEpoch[] memory powerChanges1 = _createPowerChangesArray(initialEpoch1, remainingLockup1, amount1);
-        TestPowerChangeEpoch[] memory powerChanges2 = _createPowerChangesArray(initialEpoch2, remainingLockup2, amount2);
+        TestPowerChangeEpoch[] memory powerChanges1 = _createPowerChangesArray(
+            initialEpoch1, remainingLockup1, amount1
+        );
+        TestPowerChangeEpoch[] memory powerChanges2 = _createPowerChangesArray(
+            initialEpoch2, remainingLockup2, amount2
+        );
         TestPowerChangeEpoch[] memory originalPowerChanges = _mergePowerChanges(powerChanges1, powerChanges2);
         _storePowerChanges(staker, originalPowerChanges);
 
@@ -469,7 +482,10 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
 
         for (uint256 i; i < mergedPowerChanges.length; ++i) {
             _assertEpochPowerAndPosition(staker, i, mergedPowerChanges[i].epoch, mergedPowerChanges[i].powerChange);
-            assertEq(vePWN.workaround_getTotalEpochPower(mergedPowerChanges[i].epoch), mergedPowerChanges[i].powerChange);
+            assertEq(
+                vePWN.workaround_getTotalEpochPower(mergedPowerChanges[i].epoch),
+                mergedPowerChanges[i].powerChange
+            );
         }
         _assertPowerChangesSumToZero(staker);
         _assertTotalPowerChangesSumToZero(mergedPowerChanges[mergedPowerChanges.length - 1].epoch);
@@ -492,7 +508,9 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
     }
 
     function testFuzz_shouldCreateNewStake(uint256 _remainingLockup, uint256 _amount1, uint256 _amount2) external {
-        remainingLockup = uint8(bound(_remainingLockup, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_PERIOD));
+        remainingLockup = uint8(bound(
+            _remainingLockup, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_PERIOD
+        ));
         uint104 amount1 = uint104(_boundAmount(_amount1));
         uint104 amount2 = uint104(_boundAmount(_amount2));
         _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount1);
@@ -514,7 +532,9 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
     }
 
     function testFuzz_shouldEmit_StakeMerged(uint256 _remainingLockup, uint256 _amount1, uint256 _amount2) external {
-        remainingLockup = uint8(bound(_remainingLockup, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_PERIOD));
+        remainingLockup = uint8(bound(
+            _remainingLockup, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_PERIOD
+        ));
         uint8 newRemainingLockup = remainingLockup - uint8(currentEpoch + 1 - initialEpoch);
         uint104 amount1 = uint104(_boundAmount(_amount1));
         uint104 amount2 = uint104(_boundAmount(_amount2));
@@ -547,7 +567,13 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
     uint256 public additionalAmount = 100;
     uint256 public additionalEpochs = 20;
 
-    event StakeIncreased(uint256 indexed stakeId, address indexed staker, uint256 additionalAmount, uint256 additionalEpochs, uint256 newStakeId);
+    event StakeIncreased(
+        uint256 indexed stakeId,
+        address indexed staker,
+        uint256 additionalAmount,
+        uint256 additionalEpochs,
+        uint256 newStakeId
+    );
 
     function setUp() override public {
         super.setUp();
@@ -557,7 +583,9 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         );
     }
 
-    function _boundInputs(uint8 _lockUpEpochs, uint256 _additionalAmount, uint256 _additionalEpochs) private view returns (uint8, uint256, uint256, uint8) {
+    function _boundInputs(
+        uint8 _lockUpEpochs, uint256 _additionalAmount, uint256 _additionalEpochs
+    ) private view returns (uint8, uint256, uint256, uint8) {
         uint8 lockUpEpochs_ = uint8(bound(_lockUpEpochs, 1, 130));
         uint8 remainingLockup = initialEpoch + lockUpEpochs_ <= currentEpoch
             ? 0
@@ -624,13 +652,17 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         vePWN.increaseStake(stakeId, 0, additionalEpochs);
 
         // over 5 & under 10 periods
-        additionalEpochs = bound(_additionalEpochs, 5 * EPOCHS_IN_PERIOD - remainingLockup + 1, 10 * EPOCHS_IN_PERIOD - remainingLockup - 1);
+        additionalEpochs = bound(
+            _additionalEpochs, 5 * EPOCHS_IN_PERIOD - remainingLockup + 1, 10 * EPOCHS_IN_PERIOD - remainingLockup - 1
+        );
         vm.expectRevert("vePWN: invalid lock up period range");
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, additionalEpochs);
 
         // over 10 periods
-        additionalEpochs = bound(_additionalEpochs, 10 * EPOCHS_IN_PERIOD - remainingLockup + 1, 10 * EPOCHS_IN_PERIOD);
+        additionalEpochs = bound(
+            _additionalEpochs, 10 * EPOCHS_IN_PERIOD - remainingLockup + 1, 10 * EPOCHS_IN_PERIOD
+        );
         vm.expectRevert("vePWN: invalid lock up period range");
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, additionalEpochs);
@@ -642,7 +674,9 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
     ) external {
         initialEpoch = uint16(bound(_initialEpoch, currentEpoch - 130, currentEpoch + 1));
         uint8 remainingLockup;
-        (lockUpEpochs, additionalAmount, additionalEpochs, remainingLockup) = _boundInputs(_lockUpEpochs, _additionalAmount, _additionalEpochs);
+        (lockUpEpochs, additionalAmount, additionalEpochs, remainingLockup) = _boundInputs(
+            _lockUpEpochs, _additionalAmount, _additionalEpochs
+        );
         vm.assume(additionalEpochs + additionalAmount > 0);
 
         _mockStake(staker, stakeId + 1, initialEpoch, lockUpEpochs, uint104(amount));
@@ -651,9 +685,13 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         vePWN.increaseStake(stakeId + 1, additionalAmount, additionalEpochs);
 
         // create immutable part of power changes
-        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(initialEpoch, newInitialEpoch, lockUpEpochs, amount);
+        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(
+            initialEpoch, newInitialEpoch, lockUpEpochs, amount
+        );
         powerChanges = _mergePowerChanges( // merge with increased power changes
-            powerChanges, _createPowerChangesArray(newInitialEpoch, remainingLockup + uint8(additionalEpochs), amount + additionalAmount)
+            powerChanges, _createPowerChangesArray(
+                newInitialEpoch, remainingLockup + uint8(additionalEpochs), amount + additionalAmount
+            )
         );
         // remove existing power from original stake
         if (initialEpoch <= uint16(currentEpoch) && initialEpoch + lockUpEpochs > uint16(currentEpoch)) {
@@ -674,9 +712,13 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         _assertTotalPowerChangesSumToZero(powerChanges[powerChanges.length - 1].epoch);
     }
 
-    function testFuzz_shouldStoreNewStakeData(uint8 _lockUpEpochs, uint256 _additionalAmount, uint256 _additionalEpochs) external {
+    function testFuzz_shouldStoreNewStakeData(
+        uint8 _lockUpEpochs, uint256 _additionalAmount, uint256 _additionalEpochs
+    ) external {
         uint8 remainingLockup;
-        (lockUpEpochs, additionalAmount, additionalEpochs, remainingLockup) = _boundInputs(_lockUpEpochs, _additionalAmount, _additionalEpochs);
+        (lockUpEpochs, additionalAmount, additionalEpochs, remainingLockup) = _boundInputs(
+            _lockUpEpochs, _additionalAmount, _additionalEpochs
+        );
         vm.assume(additionalEpochs + additionalAmount > 0);
 
         _mockStake(staker, stakeId + 1, initialEpoch, lockUpEpochs, uint104(amount));
@@ -877,7 +919,9 @@ contract VoteEscrowedPWN_Stake_TransferStake_Test is VoteEscrowedPWN_Stake_Test 
     uint104 public amount = 100e18;
     uint8 public remainingLockup = 130;
 
-    event StakeTransferred(uint256 indexed stakeId, address indexed fromStaker, address indexed toStaker, uint256 amount);
+    event StakeTransferred(
+        uint256 indexed stakeId, address indexed fromStaker, address indexed toStaker, uint256 amount
+    );
 
 
     function test_shouldFail_whenCallerIsNotStakedPwnContract() external {
@@ -961,7 +1005,9 @@ contract VoteEscrowedPWN_Stake_TransferStake_Test is VoteEscrowedPWN_Stake_Test 
         assertEq(stakeValue.maskUint8(16), remainingLockup - (currentEpoch - initialEpoch + 1));
     }
 
-    function testFuzz_shouldUpdatePowerChange_whenTransferredBeforeInitialEpoch(uint8 _remainingLockup, uint256 _amount) external {
+    function testFuzz_shouldUpdatePowerChange_whenTransferredBeforeInitialEpoch(
+        uint8 _remainingLockup, uint256 _amount
+    ) external {
         remainingLockup = _boundLockUpEpochs(_remainingLockup);
         amount = uint104(_boundAmount(_amount));
 
@@ -987,7 +1033,9 @@ contract VoteEscrowedPWN_Stake_TransferStake_Test is VoteEscrowedPWN_Stake_Test 
         _assertTotalPowerChangesSumToZero(powerChanges[powerChanges.length - 1].epoch);
     }
 
-    function testFuzz_shouldUpdatePowerChanges_whenTransferredAfterInitialEpoch(uint256 _amount, uint8 _lockUpEpochs, uint8 _remainingLockup) external {
+    function testFuzz_shouldUpdatePowerChanges_whenTransferredAfterInitialEpoch(
+        uint256 _amount, uint8 _lockUpEpochs, uint8 _remainingLockup
+    ) external {
         amount = uint104(_boundAmount(_amount));
         uint8 lockUpEpochs = _boundLockUpEpochs(_lockUpEpochs);
         uint256 numberOfCliffs = uint256(lockUpEpochs) / uint256(EPOCHS_IN_PERIOD) + 1;
@@ -1019,7 +1067,8 @@ contract VoteEscrowedPWN_Stake_TransferStake_Test is VoteEscrowedPWN_Stake_Test 
 
             _assertEpochPowerAndPosition(
                 onSenderPart ? from : to,
-                onSenderPart ? i : i - sendersNumberOfCliffs + 1 - adjustingReceiverIndex, // skipping adjusting epochs (first)
+                // skipping adjusting epochs (first)
+                onSenderPart ? i : i - sendersNumberOfCliffs + 1 - adjustingReceiverIndex,
                 powerChanges[i].epoch,
                 powerChanges[i].powerChange
             );

@@ -1,22 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import { EpochPowerLib } from "../../src/lib/EpochPowerLib.sol";
 import { VoteEscrowedPWN } from "../../src/VoteEscrowedPWN.sol";
 
-
+// solhint-disable foundry-test-functions
 contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
     using EpochPowerLib for bytes32;
 
     // exposed
 
-    function exposed_nextEpochAndRemainingLockup(int104 amount, uint16 epoch, uint8 remainingLockup) external pure returns (int104, uint16, uint8) {
+    function exposed_nextEpochAndRemainingLockup(
+        int104 amount, uint16 epoch, uint8 remainingLockup
+    ) external pure returns (int104, uint16, uint8) {
         return _nextEpochAndRemainingLockup(amount, epoch, remainingLockup);
     }
 
-    function exposed_updateEpochPower(address staker, uint16 epoch, uint256 lowEpochIndex, int104 power) external returns (uint256 epochIndex) {
+    function exposed_updateEpochPower(
+        address staker, uint16 epoch, uint256 lowEpochIndex, int104 power
+    ) external returns (uint256 epochIndex) {
         return _unsafe_updateEpochPower(staker, epoch, lowEpochIndex, power);
     }
 
@@ -54,7 +56,9 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
         daoRevenuePortion.push(PortionCheckpoint(initialEpoch, portion));
     }
 
-    function workaround_getDaoRevenuePortionCheckpointAt(uint256 index) external view returns (PortionCheckpoint memory) {
+    function workaround_getDaoRevenuePortionCheckpointAt(
+        uint256 index
+    ) external view returns (PortionCheckpoint memory) {
         return daoRevenuePortion[index];
     }
 
@@ -76,8 +80,8 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
     bool public mockStakerPower = true;
     function stakerPower(address staker, uint256 epoch) virtual public view override returns (uint256) {
         if (mockStakerPower) {
-            require(expectedStakerPowerInput.staker == staker, "vePWNHarness: stakerPower: staker");
-            require(expectedStakerPowerInput.epoch == epoch, "vePWNHarness: stakerPower: epoch");
+            require(expectedStakerPowerInput.staker == staker, "vePWNHarness:stakerPower:staker");
+            require(expectedStakerPowerInput.epoch == epoch, "vePWNHarness:stakerPower:epoch");
             return stakerPowerReturn;
         } else {
             return super.stakerPower(staker, epoch);
@@ -92,7 +96,7 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
     bool public mockTotalPowerAt = true;
     function totalPowerAt(uint256 epoch) virtual public view override returns (uint256) {
         if (mockTotalPowerAt) {
-            require(expectedTotalPowerAtInput.epoch == epoch, "vePWNHarness: totalPowerAt: epoch");
+            require(expectedTotalPowerAtInput.epoch == epoch, "vePWNHarness:totalPowerAt:epoch");
             return totalPowerAtReturn;
         } else {
             return super.totalPowerAt(epoch);
@@ -102,27 +106,27 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
 
     // setters
 
-    function _setMockStakerPower(bool value) external {
+    function workaround_setMockStakerPower(bool value) external {
         mockStakerPower = value;
     }
 
-    function _setStakerPowerInput(StakerPowerInput memory input) external {
+    function workaround_setStakerPowerInput(StakerPowerInput memory input) external {
         expectedStakerPowerInput = input;
     }
 
-    function _setStakerPowerReturn(uint256 value) external {
+    function workaround_setStakerPowerReturn(uint256 value) external {
         stakerPowerReturn = value;
     }
 
-    function _setMockTotalPowerAt(bool value) external {
+    function workaround_setMockTotalPowerAt(bool value) external {
         mockTotalPowerAt = value;
     }
 
-    function _setTotalPowerAtInput(TotalPowerAtInput memory input) external {
+    function workaround_setTotalPowerAtInput(TotalPowerAtInput memory input) external {
         expectedTotalPowerAtInput = input;
     }
 
-    function _setTotalPowerAtReturn(uint256 value) external {
+    function workaround_setTotalPowerAtReturn(uint256 value) external {
         totalPowerAtReturn = value;
     }
 

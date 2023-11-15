@@ -59,7 +59,6 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower, VoteEscr
         _pushDaoRevenuePortionCheckpoint(_currentEpoch(), 0);
     }
 
-
     // The following functions are overrides required by Solidity.
 
     function stakerPower(address staker, uint256 epoch)

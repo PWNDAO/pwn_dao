@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import { PWN } from "../../src/PWN.sol";
 
 import { BasePWNTest } from "../BasePWNTest.sol";
@@ -99,7 +97,9 @@ contract PWN_Mint_Test is PWNTest {
 
     function testFuzz_shouldFail_whenInitialSupplyReached(uint256 ownerMintedAmount, uint256 amount) external {
         ownerMintedAmount = bound(ownerMintedAmount, 0, pwnToken.INITIAL_TOTAL_SUPPLY());
-        amount = bound(amount, pwnToken.INITIAL_TOTAL_SUPPLY() - ownerMintedAmount + 1, type(uint256).max - ownerMintedAmount);
+        amount = bound(
+            amount, pwnToken.INITIAL_TOTAL_SUPPLY() - ownerMintedAmount + 1, type(uint256).max - ownerMintedAmount
+        );
 
         vm.store(
             address(pwnToken), OWNER_MINTED_AMOUNT_SLOT, bytes32(ownerMintedAmount)

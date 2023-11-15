@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import { EpochPowerLib } from "../../src/lib/EpochPowerLib.sol";
 
 import { BitMaskLib } from "../utils/BitMaskLib.sol";
+import { BasePWNTest } from "../BasePWNTest.sol";
 
 
-contract EpochPowerLibTest is Test {
+contract EpochPowerLibTest is BasePWNTest {
     using BitMaskLib for bytes32;
 
     function _mockEpochPowerWord(bytes32 namespace, uint256 epoch, int104 power1, int104 power2) private {
@@ -32,13 +31,11 @@ contract EpochPowerLibTest is Test {
         assertEq(power, _power);
     }
 
-    function testFuzz_shouldUpdateCorrectPower(bytes32 namespace, uint256 epoch, int104 oldPower, int104 _power) external {
+    function testFuzz_shouldUpdateCorrectPower(
+        bytes32 namespace, uint256 epoch, int104 oldPower, int104 _power
+    ) external {
         namespace = bytes32(bound(uint256(namespace), 1, type(uint256).max / 2));
         epoch = bound(epoch, 1, type(uint256).max / 2);
-        console2.logInt(type(int104).min);
-        console2.logInt(type(int104).max);
-        console2.logInt(oldPower);
-        console2.logInt(_power);
         if ((oldPower > 0 && _power > 0) || (oldPower < 0 && _power < 0))
             _power = -(_power >> 1); // bite shift to prevent overflow/underflow
 

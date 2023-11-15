@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import { PWNFeeCollector, IPWNHub } from "../../src/PWNFeeCollector.sol";
 import { PWNEpochClock } from "../../src/PWNEpochClock.sol";
 
@@ -246,7 +244,9 @@ contract PWNFeeCollector_ClaimFees_Test is PWNFeeCollectorTest {
         });
     }
 
-    function testFuzz_shouldStoreClaimedAssetInEpoch(address staker, uint256 epoch, address asset, uint256 amount) external
+    function testFuzz_shouldStoreClaimedAssetInEpoch(
+        address staker, uint256 epoch, address asset, uint256 amount
+    ) external
         checkAddress(staker)
         checkAddress(asset)
         mockCollectedFees(_boundEpoch(epoch), asset, amount)
@@ -387,7 +387,9 @@ contract PWNFeeCollector_ClaimFees_Test is PWNFeeCollectorTest {
         });
     }
 
-    function testFuzz_shouldFail_whenDupliciteAssets(address staker, uint256 epoch, address asset, uint256 amount) external
+    function testFuzz_shouldFail_whenDupliciteAssets(
+        address staker, uint256 epoch, address asset, uint256 amount
+    ) external
         checkAddress(staker)
         checkAddressAllowZero(asset)
         mockCollectedFees(_boundEpoch(epoch), asset, amount)

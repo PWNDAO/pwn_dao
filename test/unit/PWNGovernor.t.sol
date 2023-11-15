@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
 import { PWNGovernor } from "../../src/PWNGovernor.sol";
 
+import { BasePWNTest } from "../BasePWNTest.sol";
 
-abstract contract PWNGovernorTest is Test {
+
+abstract contract PWNGovernorTest is BasePWNTest {
 
     PWNGovernor public governor;
 

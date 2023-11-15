@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import { PWNEpochClock } from "../../src/PWNEpochClock.sol";
 
+import { BasePWNTest } from "../BasePWNTest.sol";
 
-abstract contract PWNEpochClockTest is Test {
+
+abstract contract PWNEpochClockTest is BasePWNTest {
 
     PWNEpochClock public clock;
     uint256 public initialTimestamp;

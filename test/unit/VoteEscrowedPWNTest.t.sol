@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
-import { VoteEscrowedPWN } from "../../src/VoteEscrowedPWN.sol";
-
 import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 import { BasePWNTest } from "../BasePWNTest.sol";
@@ -68,14 +64,19 @@ abstract contract VoteEscrowedPWNTest is BasePWNTest {
         int104 powerChange;
     }
 
-    function _createPowerChangesArray(uint256 _lockUpEpochs, uint256 _amount) internal returns (TestPowerChangeEpoch[] memory) {
+    function _createPowerChangesArray(
+        uint256 _lockUpEpochs, uint256 _amount
+    ) internal returns (TestPowerChangeEpoch[] memory) {
         return _createPowerChangesArray(uint16(currentEpoch + 1), _lockUpEpochs, _amount);
     }
 
-    function _createPowerChangesArray(uint16 _initialEpoch, uint256 _lockUpEpochs, uint256 _amount) internal returns (TestPowerChangeEpoch[] memory) {
+    function _createPowerChangesArray(
+        uint16 _initialEpoch, uint256 _lockUpEpochs, uint256 _amount
+    ) internal returns (TestPowerChangeEpoch[] memory) {
         return _createPowerChangesArray(_initialEpoch, type(uint16).max, _lockUpEpochs, _amount);
     }
 
+    // solhint-disable-next-line var-name-mixedcase
     TestPowerChangeEpoch[] private helper_powerChanges;
     function _createPowerChangesArray(
         uint16 _initialEpoch, uint16 _finalEpoch, uint256 _lockUpEpochs, uint256 _amount
@@ -90,7 +91,8 @@ abstract contract VoteEscrowedPWNTest is BasePWNTest {
 
         helper_powerChanges.push(TestPowerChangeEpoch({ epoch: epoch, powerChange: powerChange }));
         while (remainingLockup > 0) {
-            (powerChange, epoch, remainingLockup) = vePWN.exposed_nextEpochAndRemainingLockup(int104amount, epoch, remainingLockup);
+            (powerChange, epoch, remainingLockup)
+                = vePWN.exposed_nextEpochAndRemainingLockup(int104amount, epoch, remainingLockup);
             if (epoch >= _finalEpoch) break;
             helper_powerChanges.push(TestPowerChangeEpoch({ epoch: epoch, powerChange: powerChange }));
         }
@@ -99,7 +101,9 @@ abstract contract VoteEscrowedPWNTest is BasePWNTest {
         return array;
     }
 
-    function _mergePowerChanges(TestPowerChangeEpoch[] memory pchs1, TestPowerChangeEpoch[] memory pchs2) internal returns (TestPowerChangeEpoch[] memory) {
+    function _mergePowerChanges(
+        TestPowerChangeEpoch[] memory pchs1, TestPowerChangeEpoch[] memory pchs2
+    ) internal returns (TestPowerChangeEpoch[] memory) {
         if (pchs1.length == 0)
             return pchs2;
         else if (pchs2.length == 0)
@@ -231,7 +235,9 @@ abstract contract VoteEscrowedPWNTest is BasePWNTest {
 
 contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWNTest {
 
-    function testFuzzHelper_storeStake(uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount) external {
+    function testFuzzHelper_storeStake(
+        uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount
+    ) external {
         _storeStake(_stakeId, _initialEpoch, _remainingLockup, _amount);
 
         (uint16 initialEpoch, uint8 remainingLockup, uint104 amount) = vePWN.stakes(_stakeId);
@@ -262,7 +268,9 @@ contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWNTest {
 contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
     using SlotComputingLib for bytes32;
 
-    function testFuzz_nextEpochAndRemainingLockup_whenLessThanFivePeriods_whenDivisibleByPeriod(uint8 originalRemainingLockup) external {
+    function testFuzz_nextEpochAndRemainingLockup_whenLessThanFivePeriods_whenDivisibleByPeriod(
+        uint8 originalRemainingLockup
+    ) external {
         originalRemainingLockup = uint8(bound(originalRemainingLockup, 1, 5) * EPOCHS_IN_PERIOD);
 
         int104 amount = 100;
@@ -275,7 +283,9 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
         assertEq(remainingLockup, originalRemainingLockup - EPOCHS_IN_PERIOD);
     }
 
-    function testFuzz_nextEpochAndRemainingLockup_whenLessThanFivePeriods_whenNotDivisibleByPeriod(uint8 originalRemainingLockup) external {
+    function testFuzz_nextEpochAndRemainingLockup_whenLessThanFivePeriods_whenNotDivisibleByPeriod(
+        uint8 originalRemainingLockup
+    ) external {
         originalRemainingLockup = uint8(bound(originalRemainingLockup, EPOCHS_IN_PERIOD + 1, 5 * EPOCHS_IN_PERIOD - 1));
         vm.assume(originalRemainingLockup % EPOCHS_IN_PERIOD > 0);
 
@@ -291,7 +301,9 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
     }
 
     function testFuzz_nextEpochAndRemainingLockup_whenMoreThanFivePeriods(uint8 originalRemainingLockup) external {
-        originalRemainingLockup = uint8(bound(originalRemainingLockup, 5 * EPOCHS_IN_PERIOD + 1, 10 * EPOCHS_IN_PERIOD));
+        originalRemainingLockup = uint8(bound(
+            originalRemainingLockup, 5 * EPOCHS_IN_PERIOD + 1, 10 * EPOCHS_IN_PERIOD
+        ));
 
         int104 amount = 100;
         uint16 originalEpoch = 100;
@@ -304,7 +316,9 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
         assertEq(remainingLockup, originalRemainingLockup - diff);
     }
 
-    function testFuzz_updatePowerChangeEpoch_shouldUpdatePowerChangeValue(address staker, uint16 epoch, int104 power) external {
+    function testFuzz_updatePowerChangeEpoch_shouldUpdatePowerChangeValue(
+        address staker, uint16 epoch, int104 power
+    ) external {
         power = int104(bound(power, 2, type(int104).max));
         int104 powerFraction = int104(bound(power, 1, power - 1));
 
@@ -318,7 +332,9 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
         assertEq(vePWN.workaround_getStakerEpochPower(staker, epoch), 0);
     }
 
-    function testFuzz_updatePowerChangeEpoch_shouldAddEpochToArray_whenPowerChangedFromZeroToNonZero(address staker, uint16 epoch, int104 power) external {
+    function testFuzz_updatePowerChangeEpoch_shouldAddEpochToArray_whenPowerChangedFromZeroToNonZero(
+        address staker, uint16 epoch, int104 power
+    ) external {
         power = int104(bound(power, 1, type(int104).max));
 
         uint256 index = vePWN.exposed_updateEpochPower(staker, epoch, 0, power);
@@ -354,7 +370,9 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
         vePWN.powerChangeEpochs(staker, 4);
     }
 
-    function testFuzz_updatePowerChangeEpoch_shouldKeepEpochInArray_whenPowerChangedFromNonZeroToNonZero(address staker, uint16 epoch, int104 power) external {
+    function testFuzz_updatePowerChangeEpoch_shouldKeepEpochInArray_whenPowerChangedFromNonZeroToNonZero(
+        address staker, uint16 epoch, int104 power
+    ) external {
         power = int104(bound(power, 1, type(int104).max - 1));
 
         uint256 index = vePWN.exposed_updateEpochPower(staker, epoch, 0, power);
@@ -363,7 +381,9 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
         assertEq(vePWN.exposed_updateEpochPower(staker, epoch, 0, 1), index);
     }
 
-    function testFuzz_updatePowerChangeEpoch_shouldRemoveEpochFromArray_whenPowerChangedFromNonZeroToZero(address staker, uint16 epoch, int104 power) external {
+    function testFuzz_updatePowerChangeEpoch_shouldRemoveEpochFromArray_whenPowerChangedFromNonZeroToZero(
+        address staker, uint16 epoch, int104 power
+    ) external {
         power = int104(bound(power, 1, type(int104).max));
 
         uint256 index = vePWN.exposed_updateEpochPower(staker, epoch, 0, power);
@@ -376,7 +396,9 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
         vePWN.powerChangeEpochs(staker, index);
     }
 
-    function testFuzz_powerChangeMultipliers_initialPower(uint256 amount, uint8 remainingLockup) external {
+    function testFuzz_powerChangeMultipliers_initialPower(
+        uint256 amount, uint8 remainingLockup
+    ) external {
         amount = _boundAmount(amount);
         remainingLockup = uint8(bound(remainingLockup, 1, 130));
 
@@ -394,7 +416,9 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
         if (remainingLockup > EPOCHS_IN_PERIOD * 5)
             multiplier = periodMultiplier[5];
         else
-            multiplier = periodMultiplier[remainingLockup / EPOCHS_IN_PERIOD - (remainingLockup % EPOCHS_IN_PERIOD == 0 ? 1 : 0)];
+            multiplier = periodMultiplier[
+                remainingLockup / EPOCHS_IN_PERIOD - (remainingLockup % EPOCHS_IN_PERIOD == 0 ? 1 : 0)
+            ];
         assertEq(power, int104(uint104(amount)) * multiplier / 100);
     }
 
@@ -418,7 +442,9 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
         else if (remainingLockup == 0)
             multiplier = 100;
         else
-            multiplier = periodMultiplier[remainingLockup / EPOCHS_IN_PERIOD - (remainingLockup % EPOCHS_IN_PERIOD == 0 ? 1 : 0)];
+            multiplier = periodMultiplier[
+                remainingLockup / EPOCHS_IN_PERIOD - (remainingLockup % EPOCHS_IN_PERIOD == 0 ? 1 : 0)
+            ];
         assertEq(power, -int104(uint104(amount)) * multiplier / 100);
     }
 

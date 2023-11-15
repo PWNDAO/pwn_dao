@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import { StakedPWN } from "../../src/StakedPWN.sol";
 
 import { BasePWNTest } from "../BasePWNTest.sol";
@@ -14,7 +12,8 @@ abstract contract StakedPWNTest is BasePWNTest {
 
     bytes32 public constant OWNERS_SLOT = bytes32(uint256(2));
     bytes32 public constant BALANCES_SLOT = bytes32(uint256(3));
-    bytes4 public constant ON_ERC721_RECEIVED_SELECTOR = bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
+    bytes4 public constant ON_ERC721_RECEIVED_SELECTOR
+        = bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
 
     StakedPWN public stakedPWN;
 
@@ -85,7 +84,9 @@ contract StakedPWN_Mint_Test is StakedPWNTest {
         assertEq(stakedPWN.ownerOf(tokenId), to);
     }
 
-    function testFuzz_shouldCallSafeCallback_whenCallerIsContract(address to, uint256 tokenId) external checkAddress(to) {
+    function testFuzz_shouldCallSafeCallback_whenCallerIsContract(
+        address to, uint256 tokenId
+    ) external checkAddress(to) {
         vm.mockCall(
             to,
             abi.encodeWithSelector(ON_ERC721_RECEIVED_SELECTOR),

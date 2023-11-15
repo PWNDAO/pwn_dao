@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import { VoteEscrowedPWN } from "../../src/VoteEscrowedPWN.sol";
 
 import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
-import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 import { VoteEscrowedPWNTest } from "./VoteEscrowedPWNTest.t.sol";
 
 
@@ -27,7 +24,7 @@ abstract contract VoteEscrowedPWN_Revenue_Test is VoteEscrowedPWNTest {
             uint256 iSeed = uint256(keccak256(abi.encode(seed + i)));
             uint16 initialEpoch = uint16(bound(iSeed, 1, 10));
             if (i > 0) {
-                // cannot override because max length is 1000 and max value is 10 => max epoch is 10000 < type(uint16).max
+                // cannot override, max length is 1000 and max value is 10 => max epoch is 10000 < type(uint16).max
                 initialEpoch += vePWN.workaround_getDaoRevenuePortionCheckpointAt(i - 1).initialEpoch;
             }
             if (initialEpoch > maxEpoch) {
@@ -78,7 +75,9 @@ contract VoteEscrowedPWN_Revenue_ClaimRevenue_Test is VoteEscrowedPWN_Revenue_Te
         vePWN.claimRevenue(epoch, new address[](0));
     }
 
-    function testFuzz_shouldFail_whenEpochsTotalPowerNotCalculated(uint256 epoch, uint256 lastCalculatedEpoch) external {
+    function testFuzz_shouldFail_whenEpochsTotalPowerNotCalculated(
+        uint256 epoch, uint256 lastCalculatedEpoch
+    ) external {
         epoch = bound(epoch, 1, currentEpoch - 1);
         lastCalculatedEpoch = bound(lastCalculatedEpoch, 0, epoch - 1);
 
@@ -91,8 +90,8 @@ contract VoteEscrowedPWN_Revenue_ClaimRevenue_Test is VoteEscrowedPWN_Revenue_Te
     function test_shouldFail_whenTotalPowerZero() external {
         uint256 epoch = currentEpoch - 1;
         vm.store(address(vePWN), LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT, bytes32(epoch));
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
-        vePWN._setTotalPowerAtReturn(0);
+        vePWN.workaround_setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
+        vePWN.workaround_setTotalPowerAtReturn(0);
 
         vm.expectRevert("vePWN: no stakers");
         vePWN.claimRevenue(epoch, new address[](0));
@@ -111,12 +110,12 @@ contract VoteEscrowedPWN_Revenue_ClaimRevenue_Test is VoteEscrowedPWN_Revenue_Te
         vm.store(address(vePWN), LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT, bytes32(epoch));
 
         totalPower = bound(totalPower, 100, type(uint256).max / 10000);
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
-        vePWN._setTotalPowerAtReturn(totalPower);
+        vePWN.workaround_setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
+        vePWN.workaround_setTotalPowerAtReturn(totalPower);
 
         stakerPower = bound(stakerPower, 100, totalPower);
-        vePWN._setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput(caller, epoch));
-        vePWN._setStakerPowerReturn(stakerPower);
+        vePWN.workaround_setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput(caller, epoch));
+        vePWN.workaround_setStakerPowerReturn(stakerPower);
 
         daoRevenuePortion = bound(daoRevenuePortion, 0, 10000);
         vePWN.workaround_pushDaoRevenuePortionCheckpoint(0, uint16(daoRevenuePortion));
@@ -160,7 +159,9 @@ contract VoteEscrowedPWN_Revenue_ClaimDaoRevenue_Test is VoteEscrowedPWN_Revenue
         vePWN.claimDaoRevenue(epoch, new address[](0));
     }
 
-    function testFuzz_shouldFail_whenEpochsTotalPowerNotCalculated(uint256 epoch, uint256 lastCalculatedEpoch) external {
+    function testFuzz_shouldFail_whenEpochsTotalPowerNotCalculated(
+        uint256 epoch, uint256 lastCalculatedEpoch
+    ) external {
         epoch = bound(epoch, 1, currentEpoch - 1);
         lastCalculatedEpoch = bound(lastCalculatedEpoch, 0, epoch - 1);
 
@@ -173,17 +174,14 @@ contract VoteEscrowedPWN_Revenue_ClaimDaoRevenue_Test is VoteEscrowedPWN_Revenue
 
     /// forge-config: default.fuzz.runs = 512
     function testFuzz_shouldClaimRevenue_whenTotalPowerNotZero(
-        uint256 epoch,
-        address[] memory assets,
-        uint256 totalPower,
-        uint256 daoRevenuePortion
+        uint256 epoch, address[] memory assets, uint256 totalPower, uint256 daoRevenuePortion
     ) external {
         epoch = bound(epoch, 1, currentEpoch - 1);
         vm.store(address(vePWN), LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT, bytes32(epoch));
 
         totalPower = bound(totalPower, 100, type(uint256).max / 10000);
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
-        vePWN._setTotalPowerAtReturn(totalPower);
+        vePWN.workaround_setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
+        vePWN.workaround_setTotalPowerAtReturn(totalPower);
 
         daoRevenuePortion = bound(daoRevenuePortion, 0, 10000);
         vePWN.workaround_pushDaoRevenuePortionCheckpoint(0, uint16(daoRevenuePortion));
@@ -206,8 +204,8 @@ contract VoteEscrowedPWN_Revenue_ClaimDaoRevenue_Test is VoteEscrowedPWN_Revenue
         epoch = bound(epoch, 1, currentEpoch - 1);
         vm.store(address(vePWN), LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT, bytes32(epoch));
 
-        vePWN._setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
-        vePWN._setTotalPowerAtReturn(0);
+        vePWN.workaround_setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput(epoch));
+        vePWN.workaround_setTotalPowerAtReturn(0);
 
         vm.expectCall(
             feeCollector,
@@ -253,7 +251,9 @@ contract VoteEscrowedPWN_Revenue_SetDaoRevenuePortion_Test is VoteEscrowedPWN_Re
         vePWN.setDaoRevenuePortion(portion);
 
         assertEq(vePWN.workaround_getDaoRevenuePortionCheckpointsLength(), originalLength + 1);
-        VoteEscrowedPWN.PortionCheckpoint memory checkpoint = vePWN.workaround_getDaoRevenuePortionCheckpointAt(originalLength);
+        VoteEscrowedPWN.PortionCheckpoint memory checkpoint = vePWN.workaround_getDaoRevenuePortionCheckpointAt(
+            originalLength
+        );
         assertEq(checkpoint.initialEpoch, currentEpoch + 1);
         assertEq(checkpoint.portion, portion);
     }
@@ -268,7 +268,9 @@ contract VoteEscrowedPWN_Revenue_SetDaoRevenuePortion_Test is VoteEscrowedPWN_Re
         vePWN.setDaoRevenuePortion(portion);
 
         assertEq(vePWN.workaround_getDaoRevenuePortionCheckpointsLength(), originalLength);
-        VoteEscrowedPWN.PortionCheckpoint memory checkpoint = vePWN.workaround_getDaoRevenuePortionCheckpointAt(originalLength - 1);
+        VoteEscrowedPWN.PortionCheckpoint memory checkpoint = vePWN.workaround_getDaoRevenuePortionCheckpointAt(
+            originalLength - 1
+        );
         assertEq(checkpoint.initialEpoch, uint16(currentEpoch) + 1);
         assertEq(checkpoint.portion, portion);
     }
@@ -296,8 +298,10 @@ contract VoteEscrowedPWN_Revenue_DaoRevenuePortion_Test is VoteEscrowedPWN_Reven
         uint256 expectedPortion;
 
         if (length > 0) {
-            VoteEscrowedPWN.PortionCheckpoint memory checkpoint1 = vePWN.workaround_getDaoRevenuePortionCheckpointAt(0);
-            VoteEscrowedPWN.PortionCheckpoint memory checkpoint2 = vePWN.workaround_getDaoRevenuePortionCheckpointAt(length - 1);
+            VoteEscrowedPWN.PortionCheckpoint memory checkpoint1
+                = vePWN.workaround_getDaoRevenuePortionCheckpointAt(0);
+            VoteEscrowedPWN.PortionCheckpoint memory checkpoint2
+                = vePWN.workaround_getDaoRevenuePortionCheckpointAt(length - 1);
             if (checkpoint1.initialEpoch > epoch) {
                 expectedPortion = 0;
             } else if (checkpoint2.initialEpoch <= epoch) {

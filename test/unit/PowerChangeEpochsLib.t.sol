@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import "forge-std/Test.sol";
-
 import { PowerChangeEpochsLib } from "../../src/lib/PowerChangeEpochsLib.sol";
 
+import { BasePWNTest } from "../BasePWNTest.sol";
 
-abstract contract PowerChangeEpochsLibTest is Test {
+
+abstract contract PowerChangeEpochsLibTest is BasePWNTest {
 
     uint16[] public powerChangeEpochs;
 
@@ -56,7 +56,9 @@ contract PowerChangeEpochsLib_FindIndex_Test is PowerChangeEpochsLibTest {
         assertEq(index, indexToFind);
     }
 
-    function testFuzz_shouldFindIndex_whenValueIsBetween(uint256 seed, uint256 indexToFind, uint256 epochToFind) external {
+    function testFuzz_shouldFindIndex_whenValueIsBetween(
+        uint256 seed, uint256 indexToFind, uint256 epochToFind
+    ) external {
         _setupPowerChangeEpochs(seed, 2);
         indexToFind = bound(indexToFind, 1, powerChangeEpochs.length - 1);
         epochToFind = bound( // (i-1;i>
@@ -92,7 +94,9 @@ contract PowerChangeEpochsLib_FindIndex_Test is PowerChangeEpochsLibTest {
         assertEq(index, indexToFind);
     }
 
-    function testFuzz_shouldNotFindIndex_whenValueUnderProvidedLow(uint256 seed, uint256 indexToFind, uint256 low) external {
+    function testFuzz_shouldNotFindIndex_whenValueUnderProvidedLow(
+        uint256 seed, uint256 indexToFind, uint256 low
+    ) external {
         _setupPowerChangeEpochs(seed);
         low = bound(low, 1, powerChangeEpochs.length);
         indexToFind = bound(indexToFind, 0, low - 1);
@@ -124,12 +128,16 @@ contract PowerChangeEpochsLib_FindNearestIndex_Test is PowerChangeEpochsLibTest 
         indexToFind = bound(indexToFind, 0, powerChangeEpochs.length - 1);
         uint16 epochToFind = powerChangeEpochs[indexToFind];
 
-        uint256 index = powerChangeEpochs.findNearestIndex({ epoch: epochToFind, low: 0, high: powerChangeEpochs.length });
+        uint256 index = powerChangeEpochs.findNearestIndex({
+            epoch: epochToFind, low: 0, high: powerChangeEpochs.length
+        });
 
         assertEq(index, indexToFind);
     }
 
-    function testFuzz_shouldFindNearestIndex_whenValueIsBetween(uint256 seed, uint256 indexToFind, uint256 epochToFind) external {
+    function testFuzz_shouldFindNearestIndex_whenValueIsBetween(
+        uint256 seed, uint256 indexToFind, uint256 epochToFind
+    ) external {
         _setupPowerChangeEpochs(seed, 2);
         indexToFind = bound(indexToFind, 0, powerChangeEpochs.length - 2);
         epochToFind = bound( // <i;i+1)
@@ -138,7 +146,9 @@ contract PowerChangeEpochsLib_FindNearestIndex_Test is PowerChangeEpochsLibTest 
             powerChangeEpochs[indexToFind + 1] - 1
         );
 
-        uint256 index = powerChangeEpochs.findNearestIndex({ epoch: uint16(epochToFind), low: 0, high: powerChangeEpochs.length });
+        uint256 index = powerChangeEpochs.findNearestIndex({
+            epoch: uint16(epochToFind), low: 0, high: powerChangeEpochs.length
+        });
 
         assertEq(index, indexToFind);
     }
@@ -150,7 +160,9 @@ contract PowerChangeEpochsLib_FindNearestIndex_Test is PowerChangeEpochsLibTest 
         vm.assume(epochToFind > 0);
         --epochToFind;
 
-        uint256 index = powerChangeEpochs.findNearestIndex({ epoch: epochToFind, low: 0, high: powerChangeEpochs.length });
+        uint256 index = powerChangeEpochs.findNearestIndex({
+            epoch: epochToFind, low: 0, high: powerChangeEpochs.length
+        });
 
         assertEq(index, indexToFind);
     }
@@ -160,23 +172,31 @@ contract PowerChangeEpochsLib_FindNearestIndex_Test is PowerChangeEpochsLibTest 
         uint256 indexToFind = powerChangeEpochs.length - 1;
         uint16 epochToFind = powerChangeEpochs[indexToFind] + 1;
 
-        uint256 index = powerChangeEpochs.findNearestIndex({ epoch: epochToFind, low: 0, high: powerChangeEpochs.length });
+        uint256 index = powerChangeEpochs.findNearestIndex({
+            epoch: epochToFind, low: 0, high: powerChangeEpochs.length
+        });
 
         assertEq(index, indexToFind);
     }
 
-    function testFuzz_shouldNotFindNearestIndex_whenValueUnderProvidedLow(uint256 seed, uint256 indexToFind, uint256 low) external {
+    function testFuzz_shouldNotFindNearestIndex_whenValueUnderProvidedLow(
+        uint256 seed, uint256 indexToFind, uint256 low
+    ) external {
         _setupPowerChangeEpochs(seed, 2);
         low = bound(low, 1, powerChangeEpochs.length - 1);
         indexToFind = bound(indexToFind, 0, low - 1);
         uint16 epochToFind = powerChangeEpochs[indexToFind];
 
-        uint256 index = powerChangeEpochs.findNearestIndex({ epoch: epochToFind, low: low, high: powerChangeEpochs.length });
+        uint256 index = powerChangeEpochs.findNearestIndex({
+            epoch: epochToFind, low: low, high: powerChangeEpochs.length
+        });
 
         assertEq(index, low);
     }
 
-    function testFuzz_shouldNotFindNearestIndex_whenValueAboveProvidedHigh(uint256 seed, uint256 indexToFind, uint256 high) external {
+    function testFuzz_shouldNotFindNearestIndex_whenValueAboveProvidedHigh(
+        uint256 seed, uint256 indexToFind, uint256 high
+    ) external {
         _setupPowerChangeEpochs(seed, 2);
         high = bound(high, 1, powerChangeEpochs.length - 1);
         indexToFind = bound(indexToFind, high, powerChangeEpochs.length - 1);
