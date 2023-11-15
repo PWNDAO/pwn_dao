@@ -270,10 +270,10 @@ contract PWN_AssignVotingReward_Test is PWNTest {
 
 
 /*----------------------------------------------------------*|
-|*  # CLAIM REWARDS                                         *|
+|*  # CLAIM VOTING REWARDS                                  *|
 |*----------------------------------------------------------*/
 
-contract PWN_ClaimReward_Test is PWNTest {
+contract PWN_ClaimVotingReward_Test is PWNTest {
     using SlotComputingLib for bytes32;
 
     address public voter = makeAddr("voter");
@@ -332,7 +332,7 @@ contract PWN_ClaimReward_Test is PWNTest {
 
         vm.expectRevert("PWN: proposal not succeeded");
         vm.prank(voter);
-        pwnToken.claimReward(proposalId);
+        pwnToken.claimVotingReward(proposalId);
     }
 
     function testFuzz_shouldFail_whenCallerNotVoted(address caller) external {
@@ -344,7 +344,7 @@ contract PWN_ClaimReward_Test is PWNTest {
 
         vm.expectRevert("PWN: caller has not voted");
         vm.prank(caller);
-        pwnToken.claimReward(proposalId);
+        pwnToken.claimVotingReward(proposalId);
     }
 
     function test_shouldFail_whenNoRewardAssigned() external {
@@ -354,7 +354,7 @@ contract PWN_ClaimReward_Test is PWNTest {
 
         vm.expectRevert("PWN: no reward");
         vm.prank(voter);
-        pwnToken.claimReward(proposalId);
+        pwnToken.claimVotingReward(proposalId);
     }
 
     function test_shouldUseProposalSnapshotAsTimepoint() external {
@@ -368,7 +368,7 @@ contract PWN_ClaimReward_Test is PWNTest {
         );
 
         vm.prank(voter);
-        pwnToken.claimReward(proposalId);
+        pwnToken.claimVotingReward(proposalId);
     }
 
     function testFuzz_shouldMintRewardToCaller(uint256 votersPower) external {
@@ -388,7 +388,7 @@ contract PWN_ClaimReward_Test is PWNTest {
         uint256 originalBalance = pwnToken.balanceOf(voter);
 
         vm.prank(voter);
-        pwnToken.claimReward(proposalId);
+        pwnToken.claimVotingReward(proposalId);
 
         uint256 voterReward = reward * votersPower / 30e18;
         assertEq(originalTotalSupply + voterReward, pwnToken.totalSupply());
@@ -400,7 +400,7 @@ contract PWN_ClaimReward_Test is PWNTest {
         emit VotingRewardClaimed(proposalId, voter, 10 ether);
 
         vm.prank(voter);
-        pwnToken.claimReward(proposalId);
+        pwnToken.claimVotingReward(proposalId);
     }
 
 }

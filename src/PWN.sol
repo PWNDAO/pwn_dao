@@ -92,7 +92,7 @@ contract PWN is Ownable2Step, ERC20 {
         emit VotingRewardAssigned(proposalId, reward);
     }
 
-    function claimReward(uint256 proposalId) external {
+    function claimVotingReward(uint256 proposalId) external {
         require(governor.state(proposalId) == IGovernor.ProposalState.Succeeded, "PWN: proposal not succeeded");
         require(governor.hasVoted(proposalId, msg.sender), "PWN: caller has not voted");
         require(rewards[proposalId] > 0, "PWN: no reward");
