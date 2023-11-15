@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { PWNFeeCollector, IPWNHub } from "../../src/PWNFeeCollector.sol";
-import { PWNEpochClock } from "../../src/PWNEpochClock.sol";
+import { PWNFeeCollector, IPWNHub } from "src/PWNFeeCollector.sol";
+import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 import { MockWallet } from "../mock/MockWallet.sol";
-import { BasePWNTest } from "../BasePWNTest.sol";
+import { Base_Test } from "../Base.t.sol";
 
-
-abstract contract PWNFeeCollectorTest is BasePWNTest {
+abstract contract PWNFeeCollector_Test is Base_Test {
     using SlotComputingLib for bytes32;
 
     bytes32 public constant CLAIMED_FEES_SLOT = bytes32(uint256(0));
@@ -53,7 +52,7 @@ abstract contract PWNFeeCollectorTest is BasePWNTest {
 |*  # CONSTRUCTOR                                           *|
 |*----------------------------------------------------------*/
 
-contract PWNFeeCollector_Constructor_Test is PWNFeeCollectorTest {
+contract PWNFeeCollector_Constructor_Test is PWNFeeCollector_Test {
 
     function testFuzz_shouldStoreConstructorArgs(address _claimController, address _clock, address _hub) external {
         collector = new PWNFeeCollector(_claimController, _clock, _hub);
@@ -70,7 +69,7 @@ contract PWNFeeCollector_Constructor_Test is PWNFeeCollectorTest {
 |*  # COLLECT FEES HOOK                                     *|
 |*----------------------------------------------------------*/
 
-contract PWNFeeCollector_CollectFeesHook_Test is PWNFeeCollectorTest {
+contract PWNFeeCollector_CollectFeesHook_Test is PWNFeeCollector_Test {
 
     address public feeDistributor = makeAddr("feeDistributor");
 
@@ -143,7 +142,7 @@ contract PWNFeeCollector_CollectFeesHook_Test is PWNFeeCollectorTest {
 |*  # CLAIM FEES                                            *|
 |*----------------------------------------------------------*/
 
-contract PWNFeeCollector_ClaimFees_Test is PWNFeeCollectorTest {
+contract PWNFeeCollector_ClaimFees_Test is PWNFeeCollector_Test {
 
     address[] public assets = new address[](1);
 

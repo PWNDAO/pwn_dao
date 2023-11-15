@@ -3,7 +3,6 @@ pragma solidity 0.8.18;
 
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
-
 library PowerChangeEpochsLib {
 
     /// @notice Finds an index of the epoch in `stakersPowerChangeEpochs` that is

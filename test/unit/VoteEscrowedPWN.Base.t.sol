@@ -2,11 +2,10 @@
 pragma solidity 0.8.18;
 
 import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
-import { VoteEscrowedPWNTest } from "./VoteEscrowedPWNTest.t.sol";
-
+import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
 
 // solhint-disable-next-line no-empty-blocks
-abstract contract VoteEscrowedPWN_Base_Test is VoteEscrowedPWNTest {}
+abstract contract VoteEscrowedPWN_Base_Test is VoteEscrowedPWN_Test {}
 
 
 /*----------------------------------------------------------*|

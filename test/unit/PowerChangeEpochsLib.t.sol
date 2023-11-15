@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { PowerChangeEpochsLib } from "../../src/lib/PowerChangeEpochsLib.sol";
+import { PowerChangeEpochsLib } from "src/lib/PowerChangeEpochsLib.sol";
 
-import { BasePWNTest } from "../BasePWNTest.sol";
+import { Base_Test } from "../Base.t.sol";
 
-
-abstract contract PowerChangeEpochsLibTest is BasePWNTest {
+abstract contract PowerChangeEpochsLib_Test is Base_Test {
 
     uint16[] public powerChangeEpochs;
 
@@ -37,7 +36,7 @@ abstract contract PowerChangeEpochsLibTest is BasePWNTest {
 |*  # FIND INDEX                                            *|
 |*----------------------------------------------------------*/
 
-contract PowerChangeEpochsLib_FindIndex_Test is PowerChangeEpochsLibTest {
+contract PowerChangeEpochsLib_FindIndex_Test is PowerChangeEpochsLib_Test {
     using PowerChangeEpochsLib for uint16[];
 
     function test_shouldReturnZero_whenEmpty() external {
@@ -114,7 +113,7 @@ contract PowerChangeEpochsLib_FindIndex_Test is PowerChangeEpochsLibTest {
 |*  # FIND NEAREST INDEX                                    *|
 |*----------------------------------------------------------*/
 
-contract PowerChangeEpochsLib_FindNearestIndex_Test is PowerChangeEpochsLibTest {
+contract PowerChangeEpochsLib_FindNearestIndex_Test is PowerChangeEpochsLib_Test {
     using PowerChangeEpochsLib for uint16[];
 
     function test_shouldReturnZero_whenEmpty() external {
@@ -214,7 +213,7 @@ contract PowerChangeEpochsLib_FindNearestIndex_Test is PowerChangeEpochsLibTest 
 |*  # INSERT EPOCH                                          *|
 |*----------------------------------------------------------*/
 
-contract PowerChangeEpochsLib_InsertEpoch_Test is PowerChangeEpochsLibTest {
+contract PowerChangeEpochsLib_InsertEpoch_Test is PowerChangeEpochsLib_Test {
     using PowerChangeEpochsLib for uint16[];
 
     function testFuzz_shouldInsertEpochAtIndex(uint16[] memory originalArray, uint16 item, uint256 index) external {
@@ -239,7 +238,7 @@ contract PowerChangeEpochsLib_InsertEpoch_Test is PowerChangeEpochsLibTest {
 |*  # REMOVE EPOCH                                          *|
 |*----------------------------------------------------------*/
 
-contract PowerChangeEpochsLib_RemoveEpoch_Test is PowerChangeEpochsLibTest {
+contract PowerChangeEpochsLib_RemoveEpoch_Test is PowerChangeEpochsLib_Test {
     using PowerChangeEpochsLib for uint16[];
 
     function testFuzz_shouldRemoveEpochFromIndex(uint16[] memory originalArray, uint256 index) external {

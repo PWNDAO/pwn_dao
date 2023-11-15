@@ -3,10 +3,10 @@ pragma solidity 0.8.18;
 
 import { ERC721 } from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 
-
 interface IVoteEscrowedPWN {
     function transferStake(address from, address to, uint256 stakeId) external;
 }
+
 
 contract StakedPWN is ERC721 {
 

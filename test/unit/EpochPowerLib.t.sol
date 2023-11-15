@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { EpochPowerLib } from "../../src/lib/EpochPowerLib.sol";
+import { EpochPowerLib } from "src/lib/EpochPowerLib.sol";
 
 import { BitMaskLib } from "../utils/BitMaskLib.sol";
-import { BasePWNTest } from "../BasePWNTest.sol";
+import { Base_Test } from "../Base.t.sol";
 
-
-contract EpochPowerLibTest is BasePWNTest {
+contract EpochPowerLib_Test is Base_Test {
     using BitMaskLib for bytes32;
 
     function _mockEpochPowerWord(bytes32 namespace, uint256 epoch, int104 power1, int104 power2) private {

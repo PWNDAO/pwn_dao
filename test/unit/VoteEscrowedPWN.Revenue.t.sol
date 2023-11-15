@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { VoteEscrowedPWN } from "../../src/VoteEscrowedPWN.sol";
-
 import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
-import { VoteEscrowedPWNTest } from "./VoteEscrowedPWNTest.t.sol";
+import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
 
-
-abstract contract VoteEscrowedPWN_Revenue_Test is VoteEscrowedPWNTest {
+abstract contract VoteEscrowedPWN_Revenue_Test is VoteEscrowedPWN_Test {
 
     function _setupDaoRevenuePortionCheckpoints(uint256 seed) internal returns (uint256) {
         return _setupDaoRevenuePortionCheckpoints(seed, type(uint16).max);
@@ -251,7 +248,7 @@ contract VoteEscrowedPWN_Revenue_SetDaoRevenuePortion_Test is VoteEscrowedPWN_Re
         vePWN.setDaoRevenuePortion(portion);
 
         assertEq(vePWN.workaround_getDaoRevenuePortionCheckpointsLength(), originalLength + 1);
-        VoteEscrowedPWN.PortionCheckpoint memory checkpoint = vePWN.workaround_getDaoRevenuePortionCheckpointAt(
+        VoteEscrowedPWNHarness.PortionCheckpoint memory checkpoint = vePWN.workaround_getDaoRevenuePortionCheckpointAt(
             originalLength
         );
         assertEq(checkpoint.initialEpoch, currentEpoch + 1);
@@ -268,7 +265,7 @@ contract VoteEscrowedPWN_Revenue_SetDaoRevenuePortion_Test is VoteEscrowedPWN_Re
         vePWN.setDaoRevenuePortion(portion);
 
         assertEq(vePWN.workaround_getDaoRevenuePortionCheckpointsLength(), originalLength);
-        VoteEscrowedPWN.PortionCheckpoint memory checkpoint = vePWN.workaround_getDaoRevenuePortionCheckpointAt(
+        VoteEscrowedPWNHarness.PortionCheckpoint memory checkpoint = vePWN.workaround_getDaoRevenuePortionCheckpointAt(
             originalLength - 1
         );
         assertEq(checkpoint.initialEpoch, uint16(currentEpoch) + 1);
@@ -298,10 +295,10 @@ contract VoteEscrowedPWN_Revenue_DaoRevenuePortion_Test is VoteEscrowedPWN_Reven
         uint256 expectedPortion;
 
         if (length > 0) {
-            VoteEscrowedPWN.PortionCheckpoint memory checkpoint1
-                = vePWN.workaround_getDaoRevenuePortionCheckpointAt(0);
-            VoteEscrowedPWN.PortionCheckpoint memory checkpoint2
-                = vePWN.workaround_getDaoRevenuePortionCheckpointAt(length - 1);
+            VoteEscrowedPWNHarness.PortionCheckpoint memory checkpoint1 =
+                vePWN.workaround_getDaoRevenuePortionCheckpointAt(0);
+            VoteEscrowedPWNHarness.PortionCheckpoint memory checkpoint2 =
+                vePWN.workaround_getDaoRevenuePortionCheckpointAt(length - 1);
             if (checkpoint1.initialEpoch > epoch) {
                 expectedPortion = 0;
             } else if (checkpoint2.initialEpoch <= epoch) {

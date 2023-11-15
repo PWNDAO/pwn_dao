@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { EpochPowerLib } from "../../src/lib/EpochPowerLib.sol";
-import { VoteEscrowedPWN } from "../../src/VoteEscrowedPWN.sol";
+import { EpochPowerLib } from "src/lib/EpochPowerLib.sol";
+import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
 
 // solhint-disable foundry-test-functions
 contract VoteEscrowedPWNHarness is VoteEscrowedPWN {

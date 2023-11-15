@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { PWN } from "../../src/PWN.sol";
+import { PWN } from "src/PWN.sol";
 
-import { BasePWNTest } from "../BasePWNTest.sol";
+import { Base_Test } from "../Base.t.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 
-
-abstract contract PWNTest is BasePWNTest {
+abstract contract PWN_Test is Base_Test {
 
     bytes32 public constant TOTAL_SUPPLY_SLOT = bytes32(uint256(4));
     bytes32 public constant OWNER_MINTED_AMOUNT_SLOT = bytes32(uint256(8));
@@ -37,7 +36,7 @@ abstract contract PWNTest is BasePWNTest {
 |*  # CONSTANTS                                             *|
 |*----------------------------------------------------------*/
 
-contract PWN_Constants_Test is PWNTest {
+contract PWN_Constants_Test is PWN_Test {
 
     function test_constants() external {
         assertEq(pwnToken.name(), "PWN DAO");
@@ -55,7 +54,7 @@ contract PWN_Constants_Test is PWNTest {
 |*  # CONSTRUCTOR                                           *|
 |*----------------------------------------------------------*/
 
-contract PWN_Constructor_Test is PWNTest {
+contract PWN_Constructor_Test is PWN_Test {
 
     function testFuzz_shouldSetInitialParams(
         address _owner, address _clock, address _governor, uint256 _initialEpochTimestamp
@@ -85,7 +84,7 @@ contract PWN_Constructor_Test is PWNTest {
 |*  # MINT                                                  *|
 |*----------------------------------------------------------*/
 
-contract PWN_Mint_Test is PWNTest {
+contract PWN_Mint_Test is PWN_Test {
 
     function testFuzz_shouldFail_whenCallerNotOwner(address caller) external {
         vm.assume(caller != owner);
@@ -117,7 +116,7 @@ contract PWN_Mint_Test is PWNTest {
 |*  # BURN                                                  *|
 |*----------------------------------------------------------*/
 
-contract PWN_Burn_Test is PWNTest {
+contract PWN_Burn_Test is PWN_Test {
 
     function testFuzz_shouldFail_whenCallerNotOwner(address caller) external {
         vm.assume(caller != owner);
@@ -159,7 +158,7 @@ contract PWN_Burn_Test is PWNTest {
 |*  # ASSIGN VOTING REWARDS                                 *|
 |*----------------------------------------------------------*/
 
-contract PWN_AssignVotingReward_Test is PWNTest {
+contract PWN_AssignVotingReward_Test is PWN_Test {
     using SlotComputingLib for bytes32;
 
     uint256 public proposalId = 69;
@@ -273,7 +272,7 @@ contract PWN_AssignVotingReward_Test is PWNTest {
 |*  # CLAIM VOTING REWARDS                                  *|
 |*----------------------------------------------------------*/
 
-contract PWN_ClaimVotingReward_Test is PWNTest {
+contract PWN_ClaimVotingReward_Test is PWN_Test {
     using SlotComputingLib for bytes32;
 
     address public voter = makeAddr("voter");

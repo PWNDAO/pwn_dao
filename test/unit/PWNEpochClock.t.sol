@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { PWNEpochClock } from "../../src/PWNEpochClock.sol";
+import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
-import { BasePWNTest } from "../BasePWNTest.sol";
+import { Base_Test } from "../Base.t.sol";
 
-
-abstract contract PWNEpochClockTest is BasePWNTest {
+abstract contract PWNEpochClock_Test is Base_Test {
 
     PWNEpochClock public clock;
     uint256 public initialTimestamp;
@@ -24,7 +23,7 @@ abstract contract PWNEpochClockTest is BasePWNTest {
 |*  # CONSTRUCTOR                                           *|
 |*----------------------------------------------------------*/
 
-contract PWNEpochClock_Constructor_Test is PWNEpochClockTest {
+contract PWNEpochClock_Constructor_Test is PWNEpochClock_Test {
 
     function testFuzz_shouldFail_whenInitialEpochTimestampIsInTheFuture(
         uint256 initialEpochTimestamp, uint256 currentTimestamp
@@ -52,7 +51,7 @@ contract PWNEpochClock_Constructor_Test is PWNEpochClockTest {
 |*  # CLOCK                                                 *|
 |*----------------------------------------------------------*/
 
-contract PWNEpochClock_Clock_Test is PWNEpochClockTest {
+contract PWNEpochClock_Clock_Test is PWNEpochClock_Test {
 
     function testFuzz_clock_shouldReturnBlockTimestamp(uint256 timestamp) external {
         timestamp = bound(timestamp, 0, type(uint48).max);
@@ -72,7 +71,7 @@ contract PWNEpochClock_Clock_Test is PWNEpochClockTest {
 |*  # EPOCH                                                 *|
 |*----------------------------------------------------------*/
 
-contract PWNEpochClock_Epoch_Test is PWNEpochClockTest {
+contract PWNEpochClock_Epoch_Test is PWNEpochClock_Test {
 
     function testFuzz_currentEpoch_shouldReturnCorrectEpoch(uint256 timestamp) external {
         timestamp = bound(timestamp, initialTimestamp, type(uint256).max);

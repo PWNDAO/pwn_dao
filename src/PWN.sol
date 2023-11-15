@@ -8,7 +8,6 @@ import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { PWNEpochClock } from "./PWNEpochClock.sol";
 import { PWNGovernor } from "./PWNGovernor.sol";
 
-
 contract PWN is Ownable2Step, ERC20 {
 
     // # INVARIANTS

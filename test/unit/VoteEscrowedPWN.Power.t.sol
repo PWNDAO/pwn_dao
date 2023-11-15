@@ -3,10 +3,9 @@ pragma solidity 0.8.18;
 
 import { BitMaskLib } from "../utils/BitMaskLib.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
-import { VoteEscrowedPWNTest } from "./VoteEscrowedPWNTest.t.sol";
+import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
 
-
-abstract contract VoteEscrowedPWN_Power_Test is VoteEscrowedPWNTest {
+abstract contract VoteEscrowedPWN_Power_Test is VoteEscrowedPWN_Test {
     using SlotComputingLib for bytes32;
 
     function setUp() override virtual public {

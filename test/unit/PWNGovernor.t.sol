@@ -3,12 +3,11 @@ pragma solidity 0.8.18;
 
 import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
-import { PWNGovernor } from "../../src/PWNGovernor.sol";
+import { PWNGovernor } from "src/PWNGovernor.sol";
 
-import { BasePWNTest } from "../BasePWNTest.sol";
+import { Base_Test } from "../Base.t.sol";
 
-
-abstract contract PWNGovernorTest is BasePWNTest {
+abstract contract PWNGovernor_Test is Base_Test {
 
     PWNGovernor public governor;
 
@@ -30,7 +29,7 @@ abstract contract PWNGovernorTest is BasePWNTest {
 |*  # CONSTRUCTOR                                           *|
 |*----------------------------------------------------------*/
 
-contract PWNGovernor_Constructor_Test is PWNGovernorTest {
+contract PWNGovernor_Constructor_Test is PWNGovernor_Test {
 
     function test_shouldStoreConstructorArgs() external {
         assertEq(governor.name(), "PWNGovernor");
@@ -47,7 +46,7 @@ contract PWNGovernor_Constructor_Test is PWNGovernorTest {
 |*  # SET VOTING PERIOD                                     *|
 |*----------------------------------------------------------*/
 
-contract PWNGovernor_SetVotingPeriod_Test is PWNGovernorTest {
+contract PWNGovernor_SetVotingPeriod_Test is PWNGovernor_Test {
 
     function testFuzz_shouldFail_whenVotingPeriodMoreThanEpoch(uint256 votingPeriod) external {
         votingPeriod = bound(votingPeriod, governor.MAX_VOTING_PERIOD(), type(uint256).max);

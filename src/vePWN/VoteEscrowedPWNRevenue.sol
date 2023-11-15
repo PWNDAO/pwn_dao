@@ -3,7 +3,6 @@ pragma solidity 0.8.18;
 
 import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
 
-
 abstract contract VoteEscrowedPWNRevenue is VoteEscrowedPWNBase {
 
     /*----------------------------------------------------------*|

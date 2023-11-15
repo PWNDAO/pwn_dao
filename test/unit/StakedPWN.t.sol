@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { StakedPWN } from "../../src/StakedPWN.sol";
+import { StakedPWN } from "src/StakedPWN.sol";
 
-import { BasePWNTest } from "../BasePWNTest.sol";
+import { Base_Test } from "../Base.t.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 
-
-abstract contract StakedPWNTest is BasePWNTest {
+abstract contract StakedPWN_Test is Base_Test {
     using SlotComputingLib for bytes32;
 
     bytes32 public constant OWNERS_SLOT = bytes32(uint256(2));
@@ -46,7 +45,7 @@ abstract contract StakedPWNTest is BasePWNTest {
 |*  # CONSTRUCTOR                                           *|
 |*----------------------------------------------------------*/
 
-contract StakedPWN_Constructor_Test is StakedPWNTest {
+contract StakedPWN_Constructor_Test is StakedPWN_Test {
 
     function testFuzz_shouldSetInitialParams(address stakingContract) external {
         stakedPWN = new StakedPWN(stakingContract);
@@ -61,7 +60,7 @@ contract StakedPWN_Constructor_Test is StakedPWNTest {
 |*  # MINT                                                  *|
 |*----------------------------------------------------------*/
 
-contract StakedPWN_Mint_Test is StakedPWNTest {
+contract StakedPWN_Mint_Test is StakedPWN_Test {
 
     function testFuzz_shouldFail_whenCallerNotStakingContract(address caller) external {
         vm.assume(caller != stakingContract);
@@ -109,7 +108,7 @@ contract StakedPWN_Mint_Test is StakedPWNTest {
 |*  # BURN                                                  *|
 |*----------------------------------------------------------*/
 
-contract StakedPWN_Burn_Test is StakedPWNTest {
+contract StakedPWN_Burn_Test is StakedPWN_Test {
 
     function testFuzz_shouldFail_whenCallerNotStakingContract(address caller) external {
         vm.assume(caller != stakingContract);
@@ -141,7 +140,7 @@ contract StakedPWN_Burn_Test is StakedPWNTest {
 |*  # TRANSFER CALLBACK                                     *|
 |*----------------------------------------------------------*/
 
-contract StakedPWN_TransferCallback_Test is StakedPWNTest {
+contract StakedPWN_TransferCallback_Test is StakedPWN_Test {
 
     function testFuzz_shouldCallCallback_whenTransferFrom(
         address from, address to, uint256 tokenId

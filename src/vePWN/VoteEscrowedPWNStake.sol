@@ -7,7 +7,6 @@ import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
 import { EpochPowerLib } from "../lib/EpochPowerLib.sol";
 import { PowerChangeEpochsLib } from "../lib/PowerChangeEpochsLib.sol";
 
-
 abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     using EpochPowerLib for bytes32;
     using PowerChangeEpochsLib for uint16[];

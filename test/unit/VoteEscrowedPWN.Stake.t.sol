@@ -5,11 +5,10 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 import { BitMaskLib } from "../utils/BitMaskLib.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
-import { VoteEscrowedPWNTest } from "./VoteEscrowedPWNTest.t.sol";
-
+import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
 
 // solhint-disable-next-line no-empty-blocks
-abstract contract VoteEscrowedPWN_Stake_Test is VoteEscrowedPWNTest {}
+abstract contract VoteEscrowedPWN_Stake_Test is VoteEscrowedPWN_Test {}
 
 
 /*----------------------------------------------------------*|

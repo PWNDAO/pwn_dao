@@ -10,7 +10,6 @@ import { VoteEscrowedPWNStake } from "./vePWN/VoteEscrowedPWNStake.sol";
 import { VoteEscrowedPWNPower } from "./vePWN/VoteEscrowedPWNPower.sol";
 import { VoteEscrowedPWNRevenue } from "./vePWN/VoteEscrowedPWNRevenue.sol";
 
-
 contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower, VoteEscrowedPWNRevenue {
 
     // # INVARIANTS

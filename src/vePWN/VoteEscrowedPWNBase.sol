@@ -7,7 +7,6 @@ import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC
 
 import { VoteEscrowedPWNStorage } from "./VoteEscrowedPWNStorage.sol";
 
-
 abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC20Metadata {
 
     /*----------------------------------------------------------*|

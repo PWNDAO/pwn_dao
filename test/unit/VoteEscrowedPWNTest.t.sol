@@ -3,10 +3,9 @@ pragma solidity 0.8.18;
 
 import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
-import { BasePWNTest } from "../BasePWNTest.sol";
+import { Base_Test } from "../Base.t.sol";
 
-
-abstract contract VoteEscrowedPWNTest is BasePWNTest {
+abstract contract VoteEscrowedPWN_Test is Base_Test {
     using SlotComputingLib for bytes32;
 
     uint8 public constant EPOCHS_IN_PERIOD = 13;
@@ -233,7 +232,7 @@ abstract contract VoteEscrowedPWNTest is BasePWNTest {
 |*  # HELPERS                                               *|
 |*----------------------------------------------------------*/
 
-contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWNTest {
+contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWN_Test {
 
     function testFuzzHelper_storeStake(
         uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount
@@ -265,7 +264,7 @@ contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWNTest {
 |*  # EXPOSED FUNCTIONS                                     *|
 |*----------------------------------------------------------*/
 
-contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWNTest {
+contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
     using SlotComputingLib for bytes32;
 
     function testFuzz_nextEpochAndRemainingLockup_whenLessThanFivePeriods_whenDivisibleByPeriod(

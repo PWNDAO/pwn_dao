@@ -5,7 +5,7 @@ pragma solidity 0.8.18;
 import "forge-std/Test.sol";
 
 
-abstract contract BasePWNTest is Test {
+abstract contract Base_Test is Test {
 
     modifier checkAddress(address addr) {
         _checkAddress(addr, false);

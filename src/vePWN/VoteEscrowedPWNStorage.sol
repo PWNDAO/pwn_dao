@@ -9,7 +9,6 @@ import { PWNEpochClock } from "../PWNEpochClock.sol";
 import { PWNFeeCollector } from "../PWNFeeCollector.sol";
 import { StakedPWN } from "../StakedPWN.sol";
 
-
 contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
 
     /*----------------------------------------------------------*|

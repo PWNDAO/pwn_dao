@@ -10,7 +10,6 @@ import { GovernorVotesQuorumFraction }
     from "openzeppelin-contracts/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
 import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 
-
 contract PWNGovernor is Governor, GovernorSettings, GovernorCountingSimple, GovernorVotes, GovernorVotesQuorumFraction {
 
     // # INVARIANTS

@@ -6,10 +6,10 @@ import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/Sa
 
 import { PWNEpochClock } from "./PWNEpochClock.sol";
 
-
 interface IPWNHub {
     function hasTag(address _address, bytes32 tag) external view returns (bool);
 }
+
 
 contract PWNFeeCollector {
     using SafeERC20 for IERC20;
