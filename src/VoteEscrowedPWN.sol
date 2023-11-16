@@ -55,7 +55,7 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower, VoteEscr
         epochClock = PWNEpochClock(_epochClock);
         feeCollector = PWNFeeCollector(_feeCollector);
         _transferOwnership(_owner);
-        _pushDaoRevenuePortionCheckpoint(_currentEpoch(), 0);
+        _pushDaoRevenueShareCheckpoint(_currentEpoch(), 0);
     }
 
     // The following functions are overrides required by Solidity.

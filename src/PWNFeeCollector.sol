@@ -28,9 +28,9 @@ contract PWNFeeCollector {
     address public immutable claimController;
 
     // claimed fees per address per epoch per asset address
-    mapping (address staker => mapping (uint256 epoch => mapping (address asset => bool claimed))) public claimedFees;
+    mapping(address staker => mapping(uint256 epoch => mapping(address asset => bool claimed))) public claimedFees;
     // collected fees per epoch per asset address
-    mapping (uint256 epoch => mapping (address asset => uint256 amount)) public collectedFees;
+    mapping(uint256 epoch => mapping(address asset => uint256 amount)) public collectedFees;
 
     /*----------------------------------------------------------*|
     |*  # EVENTS                                                *|

@@ -36,7 +36,7 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
         uint104 amount;
         // uint128 __padding;
     }
-    mapping (uint256 stakeId => Stake) public stakes;
+    mapping(uint256 stakeId => Stake) public stakes;
 
     // staker power change data
     struct PowerChange {
@@ -44,7 +44,7 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
         // uint152 __padding;
     }
     // epochs are sorted in ascending order without duplicates
-    mapping (address staker => uint16[]) public powerChangeEpochs;
+    mapping(address staker => uint16[]) public powerChangeEpochs;
 
 
     /*----------------------------------------------------------*|
@@ -72,7 +72,7 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
         uint16 index;
         // uint224 __padding;
     }
-    mapping (address staker => EpochWithPosition) internal _lastCalculatedStakerEpoch;
+    mapping(address staker => EpochWithPosition) internal _lastCalculatedStakerEpoch;
     function lastCalculatedStakerEpoch(address staker) public view returns (uint256) {
         return uint256(_lastCalculatedStakerEpoch[staker].epoch);
     }
@@ -81,15 +81,15 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
 
 
     /*----------------------------------------------------------*|
-    |*  # DAO REVENUE PORTION                                   *|
+    |*  # DAO REVENUE SHARE                                     *|
     |*----------------------------------------------------------*/
 
-    struct PortionCheckpoint {
+    struct RevenueShareCheckpoint {
         uint16 initialEpoch;
-        uint16 portion; // % with 2 decimals (1234 = 12.34%)
+        uint16 share; // % with 2 decimals (1234 = 12.34%)
         // uint224 ___padding;
     }
     // checkpoints are sorted by `initialEpoch` in ascending order without duplicates
-    PortionCheckpoint[] public daoRevenuePortion;
+    RevenueShareCheckpoint[] public daoRevenueShares;
 
 }

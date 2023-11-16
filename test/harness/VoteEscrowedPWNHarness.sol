@@ -52,22 +52,24 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
         return powerChangeEpochs[staker].length;
     }
 
-    function workaround_pushDaoRevenuePortionCheckpoint(uint16 initialEpoch, uint16 portion) external {
-        daoRevenuePortion.push(PortionCheckpoint(initialEpoch, portion));
+    function workaround_pushDaoRevenueShare(uint16 initialEpoch, uint16 share) external {
+        daoRevenueShares.push(RevenueShareCheckpoint(initialEpoch, share));
     }
 
-    function workaround_getDaoRevenuePortionCheckpointAt(
-        uint256 index
-    ) external view returns (PortionCheckpoint memory) {
-        return daoRevenuePortion[index];
+    function workaround_getDaoRevenueShareAt(uint256 index)
+        external
+        view
+        returns (RevenueShareCheckpoint memory)
+    {
+        return daoRevenueShares[index];
     }
 
-    function workaround_clearDaoRevenuePortionCheckpoints() external {
-        delete daoRevenuePortion;
+    function workaround_clearDaoRevenueShares() external {
+        delete daoRevenueShares;
     }
 
-    function workaround_getDaoRevenuePortionCheckpointsLength() external view returns (uint256) {
-        return daoRevenuePortion.length;
+    function workaround_getDaoRevenueSharesLength() external view returns (uint256) {
+        return daoRevenueShares.length;
     }
 
 

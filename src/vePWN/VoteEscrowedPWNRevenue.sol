@@ -9,7 +9,7 @@ abstract contract VoteEscrowedPWNRevenue is VoteEscrowedPWNBase {
     |*  # EVENTS                                                *|
     |*----------------------------------------------------------*/
 
-    event DaoRevenuePortionChanged(uint256 indexed epoch, uint16 oldValue, uint16 newValue);
+    event DaoRevenueShareChanged(uint256 indexed epoch, uint16 oldValue, uint16 newValue);
 
 
     /*----------------------------------------------------------*|
@@ -39,7 +39,7 @@ abstract contract VoteEscrowedPWNRevenue is VoteEscrowedPWNBase {
             staker: msg.sender,
             epoch: epoch,
             assets: assets,
-            stakerPower: stakerPower(msg.sender, epoch) * (10000 - daoRevenuePortionFor(epoch)) / 10000,
+            stakerPower: stakerPower(msg.sender, epoch) * (10000 - daoRevenueShareFor(epoch)) / 10000,
             totalPower: totalPowerAt(epoch)
         });
     }
@@ -49,7 +49,7 @@ abstract contract VoteEscrowedPWNRevenue is VoteEscrowedPWNBase {
     |*  # DAO REVENUE                                           *|
     |*----------------------------------------------------------*/
 
-    /// @notice Claims DAO portion of revenue.
+    /// @notice Claims DAOs share of revenue.
     /// @dev Can be called only by the owner.
     /// @dev Can be called only after the epoch has ended.
     /// @dev Can be called only after total power was calculated for the epoch.
@@ -62,47 +62,49 @@ abstract contract VoteEscrowedPWNRevenue is VoteEscrowedPWNBase {
             staker: msg.sender,
             epoch: epoch,
             assets: assets,
-            stakerPower: anyStaker ? totalPowerAt(epoch) * daoRevenuePortionFor(epoch) / 10000 : 1,
+            stakerPower: anyStaker ? totalPowerAt(epoch) * daoRevenueShareFor(epoch) / 10000 : 1,
             totalPower: anyStaker ? totalPowerAt(epoch) : 1
         });
     }
 
-    /// @notice Sets a new DAO revenue portion.
+    /// @notice Sets a new DAO revenue share.
     /// @dev Can be called only by the owner.
-    /// @param portion New DAO revenue portion with 2 decimals.
-    function setDaoRevenuePortion(uint16 portion) external onlyOwner {
-        require(portion <= 5000, "vePWN: portion must be less than or equal 50%");
-        PortionCheckpoint storage checkpoint = daoRevenuePortion[daoRevenuePortion.length - 1];
+    /// @param share New DAO revenue share with 2 decimals.
+    function setDaoRevenueShare(uint16 share) external onlyOwner {
+        require(share <= 5000, "vePWN: share must be less than or equal 50%");
+        RevenueShareCheckpoint storage checkpoint = daoRevenueShares[daoRevenueShares.length - 1];
 
-        uint16 oldPortion = checkpoint.portion;
+        uint16 oldShare = checkpoint.share;
+        require(share != oldShare, "vePWN: share already set");
+
         uint16 initialEpoch = _currentEpoch() + 1;
+        if (checkpoint.initialEpoch == initialEpoch) {
+            checkpoint.share = share;
+        } else {
+            _pushDaoRevenueShareCheckpoint(initialEpoch, share);
+        }
 
-        if (checkpoint.initialEpoch == initialEpoch)
-            checkpoint.portion = portion;
-        else
-            _pushDaoRevenuePortionCheckpoint(initialEpoch, portion);
-
-        emit DaoRevenuePortionChanged(initialEpoch, oldPortion, portion);
+        emit DaoRevenueShareChanged(initialEpoch, oldShare, share);
     }
 
-    /// @notice Returns DAO revenue portion for the current epoch.
-    /// @return DAO revenue portion with 2 decimals.
-    function currentDaoRevenuePortion() external view returns (uint256) {
-        return daoRevenuePortionFor(epochClock.currentEpoch());
+    /// @notice Returns DAO revenue share for the current epoch.
+    /// @return DAO revenue share with 2 decimals.
+    function currentDaoRevenueShare() external view returns (uint256) {
+        return daoRevenueShareFor(epochClock.currentEpoch());
     }
 
-    /// @notice Returns DAO revenue portion for the given epoch.
-    /// @param epoch Epoch to get DAO revenue portion for.
-    /// @return DAO revenue portion with 2 decimals.
-    function daoRevenuePortionFor(uint256 epoch) public view returns (uint256) {
-        uint256 checkpoints = daoRevenuePortion.length;
-        PortionCheckpoint storage checkpoint;
+    /// @notice Returns DAO revenue share for the given epoch.
+    /// @param epoch Epoch to get DAO revenue share for.
+    /// @return DAO revenue share with 2 decimals.
+    function daoRevenueShareFor(uint256 epoch) public view returns (uint256) {
+        uint256 checkpoints = daoRevenueShares.length;
+        RevenueShareCheckpoint storage checkpoint;
 
         while (checkpoints > 0) {
             unchecked { --checkpoints; }
-            checkpoint = daoRevenuePortion[checkpoints];
+            checkpoint = daoRevenueShares[checkpoints];
             if (checkpoint.initialEpoch <= epoch)
-                return uint256(checkpoint.portion);
+                return uint256(checkpoint.share);
         }
 
         return 0;
@@ -114,10 +116,10 @@ abstract contract VoteEscrowedPWNRevenue is VoteEscrowedPWNBase {
     |*----------------------------------------------------------*/
 
     // used in `initialize` function
-    function _pushDaoRevenuePortionCheckpoint(uint16 initialEpoch, uint16 portion) internal {
-        PortionCheckpoint storage checkpoint = daoRevenuePortion.push();
+    function _pushDaoRevenueShareCheckpoint(uint16 initialEpoch, uint16 share) internal {
+        RevenueShareCheckpoint storage checkpoint = daoRevenueShares.push();
         checkpoint.initialEpoch = initialEpoch;
-        checkpoint.portion = portion;
+        checkpoint.share = share;
     }
 
 }
