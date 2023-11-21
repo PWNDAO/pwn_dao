@@ -99,6 +99,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint8 originalRemainingLockup = originalStake.remainingLockup;
 
         require(stakedPWN.ownerOf(stakeId) == staker, "vePWN: caller is not the stake owner");
+        require(splitAmount > 0, "vePWN: split amount must be greater than 0");
         require(splitAmount < originalAmount, "vePWN: split amount must be less than stake amount");
         require(splitAmount % 100 == 0, "vePWN: split amount must be a multiple of 100");
 

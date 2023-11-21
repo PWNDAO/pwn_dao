@@ -263,8 +263,11 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
     }
 
     function testFuzz_shouldFail_whenInvalidSplitAmount(uint256 splitAmount) external {
-        splitAmount = bound(splitAmount, amount, type(uint256).max);
+        vm.expectRevert("vePWN: split amount must be greater than 0");
+        vm.prank(staker);
+        vePWN.splitStake(stakeId, 0);
 
+        splitAmount = bound(splitAmount, amount, type(uint256).max);
         vm.expectRevert("vePWN: split amount must be less than stake amount");
         vm.prank(staker);
         vePWN.splitStake(stakeId, splitAmount);
