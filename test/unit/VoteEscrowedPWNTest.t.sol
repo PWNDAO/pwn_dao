@@ -187,16 +187,16 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
 
     // bound
 
-    function _boundAmount(uint256 seed) internal view returns (uint256) {
+    function _boundAmount(uint256 seed) internal pure returns (uint256) {
         return bound(seed, 100, 1e26) / 100 * 100;
     }
 
-    function _boundLockUpEpochs(uint256 seed) internal view returns (uint8) {
+    function _boundLockUpEpochs(uint256 seed) internal pure returns (uint8) {
         uint8 lockUpEpochs = uint8(bound(seed, EPOCHS_IN_PERIOD, 10 * EPOCHS_IN_PERIOD));
         return lockUpEpochs > 5 * EPOCHS_IN_PERIOD ? 10 * EPOCHS_IN_PERIOD : lockUpEpochs;
     }
 
-    function _boundRemainingLockups(uint256 seed) internal view returns (uint8) {
+    function _boundRemainingLockups(uint256 seed) internal pure returns (uint8) {
         return uint8(bound(seed, 1, 10 * EPOCHS_IN_PERIOD));
     }
 
