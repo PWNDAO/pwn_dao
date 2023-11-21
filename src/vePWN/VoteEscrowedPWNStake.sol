@@ -17,7 +17,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
     event StakeCreated(uint256 indexed stakeId, address indexed staker, uint256 amount, uint256 lockUpEpochs);
     event StakeSplit(
-        uint256 indexed stakeId, address indexed staker, uint256 amount, uint256 newStakeId1, uint256 newStakeId2
+        uint256 indexed stakeId, address indexed staker, uint256 splitAmount, uint256 newStakeId1, uint256 newStakeId2
     );
     event StakeMerged(
         uint256 indexed stakeId1,
@@ -88,10 +88,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @notice Splits a stake for a caller.
     /// @dev Burns an original stake token and mints two new stPWN tokens. Doesn't update any power changes.
     /// @param stakeId Id of the stake to split.
-    /// @param amount Amount of PWN tokens to split into a new stake.
+    /// @param splitAmount Amount of PWN tokens to split into a new stake.
     /// @return newStakeId1 Id of the first new stake.
     /// @return newStakeId2 Id of the second new stake.
-    function splitStake(uint256 stakeId, uint256 amount) external returns (uint256 newStakeId1, uint256 newStakeId2) {
+    function splitStake(uint256 stakeId, uint256 splitAmount) external returns (uint256 newStakeId1, uint256 newStakeId2) {
         Stake storage originalStake = stakes[stakeId];
         address staker = msg.sender;
         uint16 originalInitialEpoch = originalStake.initialEpoch;
@@ -99,19 +99,20 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint8 originalRemainingLockup = originalStake.remainingLockup;
 
         require(stakedPWN.ownerOf(stakeId) == staker, "vePWN: caller is not the stake owner");
-        require(originalAmount > amount, "vePWN: split amount must be greater than stake amount");
+        require(splitAmount < originalAmount, "vePWN: split amount must be less than stake amount");
+        require(splitAmount % 100 == 0, "vePWN: split amount must be a multiple of 100");
 
         // delete original stake
         _deleteStake(stakeId);
 
         // create new stakes
         newStakeId1 = _createStake(
-            staker, originalInitialEpoch, originalAmount - uint104(amount), originalRemainingLockup
+            staker, originalInitialEpoch, originalAmount - uint104(splitAmount), originalRemainingLockup
         );
-        newStakeId2 = _createStake(staker, originalInitialEpoch, uint104(amount), originalRemainingLockup);
+        newStakeId2 = _createStake(staker, originalInitialEpoch, uint104(splitAmount), originalRemainingLockup);
 
         // emit event
-        emit StakeSplit(stakeId, staker, amount, newStakeId1, newStakeId2);
+        emit StakeSplit(stakeId, staker, splitAmount, newStakeId1, newStakeId2);
     }
 
     /// @notice Merges two stakes for a caller.

@@ -240,7 +240,7 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
     uint8 public lockUpEpochs = 13;
 
     event StakeSplit(
-        uint256 indexed stakeId, address indexed staker, uint256 amount, uint256 newStakeId1, uint256 newStakeId2
+        uint256 indexed stakeId, address indexed staker, uint256 splitAmount, uint256 newStakeId1, uint256 newStakeId2
     );
 
     function setUp() override public {
@@ -262,16 +262,22 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
         vePWN.splitStake(stakeId, amount / 2);
     }
 
-    function testFuzz_shouldFail_whenSplitAmountNotLessThanStakedAmount(uint256 splitAmount) external {
+    function testFuzz_shouldFail_whenInvalidSplitAmount(uint256 splitAmount) external {
         splitAmount = bound(splitAmount, amount, type(uint256).max);
 
-        vm.expectRevert("vePWN: split amount must be greater than stake amount");
+        vm.expectRevert("vePWN: split amount must be less than stake amount");
+        vm.prank(staker);
+        vePWN.splitStake(stakeId, splitAmount);
+
+        splitAmount = bound(splitAmount, 1, amount / 100 - 1) * 100;
+        splitAmount += bound(splitAmount, 1, 99);
+        vm.expectRevert("vePWN: split amount must be a multiple of 100");
         vm.prank(staker);
         vePWN.splitStake(stakeId, splitAmount);
     }
 
     function test_shouldStoreNewStakes(uint256 splitAmount) external {
-        splitAmount = bound(splitAmount, 1, amount - 1);
+        splitAmount = bound(splitAmount, 1, amount / 100 - 1) * 100;
 
         vm.prank(staker);
         (uint256 newStakeId1, uint256 newStakeId2) = vePWN.splitStake(stakeId, splitAmount);
@@ -289,7 +295,7 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
 
     function test_shouldDeleteOriginalStake() external {
         vm.prank(staker);
-        vePWN.splitStake(stakeId, amount / 3);
+        vePWN.splitStake(stakeId, amount / 4);
 
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId));
         assertEq(stakeValue.maskUint16(0), 0); // initialEpoch
@@ -303,7 +309,7 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
         );
 
         vm.prank(staker);
-        vePWN.splitStake(stakeId, amount / 3);
+        vePWN.splitStake(stakeId, amount / 4);
 
         uint256 length = vePWN.workaround_stakerPowerChangeEpochsLength(staker);
         assertEq(powerChanges.length, length);
@@ -316,10 +322,10 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
 
     function test_shouldEmit_StakeSplit() external {
         vm.expectEmit();
-        emit StakeSplit(stakeId, staker, amount / 3, vePWN.lastStakeId() + 1, vePWN.lastStakeId() + 2);
+        emit StakeSplit(stakeId, staker, amount / 4, vePWN.lastStakeId() + 1, vePWN.lastStakeId() + 2);
 
         vm.prank(staker);
-        vePWN.splitStake(stakeId, amount / 3);
+        vePWN.splitStake(stakeId, amount / 4);
     }
 
     function test_shouldBurnOriginalStakedPWNToken() external {
@@ -328,7 +334,7 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
         );
 
         vm.prank(staker);
-        vePWN.splitStake(stakeId, amount / 3);
+        vePWN.splitStake(stakeId, amount / 4);
     }
 
     function test_shouldMintNewStakedPWNTokens() external {
@@ -340,7 +346,7 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
         );
 
         vm.prank(staker);
-        vePWN.splitStake(stakeId, amount / 3);
+        vePWN.splitStake(stakeId, amount / 4);
     }
 
     function test_shouldReturnNewStakedPWNTokenIds() external {
@@ -348,7 +354,7 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
         uint256 expectedNewStakeId2 = vePWN.lastStakeId() + 2;
 
         vm.prank(staker);
-        (uint256 newStakeId1, uint256 newStakeId2) = vePWN.splitStake(stakeId, amount / 3);
+        (uint256 newStakeId1, uint256 newStakeId2) = vePWN.splitStake(stakeId, amount / 4);
 
         assertEq(newStakeId1, expectedNewStakeId1);
         assertEq(newStakeId2, expectedNewStakeId2);
