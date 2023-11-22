@@ -142,7 +142,7 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     }
 
     function calculateTotalPower() external {
-        calculateTotalPowerUpTo(epochClock.currentEpoch());
+        calculateTotalPowerUpTo(epochClock.currentEpoch() - 1);
     }
 
     function calculateTotalPowerUpTo(uint256 epoch) public {
