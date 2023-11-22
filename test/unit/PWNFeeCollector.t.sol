@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
+import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+
 import { PWNFeeCollector, IPWNHub } from "src/PWNFeeCollector.sol";
 import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
@@ -410,7 +412,7 @@ contract PWNFeeCollector_ClaimFees_Test is PWNFeeCollector_Test {
         });
     }
 
-    function testFuzz_shouldClaimCorrectAmount(uint256 stakerPower, uint256 totalPower) external {
+    function testFuzz_shouldClaimCorrectAmount(uint256 stakerPower, uint256 totalPower, uint256 amount) external {
         // total supply with max multiplier after claiming all 1000 voting rewards
         uint256 maxStakerPower = 100_000_000e18 * 3.5 * 7;
         stakerPower = bound(stakerPower, 1, maxStakerPower);
@@ -418,15 +420,14 @@ contract PWNFeeCollector_ClaimFees_Test is PWNFeeCollector_Test {
 
         address staker = makeAddr("staker");
         address asset = makeAddr("asset");
-        uint256 amount = 1e18;
+        amount = bound(amount, 1, type(uint256).max);
 
         assets[0] = asset;
         _mockCollectedFees(currentEpoch - 1, asset, amount);
         _mockERC20Asset(asset);
 
-        vm.expectCall(
-            asset, abi.encodeWithSignature("transfer(address,uint256)", staker, amount * stakerPower / totalPower)
-        );
+        uint256 claimAmount = Math.mulDiv(amount, stakerPower, totalPower);
+        vm.expectCall(asset, abi.encodeWithSignature("transfer(address,uint256)", staker, claimAmount));
 
         vm.prank(claimController);
         collector.claimFees({

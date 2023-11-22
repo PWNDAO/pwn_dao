@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 import { PWNEpochClock } from "./PWNEpochClock.sol";
 
@@ -104,7 +105,7 @@ contract PWNFeeCollector {
             require(claimedFees[staker][epoch][asset] == false, "PWNFeeCollector: asset already claimed");
             claimedFees[staker][epoch][asset] = true; // protects against reentrancy and duplicite assets
 
-            claimableAmount = collectedFees[epoch][asset] * stakerPower / totalPower;
+            claimableAmount = Math.mulDiv(collectedFees[epoch][asset], stakerPower, totalPower);
 
             if (asset == address(0)) {
                 (bool success, ) = staker.call{value: claimableAmount}("");
