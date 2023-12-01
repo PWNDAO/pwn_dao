@@ -52,26 +52,6 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
         return powerChangeEpochs[staker].length;
     }
 
-    function workaround_pushDaoRevenueShare(uint16 initialEpoch, uint16 share) external {
-        daoRevenueShares.push(RevenueShareCheckpoint(initialEpoch, share));
-    }
-
-    function workaround_getDaoRevenueShareAt(uint256 index)
-        external
-        view
-        returns (RevenueShareCheckpoint memory)
-    {
-        return daoRevenueShares[index];
-    }
-
-    function workaround_clearDaoRevenueShares() external {
-        delete daoRevenueShares;
-    }
-
-    function workaround_getDaoRevenueSharesLength() external view returns (uint256) {
-        return daoRevenueShares.length;
-    }
-
 
     struct StakerPowerInput {
         address staker;

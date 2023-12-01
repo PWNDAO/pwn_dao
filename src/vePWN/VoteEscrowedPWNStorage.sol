@@ -6,7 +6,6 @@ import { Initializable } from "openzeppelin-contracts/contracts/proxy/utils/Init
 
 import { PWN } from "../PWN.sol";
 import { PWNEpochClock } from "../PWNEpochClock.sol";
-import { PWNFeeCollector } from "../PWNFeeCollector.sol";
 import { StakedPWN } from "../StakedPWN.sol";
 
 contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
@@ -20,7 +19,6 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
     PWN public pwnToken;
     StakedPWN public stakedPWN;
     PWNEpochClock public epochClock;
-    PWNFeeCollector public feeCollector;
 
 
     /*----------------------------------------------------------*|
@@ -78,18 +76,5 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
     }
 
     uint256 public lastCalculatedTotalPowerEpoch;
-
-
-    /*----------------------------------------------------------*|
-    |*  # DAO REVENUE SHARE                                     *|
-    |*----------------------------------------------------------*/
-
-    struct RevenueShareCheckpoint {
-        uint16 initialEpoch;
-        uint16 share; // % with 2 decimals (1234 = 12.34%)
-        // uint224 ___padding;
-    }
-    // checkpoints are sorted by `initialEpoch` in ascending order without duplicates
-    RevenueShareCheckpoint[] public daoRevenueShares;
 
 }

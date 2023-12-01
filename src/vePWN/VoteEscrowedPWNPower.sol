@@ -24,7 +24,6 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     |*----------------------------------------------------------*/
 
     /// @notice Returns staker power for given epoch.
-    /// @dev If staker power for given epoch is not calculated, it will be calculated.
     /// @param staker Staker address.
     /// @param epoch Epoch number.
     /// @return Staker power.

@@ -9,17 +9,16 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
     using SlotComputingLib for bytes32;
 
     uint8 public constant EPOCHS_IN_PERIOD = 13;
-    bytes32 public constant STAKES_SLOT = bytes32(uint256(7));
-    bytes32 public constant POWER_CHANGES_EPOCHS_SLOT = bytes32(uint256(8));
-    bytes32 public constant LAST_CALCULATED_STAKER_POWER_EPOCH_SLOT = bytes32(uint256(9));
-    bytes32 public constant LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT = bytes32(uint256(10));
+    bytes32 public constant STAKES_SLOT = bytes32(uint256(6));
+    bytes32 public constant POWER_CHANGES_EPOCHS_SLOT = bytes32(uint256(7));
+    bytes32 public constant LAST_CALCULATED_STAKER_POWER_EPOCH_SLOT = bytes32(uint256(8));
+    bytes32 public constant LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT = bytes32(uint256(9));
 
     VoteEscrowedPWNHarness public vePWN;
 
     address public pwnToken = makeAddr("pwnToken");
     address public stakedPWN = makeAddr("stakedPWN");
     address public epochClock = makeAddr("epochClock");
-    address public feeCollector = makeAddr("feeCollector");
     address public owner = makeAddr("owner");
     address public staker = makeAddr("staker");
 
@@ -41,18 +40,12 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
         vm.mockCall(
             stakedPWN, abi.encodeWithSignature("burn(uint256)"), abi.encode(0)
         );
-        vm.mockCall(
-            feeCollector,
-            abi.encodeWithSignature("claimFees(address,uint256,address[],uint256,uint256)"),
-            abi.encode(0)
-        );
 
         vePWN = new VoteEscrowedPWNHarness();
         vePWN.initialize({
             _pwnToken: pwnToken,
             _stakedPWN: stakedPWN,
             _epochClock: epochClock,
-            _feeCollector: feeCollector,
             _owner: owner
         });
     }

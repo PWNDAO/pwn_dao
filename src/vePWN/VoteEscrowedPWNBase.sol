@@ -49,7 +49,6 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
         revert("vePWN: approve is disabled");
     }
 
-
     /*----------------------------------------------------------*|
     |*  # VOTES                                                 *|
     |*----------------------------------------------------------*/
@@ -101,7 +100,6 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
     function _currentEpoch() internal view returns (uint16) {
         return SafeCast.toUint16(epochClock.currentEpoch());
     }
-
 
     /*----------------------------------------------------------*|
     |*  # POWER FUNCTION PLACEHOLDERS                           *|

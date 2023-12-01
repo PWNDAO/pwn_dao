@@ -3,14 +3,12 @@ pragma solidity 0.8.18;
 
 import { PWN } from "./PWN.sol";
 import { PWNEpochClock } from "./PWNEpochClock.sol";
-import { PWNFeeCollector } from "./PWNFeeCollector.sol";
 import { StakedPWN } from "./StakedPWN.sol";
 import { VoteEscrowedPWNBase } from "./vePWN/VoteEscrowedPWNBase.sol";
 import { VoteEscrowedPWNStake } from "./vePWN/VoteEscrowedPWNStake.sol";
 import { VoteEscrowedPWNPower } from "./vePWN/VoteEscrowedPWNPower.sol";
-import { VoteEscrowedPWNRevenue } from "./vePWN/VoteEscrowedPWNRevenue.sol";
 
-contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower, VoteEscrowedPWNRevenue {
+contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower {
 
     // # INVARIANTS
     // - stakes for past & current epochs are immutable
@@ -47,15 +45,12 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower, VoteEscr
         address _pwnToken,
         address _stakedPWN,
         address _epochClock,
-        address _feeCollector,
         address _owner
     ) external initializer {
         pwnToken = PWN(_pwnToken);
         stakedPWN = StakedPWN(_stakedPWN);
         epochClock = PWNEpochClock(_epochClock);
-        feeCollector = PWNFeeCollector(_feeCollector);
         _transferOwnership(_owner);
-        _pushDaoRevenueShareCheckpoint(_currentEpoch(), 0);
     }
 
     // The following functions are overrides required by Solidity.
