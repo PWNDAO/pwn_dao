@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
-import { PWN } from "src/PWN.sol";
+import { PWN, ITokenVoting } from "src/PWN.sol";
 
 import { Base_Test } from "../Base.t.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
@@ -11,7 +11,7 @@ import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 abstract contract PWN_Test is Base_Test {
 
     bytes32 public constant TOTAL_SUPPLY_SLOT = bytes32(uint256(4));
-    bytes32 public constant GOVERNOR_SLOT = bytes32(uint256(7));
+    bytes32 public constant TOKEN_VOTING_SLOT = bytes32(uint256(7));
     bytes32 public constant OWNER_MINTED_AMOUNT_SLOT = bytes32(uint256(8));
     bytes32 public constant REWARDS_SLOT = bytes32(uint256(9));
     bytes32 public constant REWARDS_CLAIMED_SLOT = bytes32(uint256(10));
@@ -20,7 +20,8 @@ abstract contract PWN_Test is Base_Test {
 
     address public owner = makeAddr("owner");
     address public clock = makeAddr("clock");
-    address public governor = makeAddr("governor");
+    address public tokenVoting = makeAddr("tokenVoting");
+    address public votingToken = makeAddr("votingToken");
 
     function setUp() virtual public {
         vm.mockCall(
@@ -31,7 +32,7 @@ abstract contract PWN_Test is Base_Test {
 
         pwnToken = new PWN(owner, clock);
         vm.prank(owner);
-        pwnToken.setGovernor(payable(governor));
+        pwnToken.setTokenVotingContract(ITokenVoting(tokenVoting));
     }
 
 }
@@ -47,7 +48,7 @@ contract PWN_Constants_Test is PWN_Test {
         assertEq(pwnToken.name(), "PWN DAO");
         assertEq(pwnToken.symbol(), "PWN");
         assertEq(pwnToken.decimals(), 18);
-        assertEq(pwnToken.INITIAL_TOTAL_SUPPLY(), 100_000_000e18);
+        assertEq(pwnToken.MINTABLE_TOTAL_SUPPLY(), 100_000_000e18);
         assertEq(pwnToken.MAX_INFLATION_RATE(), 20);
         assertEq(pwnToken.IMMUTABLE_PERIOD(), 65);
     }
@@ -94,13 +95,13 @@ contract PWN_Mint_Test is PWN_Test {
     }
 
     function testFuzz_shouldFail_whenInitialSupplyReached(uint256 ownerMintedAmount, uint256 amount) external {
-        ownerMintedAmount = bound(ownerMintedAmount, 0, pwnToken.INITIAL_TOTAL_SUPPLY());
+        ownerMintedAmount = bound(ownerMintedAmount, 0, pwnToken.MINTABLE_TOTAL_SUPPLY());
         amount = bound(
-            amount, pwnToken.INITIAL_TOTAL_SUPPLY() - ownerMintedAmount + 1, type(uint256).max - ownerMintedAmount
+            amount, pwnToken.MINTABLE_TOTAL_SUPPLY() - ownerMintedAmount + 1, type(uint256).max - ownerMintedAmount
         );
         vm.store(address(pwnToken), OWNER_MINTED_AMOUNT_SLOT, bytes32(ownerMintedAmount));
 
-        vm.expectRevert("PWN: initial supply reached");
+        vm.expectRevert("PWN: mintable supply reached");
         vm.prank(owner);
         pwnToken.mint(amount);
     }
@@ -276,6 +277,23 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
     uint256 public proposalId = 69;
     uint256 public reward = 100 ether;
     uint256 public timepoint = 17e8;
+    uint64 public snapshotEpoch = 420;
+    uint256 public pastVotes = 100;
+
+    ITokenVoting.ProposalParameters public proposalParameters = ITokenVoting.ProposalParameters({
+        votingMode: ITokenVoting.VotingMode.Standard,
+        supportThreshold: 0,
+        startDate: 0,
+        endDate: 0,
+        snapshotEpoch: snapshotEpoch,
+        minVotingPower: 0
+    });
+    ITokenVoting.Tally public tally = ITokenVoting.Tally({
+        abstain: 100,
+        yes: 200,
+        no: 0
+    });
+    ITokenVoting.Action[] public actions;
 
     event VotingRewardClaimed(uint256 indexed proposalId, address indexed voter, uint256 reward);
 
@@ -283,29 +301,24 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         super.setUp();
 
         vm.mockCall(
-            governor,
-            abi.encodeWithSignature("state(uint256)"),
-            abi.encode(4)
+            tokenVoting,
+            abi.encodeWithSignature("getVotingToken()"),
+            abi.encode(votingToken)
         );
         vm.mockCall(
-            governor,
-            abi.encodeWithSignature("hasVoted(uint256,address)"),
-            abi.encode(true)
+            tokenVoting,
+            abi.encodeWithSignature("getVoteOption(uint256,address)", proposalId, voter),
+            abi.encode(ITokenVoting.VoteOption.Yes)
         );
         vm.mockCall(
-            governor,
-            abi.encodeWithSignature("proposalVotes(uint256)"),
-            abi.encode(10, 11, 9)
+            tokenVoting,
+            abi.encodeWithSignature("getProposal(uint256)", proposalId),
+            abi.encode(true, true, proposalParameters, tally, actions, 0)
         );
         vm.mockCall(
-            governor,
-            abi.encodeWithSignature("proposalSnapshot(uint256)"),
-            abi.encode(timepoint)
-        );
-        vm.mockCall(
-            governor,
-            abi.encodeWithSignature("getVotes(address,uint256)"),
-            abi.encode(3)
+            votingToken,
+            abi.encodeWithSignature("getPastVotes(address,uint256)", voter, snapshotEpoch),
+            abi.encode(pastVotes)
         );
         vm.store(
             address(pwnToken), REWARDS_SLOT.withMappingKey(proposalId), bytes32(reward)
@@ -316,34 +329,31 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
     }
 
 
-    function test_shouldFail_whenGovernorNotSet() external {
-        vm.store(address(pwnToken), GOVERNOR_SLOT, bytes32(uint256(0)));
+    function test_shouldFail_whenTokenVotingNotSet() external {
+        vm.store(address(pwnToken), TOKEN_VOTING_SLOT, bytes32(uint256(0)));
 
-        vm.expectRevert("PWN: governor not set");
+        vm.expectRevert("PWN: token voting not set");
         vm.prank(voter);
         pwnToken.claimVotingReward(proposalId);
     }
 
-    function testFuzz_shouldFail_whenProposalStateNotSucceeded(uint256 proposalState) external {
-        proposalState = bound(proposalState, 0, 7);
-        vm.assume(proposalState != 4);
-
+    function test_shouldFail_whenProposalNotExecuted() external {
         vm.mockCall(
-            governor,
-            abi.encodeWithSignature("state(uint256)"),
-            abi.encode(proposalState)
+            tokenVoting,
+            abi.encodeWithSignature("getProposal(uint256)", proposalId),
+            abi.encode(true, false /* executed */, proposalParameters, tally, actions, 0)
         );
 
-        vm.expectRevert("PWN: proposal not succeeded");
+        vm.expectRevert("PWN: proposal not executed");
         vm.prank(voter);
         pwnToken.claimVotingReward(proposalId);
     }
 
     function testFuzz_shouldFail_whenCallerHasNotVoted(address caller) external {
         vm.mockCall(
-            governor,
-            abi.encodeWithSignature("hasVoted(uint256,address)"),
-            abi.encode(false)
+            tokenVoting,
+            abi.encodeWithSignature("getVoteOption(uint256,address)", proposalId, caller),
+            abi.encode(ITokenVoting.VoteOption.None)
         );
 
         vm.expectRevert("PWN: caller has not voted");
@@ -371,20 +381,6 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         pwnToken.claimVotingReward(proposalId);
     }
 
-    function test_shouldUseProposalSnapshotAsTimepoint() external {
-        vm.expectCall(
-            governor,
-            abi.encodeWithSignature("proposalSnapshot(uint256)", proposalId)
-        );
-        vm.expectCall(
-            governor,
-            abi.encodeWithSignature("getVotes(address,uint256)", voter, timepoint)
-        );
-
-        vm.prank(voter);
-        pwnToken.claimVotingReward(proposalId);
-    }
-
     function test_shouldStoreThatVoterClaimedReward() external {
         vm.prank(voter);
         pwnToken.claimVotingReward(proposalId);
@@ -395,21 +391,35 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         assertEq(uint256(rewardClaimedValue), 1);
     }
 
+    function test_shouldUseProposalSnapshotAsPastVotesTimepoint() external {
+        vm.expectCall(
+            votingToken,
+            abi.encodeWithSignature("getPastVotes(address,uint256)", voter, snapshotEpoch)
+        );
+
+        vm.prank(voter);
+        pwnToken.claimVotingReward(proposalId);
+    }
+
     function testFuzz_shouldMintRewardToCaller(
-        uint256 _reward, uint256 againsVotes, uint256 forVotes, uint256 abstainVotes, uint256 votersPower
+        uint256 _reward, uint256 noVotes, uint256 yesVotes, uint256 abstainVotes, uint256 votersPower
     ) external {
         reward = bound(_reward, 1, 100 ether);
-        againsVotes = bound(againsVotes, 1, type(uint256).max / 3);
-        forVotes = bound(forVotes, 1, type(uint256).max / 3);
-        abstainVotes = bound(abstainVotes, 1, type(uint256).max / 3);
-        uint256 totalPower = againsVotes + forVotes + abstainVotes;
+        tally.no = bound(noVotes, 1, type(uint256).max / 3);
+        tally.yes = bound(yesVotes, 1, type(uint256).max / 3);
+        tally.abstain = bound(abstainVotes, 1, type(uint256).max / 3);
+        uint256 totalPower = tally.no + tally.yes + tally.abstain;
         votersPower = bound(votersPower, 1, totalPower);
         vm.mockCall(
-            governor,
-            abi.encodeWithSignature("proposalVotes(uint256)"),
-            abi.encode(againsVotes, forVotes, abstainVotes)
+            tokenVoting,
+            abi.encodeWithSignature("getProposal(uint256)", proposalId),
+            abi.encode(true, true, proposalParameters, tally, actions, 0)
         );
-        vm.mockCall(governor, abi.encodeWithSignature("getVotes(address,uint256)"), abi.encode(votersPower));
+        vm.mockCall(
+            votingToken,
+            abi.encodeWithSignature("getPastVotes(address,uint256)", voter, snapshotEpoch),
+            abi.encode(votersPower)
+        );
         vm.store(address(pwnToken), REWARDS_SLOT.withMappingKey(proposalId), bytes32(reward));
 
         uint256 originalTotalSupply = pwnToken.totalSupply();
@@ -430,8 +440,19 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         totalPower = bound(totalPower, 1, type(uint256).max);
         votersPower = bound(votersPower, 1, totalPower);
         vm.store(address(pwnToken), REWARDS_SLOT.withMappingKey(proposalId), bytes32(reward));
-        vm.mockCall(governor, abi.encodeWithSignature("proposalVotes(uint256)"), abi.encode(0, totalPower, 0));
-        vm.mockCall(governor, abi.encodeWithSignature("getVotes(address,uint256)"), abi.encode(votersPower));
+        tally.no = 0;
+        tally.yes = totalPower;
+        tally.abstain = 0;
+        vm.mockCall(
+            tokenVoting,
+            abi.encodeWithSignature("getProposal(uint256)", proposalId),
+            abi.encode(true, true, proposalParameters, tally, actions, 0)
+        );
+        vm.mockCall(
+            votingToken,
+            abi.encodeWithSignature("getPastVotes(address,uint256)", voter, snapshotEpoch),
+            abi.encode(votersPower)
+        );
         uint256 voterReward = Math.mulDiv(reward, votersPower, totalPower);
 
         vm.expectEmit();
@@ -445,23 +466,23 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
 
 
 /*----------------------------------------------------------*|
-|*  # SET GOVERNOR                                          *|
+|*  # SET TOKEN VOTING CONTRACT                             *|
 |*----------------------------------------------------------*/
 
-contract PWN_SetGovernor_Test is PWN_Test {
+contract PWN_SetTokenVotingContract_Test is PWN_Test {
 
     function test_shouldFail_whenZeroAddress() external {
-        vm.expectRevert("PWN: governor zero address");
+        vm.expectRevert("PWN: token voting zero address");
         vm.prank(owner);
-        pwnToken.setGovernor(payable(0));
+        pwnToken.setTokenVotingContract(ITokenVoting(address(0)));
     }
 
-    function testFuzz_shouldStoreNewGovernor(address _governor) external checkAddress(_governor) {
+    function testFuzz_shouldStoreNewTokenVotingContract(address _tokenVoting) external checkAddress(_tokenVoting) {
         vm.prank(owner);
-        pwnToken.setGovernor(payable(_governor));
+        pwnToken.setTokenVotingContract(ITokenVoting(_tokenVoting));
 
-        bytes32 governorValue = vm.load(address(pwnToken), GOVERNOR_SLOT);
-        assertEq(address(uint160(uint256(governorValue))), _governor);
+        bytes32 tokenVotingValue = vm.load(address(pwnToken), TOKEN_VOTING_SLOT);
+        assertEq(address(uint160(uint256(tokenVotingValue))), _tokenVoting);
     }
 
 }

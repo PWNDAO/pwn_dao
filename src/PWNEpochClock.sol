@@ -4,25 +4,23 @@ pragma solidity 0.8.18;
 contract PWNEpochClock {
 
     // # INVARIANTS
-    // - first epoch is epoch 1
     // - timestamps prior to `INITIAL_EPOCH_TIMESTAMP` are considered to be in epoch 0
-
 
     uint256 public constant SECONDS_IN_EPOCH = 2_419_200; // 4 weeks
     // solhint-disable-next-line immutable-vars-naming
     uint256 public immutable INITIAL_EPOCH_TIMESTAMP;
 
-
     constructor(uint256 initialEpochTimestamp) {
+        // provide `initialEpochTimestamp` to sync the clock between different chains
         require(initialEpochTimestamp <= block.timestamp, "PWNEpochClock: initial epoch timestamp is in the future");
         INITIAL_EPOCH_TIMESTAMP = initialEpochTimestamp;
     }
-
 
     /*----------------------------------------------------------*|
     |*  # CLOCK                                                 *|
     |*----------------------------------------------------------*/
 
+    // use timestamp to support chains with different block times
     function clock() external view returns (uint48) {
         return uint48(block.timestamp);
     }
@@ -31,7 +29,6 @@ contract PWNEpochClock {
     function CLOCK_MODE() external pure returns (string memory) {
         return "mode=timestamp";
     }
-
 
     /*----------------------------------------------------------*|
     |*  # EPOCH                                                 *|
@@ -47,7 +44,10 @@ contract PWNEpochClock {
 
     function _epochFor(uint256 timestamp) internal view returns (uint256) {
         // timestamps prior to `INITIAL_EPOCH_TIMESTAMP` are considered to be in epoch 0
-        if (timestamp < INITIAL_EPOCH_TIMESTAMP) return 0;
+        if (timestamp < INITIAL_EPOCH_TIMESTAMP) {
+            return 0;
+        }
+        // first epoch is 1
         return (timestamp - INITIAL_EPOCH_TIMESTAMP) / SECONDS_IN_EPOCH + 1;
     }
 
