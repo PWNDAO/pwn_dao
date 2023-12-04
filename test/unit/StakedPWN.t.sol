@@ -9,17 +9,20 @@ import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 abstract contract StakedPWN_Test is Base_Test {
     using SlotComputingLib for bytes32;
 
-    bytes32 public constant OWNERS_SLOT = bytes32(uint256(2));
-    bytes32 public constant BALANCES_SLOT = bytes32(uint256(3));
+    bytes32 public constant OWNER_SLOT = bytes32(uint256(0));
+    bytes32 public constant OWNERS_SLOT = bytes32(uint256(4));
+    bytes32 public constant BALANCES_SLOT = bytes32(uint256(5));
+    bytes32 public constant TRANSFERS_ENABLED_SLOT = bytes32(uint256(8));
     bytes4 public constant ON_ERC721_RECEIVED_SELECTOR
         = bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
 
     StakedPWN public stakedPWN;
 
+    address public owner = makeAddr("owner");
     address public stakingContract = makeAddr("stakingContract");
 
     function setUp() virtual public {
-        stakedPWN = new StakedPWN(stakingContract);
+        stakedPWN = new StakedPWN(owner, stakingContract);
 
         vm.mockCall(
             stakingContract,
@@ -29,12 +32,12 @@ abstract contract StakedPWN_Test is Base_Test {
     }
 
 
-    function _mockToken(address owner, uint256 tokenId) internal {
+    function _mockToken(address _owner, uint256 tokenId) internal {
         vm.store(
-            address(stakedPWN), OWNERS_SLOT.withMappingKey(tokenId), bytes32(uint256(uint160(owner)))
+            address(stakedPWN), OWNERS_SLOT.withMappingKey(tokenId), bytes32(uint256(uint160(_owner)))
         );
         vm.store(
-            address(stakedPWN), BALANCES_SLOT.withMappingKey(owner), bytes32(uint256(1))
+            address(stakedPWN), BALANCES_SLOT.withMappingKey(_owner), bytes32(uint256(1))
         );
     }
 
@@ -48,8 +51,9 @@ abstract contract StakedPWN_Test is Base_Test {
 contract StakedPWN_Constructor_Test is StakedPWN_Test {
 
     function testFuzz_shouldSetInitialParams(address stakingContract) external {
-        stakedPWN = new StakedPWN(stakingContract);
+        stakedPWN = new StakedPWN(owner, stakingContract);
 
+        assertEq(address(stakedPWN.owner()), owner);
         assertEq(address(stakedPWN.stakingContract()), stakingContract);
     }
 
@@ -137,10 +141,59 @@ contract StakedPWN_Burn_Test is StakedPWN_Test {
 
 
 /*----------------------------------------------------------*|
+|*  # TRANSFER SWITCH                                       *|
+|*----------------------------------------------------------*/
+
+contract StakedPWN_EnableTransfer_Test is StakedPWN_Test {
+
+    function testFuzz_shouldFail_whenCallerNotOwner(address caller) external {
+        vm.assume(caller != owner);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(caller);
+        stakedPWN.enableTransfers();
+    }
+
+    function test_shouldFail_whenTransfersEnabled() external {
+        vm.store(address(stakedPWN), TRANSFERS_ENABLED_SLOT, bytes32(uint256(1)));
+
+        vm.expectRevert("StakedPWN: transfers are already enabled");
+        vm.prank(owner);
+        stakedPWN.enableTransfers();
+    }
+
+    function test_shouldEnableTransfers() external {
+        vm.prank(owner);
+        stakedPWN.enableTransfers();
+
+        bytes32 transfersEnabledValue = vm.load(address(stakedPWN), TRANSFERS_ENABLED_SLOT);
+        assertEq(uint256(transfersEnabledValue), 1);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
 |*  # TRANSFER CALLBACK                                     *|
 |*----------------------------------------------------------*/
 
 contract StakedPWN_TransferCallback_Test is StakedPWN_Test {
+
+    function setUp() override public {
+        super.setUp();
+        vm.store(address(stakedPWN), TRANSFERS_ENABLED_SLOT, bytes32(uint256(1)));
+    }
+
+    function testFuzz_shouldFail_whenTransfersNotEnabled(
+        address from, address to, uint256 tokenId
+    ) external checkAddress(from) checkAddress(to) {
+        vm.store(address(stakedPWN), TRANSFERS_ENABLED_SLOT, bytes32(0));
+        _mockToken(from, tokenId);
+
+        vm.expectRevert("StakedPWN: transfers are disabled");
+        vm.prank(from);
+        stakedPWN.transferFrom(from, to, tokenId);
+    }
 
     function testFuzz_shouldCallCallback_whenTransferFrom(
         address from, address to, uint256 tokenId
