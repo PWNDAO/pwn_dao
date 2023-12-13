@@ -91,7 +91,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @param splitAmount Amount of PWN tokens to split into a new stake.
     /// @return newStakeId1 Id of the first new stake.
     /// @return newStakeId2 Id of the second new stake.
-    function splitStake(uint256 stakeId, uint256 splitAmount) external returns (uint256 newStakeId1, uint256 newStakeId2) {
+    function splitStake(uint256 stakeId, uint256 splitAmount)
+        external
+        returns (uint256 newStakeId1, uint256 newStakeId2)
+    {
         Stake storage originalStake = stakes[stakeId];
         address staker = msg.sender;
         uint16 originalInitialEpoch = originalStake.initialEpoch;

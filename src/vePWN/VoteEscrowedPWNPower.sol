@@ -145,7 +145,7 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     }
 
     function calculateTotalPowerUpTo(uint256 epoch) public {
-        require(epoch < _currentEpoch(), "vePWN: epoch hasn't ended yet");
+        require(epoch < epochClock.currentEpoch(), "vePWN: epoch hasn't ended yet");
         require(lastCalculatedTotalPowerEpoch < epoch, "vePWN: total power already calculated");
 
         for (uint256 i = lastCalculatedTotalPowerEpoch; i < epoch;) {

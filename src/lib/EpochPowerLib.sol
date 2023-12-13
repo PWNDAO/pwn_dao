@@ -4,8 +4,8 @@ pragma solidity 0.8.18;
 library EpochPowerLib {
 
     struct EpochPowerWord {
-        int104 power1; // TODO: update to int128
-        int104 power2; // TODO: update to int128
+        int104 power1;
+        int104 power2;
     }
 
 
