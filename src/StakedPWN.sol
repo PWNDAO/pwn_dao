@@ -11,14 +11,14 @@ interface IVoteEscrowedPWN {
 contract StakedPWN is Ownable2Step, ERC721 {
 
     // # INVARIANTS
-    // - `transferStake` has to be called on `VoteEscrowedPWN` contract anytime token is transferred
-    // - only `VoteEscrowedPWN` contract can mint & burn tokens
+    // - `VoteEscrowedPWN.transferStake` is called everytime `stPWN` token is transferred
+    // - every `VoteEscrowedPWN` stake has exactly one `stPWN` token
 
     /*----------------------------------------------------------*|
     |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
     |*----------------------------------------------------------*/
 
-    IVoteEscrowedPWN public immutable stakingContract; // TODO: rename (make it mutable?)
+    IVoteEscrowedPWN public immutable voteEscrowedPWN;
 
     bool public transfersEnabled;
 
@@ -27,8 +27,8 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*  # MODIFIERS                                             *|
     |*----------------------------------------------------------*/
 
-    modifier onlyStakingContract() {
-        require(msg.sender == address(stakingContract), "StakedPWN: caller is not staking contract");
+    modifier onlyVoteEscrowedPWNContract() {
+        require(msg.sender == address(voteEscrowedPWN), "StakedPWN: caller is not vote escrowed pwn contract");
         _;
     }
 
@@ -37,8 +37,8 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*  # CONSTRUCTOR                                           *|
     |*----------------------------------------------------------*/
 
-    constructor(address _owner, address _stakingContract) ERC721("Staked PWN", "stPWN") {
-        stakingContract = IVoteEscrowedPWN(_stakingContract);
+    constructor(address _owner, address _vePWN) ERC721("Staked PWN", "stPWN") {
+        voteEscrowedPWN = IVoteEscrowedPWN(_vePWN);
         _transferOwnership(_owner);
     }
 
@@ -47,11 +47,11 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*  # MINT & BURN                                           *|
     |*----------------------------------------------------------*/
 
-    function mint(address to, uint256 tokenId) external onlyStakingContract {
+    function mint(address to, uint256 tokenId) external onlyVoteEscrowedPWNContract {
         _safeMint(to, tokenId);
     }
 
-    function burn(uint256 tokenId) external onlyStakingContract {
+    function burn(uint256 tokenId) external onlyVoteEscrowedPWNContract {
         _burn(tokenId);
     }
 
@@ -77,7 +77,7 @@ contract StakedPWN is Ownable2Step, ERC721 {
         if (from != address(0) && to != address(0)) {
             require(transfersEnabled, "StakedPWN: transfers are disabled");
         }
-        stakingContract.transferStake(from, to, firstTokenId);
+        voteEscrowedPWN.transferStake(from, to, firstTokenId);
     }
 
 }
