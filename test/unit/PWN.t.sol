@@ -4,25 +4,44 @@ pragma solidity 0.8.18;
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 import { Error } from "src/lib/Error.sol";
-import { PWN, ITokenVoting } from "src/PWN.sol";
+import { PWN, IVotingContract } from "src/PWN.sol";
 
 import { Base_Test } from "../Base.t.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 
 abstract contract PWN_Test is Base_Test {
+    using SlotComputingLib for bytes32;
 
     bytes32 public constant TOTAL_SUPPLY_SLOT = bytes32(uint256(4));
-    bytes32 public constant TOKEN_VOTING_SLOT = bytes32(uint256(7));
-    bytes32 public constant OWNER_MINTED_AMOUNT_SLOT = bytes32(uint256(8));
-    bytes32 public constant REWARDS_SLOT = bytes32(uint256(9));
-    bytes32 public constant REWARDS_CLAIMED_SLOT = bytes32(uint256(10));
+    bytes32 public constant OWNER_MINTED_AMOUNT_SLOT = bytes32(uint256(7));
+    bytes32 public constant REWARDS_SLOT = bytes32(uint256(8));
 
     PWN public pwnToken;
 
     address public owner = makeAddr("owner");
     address public clock = makeAddr("clock");
-    address public tokenVoting = makeAddr("tokenVoting");
+    address public votingContract = makeAddr("votingContract");
     address public votingToken = makeAddr("votingToken");
+    address public voter = makeAddr("voter");
+    uint256 public proposalId = 69;
+    uint256 public reward = 100 ether;
+    uint64 public snapshotEpoch = 420;
+    uint256 public pastVotes = 100;
+
+    IVotingContract.ProposalParameters public proposalParameters = IVotingContract.ProposalParameters({
+        votingMode: IVotingContract.VotingMode.Standard,
+        supportThreshold: 0,
+        startDate: 0,
+        endDate: 0,
+        snapshotEpoch: snapshotEpoch,
+        minVotingPower: 0
+    });
+    IVotingContract.Tally public tally = IVotingContract.Tally({
+        abstain: 100,
+        yes: 200,
+        no: 0
+    });
+    IVotingContract.Action[] public actions;
 
     function setUp() virtual public {
         vm.mockCall(
@@ -30,10 +49,30 @@ abstract contract PWN_Test is Base_Test {
             abi.encodeWithSignature("currentEpoch()"),
             abi.encode(1)
         );
+        vm.mockCall(
+            votingContract,
+            abi.encodeWithSignature("getVotingToken()"),
+            abi.encode(votingToken)
+        );
+        vm.mockCall(
+            votingContract,
+            abi.encodeWithSignature("getVoteOption(uint256,address)", proposalId, voter),
+            abi.encode(IVotingContract.VoteOption.Yes)
+        );
+        vm.mockCall(
+            votingContract,
+            abi.encodeWithSignature("getProposal(uint256)", proposalId),
+            abi.encode(true, true, proposalParameters, tally, actions, 0)
+        );
+        vm.mockCall(
+            votingToken,
+            abi.encodeWithSignature("getPastVotes(address,uint256)", voter, snapshotEpoch),
+            abi.encode(pastVotes)
+        );
 
         pwnToken = new PWN(owner, clock);
-        vm.prank(owner);
-        pwnToken.setTokenVotingContract(ITokenVoting(tokenVoting));
+
+        vm.store(address(pwnToken), TOTAL_SUPPLY_SLOT, bytes32(uint256(100_000_000 ether)));
     }
 
 }
@@ -160,10 +199,7 @@ contract PWN_Burn_Test is PWN_Test {
 contract PWN_AssignVotingReward_Test is PWN_Test {
     using SlotComputingLib for bytes32;
 
-    uint256 public proposalId = 69;
-    uint256 public reward = 101 ether;
-
-    event VotingRewardAssigned(uint256 indexed proposalId, uint256 reward);
+    event VotingRewardAssigned(address indexed votingContract, uint256 indexed proposalId, uint256 reward);
 
     function setUp() override public {
         super.setUp();
@@ -172,9 +208,6 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
             clock,
             abi.encodeWithSignature("currentEpoch()"),
             abi.encode(pwnToken.IMMUTABLE_PERIOD() + 1)
-        );
-        vm.store(
-            address(pwnToken), TOTAL_SUPPLY_SLOT, bytes32(uint256(100_000_000 ether))
         );
     }
 
@@ -188,23 +221,29 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
 
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(caller);
-        pwnToken.assignVotingReward(proposalId, reward);
+        pwnToken.assignVotingReward(IVotingContract(votingContract), proposalId, reward);
     }
 
-    function testFuzz_shouldFail_whenImmutablePeriodNotReached(uint256 currentEpoch) external {
-        currentEpoch = bound(
-            currentEpoch, pwnToken.INITIAL_EPOCH(), pwnToken.IMMUTABLE_PERIOD() + pwnToken.INITIAL_EPOCH() - 1
-        );
+    function test_shouldFail_whenZeroVotingContract() external {
+        vm.expectRevert(abi.encodeWithSelector(Error.ZeroVotingContract.selector));
+        vm.prank(owner);
+        pwnToken.assignVotingReward(IVotingContract(address(0)), proposalId, reward);
+    }
 
+    function testFuzz_shouldFail_whenImmutablePeriodNotReached(uint256 snapshotEpoch) external {
+        snapshotEpoch = bound(
+            snapshotEpoch, pwnToken.INITIAL_EPOCH(), pwnToken.IMMUTABLE_PERIOD() + pwnToken.INITIAL_EPOCH() - 1
+        );
+        proposalParameters.snapshotEpoch = uint64(snapshotEpoch);
         vm.mockCall(
-            clock,
-            abi.encodeWithSignature("currentEpoch()"),
-            abi.encode(currentEpoch)
+            votingContract,
+            abi.encodeWithSignature("getProposal(uint256)", proposalId),
+            abi.encode(true, false, proposalParameters, tally, actions, 0)
         );
 
         vm.expectRevert(abi.encodeWithSelector(Error.InImmutablePeriod.selector));
         vm.prank(owner);
-        pwnToken.assignVotingReward(proposalId, reward);
+        pwnToken.assignVotingReward(IVotingContract(votingContract), proposalId, reward);
     }
 
     function testFuzz_shouldFail_whenRewardTooHigh(uint256 _reward) external {
@@ -212,56 +251,58 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
 
         vm.expectRevert(abi.encodeWithSelector(Error.RewardTooHigh.selector, _maxReward()));
         vm.prank(owner);
-        pwnToken.assignVotingReward(proposalId, reward);
+        pwnToken.assignVotingReward(IVotingContract(votingContract), proposalId, reward);
     }
 
     function test_shouldFail_whenZeroReward() external {
         vm.expectRevert(abi.encodeWithSelector(Error.ZeroReward.selector));
         vm.prank(owner);
-        pwnToken.assignVotingReward(proposalId, 0);
+        pwnToken.assignVotingReward(IVotingContract(votingContract), proposalId, 0);
     }
 
     function test_shouldFail_whenRewardAlreadyAssigned() external {
-        vm.prank(owner);
-        pwnToken.assignVotingReward(proposalId, reward);
+        vm.store(
+            address(pwnToken),
+            REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
+            bytes32(reward)
+        );
 
         vm.expectRevert(abi.encodeWithSelector(Error.RewardAlreadyAssigned.selector, reward));
         vm.prank(owner);
-        pwnToken.assignVotingReward(proposalId, reward);
+        pwnToken.assignVotingReward(IVotingContract(votingContract), proposalId, reward);
     }
 
-    function testFuzz_shouldStoreAssignedReward(uint256 _proposalId, uint256 _reward) external {
-        proposalId = _proposalId;
+    function testFuzz_shouldStoreAssignedReward(uint256 _reward) external {
         reward = bound(_reward, 1, _maxReward());
 
         vm.prank(owner);
-        pwnToken.assignVotingReward(proposalId, reward);
+        pwnToken.assignVotingReward(IVotingContract(votingContract), proposalId, reward);
 
-        bytes32 rewardValue = vm.load(address(pwnToken), REWARDS_SLOT.withMappingKey(proposalId));
+        bytes32 rewardValue = vm.load(
+            address(pwnToken), REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId)
+        );
         assertEq(uint256(rewardValue), reward);
     }
 
-    function testFuzz_shouldNotMintNewTokens(uint256 _proposalId, uint256 _reward) external {
-        proposalId = _proposalId;
+    function testFuzz_shouldNotMintNewTokens(uint256 _reward) external {
         reward = bound(_reward, 1, _maxReward());
 
         uint256 originalTotalSupply = pwnToken.totalSupply();
 
         vm.prank(owner);
-        pwnToken.assignVotingReward(proposalId, reward);
+        pwnToken.assignVotingReward(IVotingContract(votingContract), proposalId, reward);
 
         assertEq(originalTotalSupply, pwnToken.totalSupply());
     }
 
-    function testFuzz_shouldEmit_VotingRewardAssigned(uint256 _proposalId, uint256 _reward) external {
-        proposalId = _proposalId;
+    function testFuzz_shouldEmit_VotingRewardAssigned(uint256 _reward) external {
         reward = bound(_reward, 1, _maxReward());
 
         vm.expectEmit();
-        emit VotingRewardAssigned(proposalId, reward);
+        emit VotingRewardAssigned(votingContract, proposalId, reward);
 
         vm.prank(owner);
-        pwnToken.assignVotingReward(proposalId, reward);
+        pwnToken.assignVotingReward(IVotingContract(votingContract), proposalId, reward);
     }
 
 }
@@ -274,121 +315,83 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
 contract PWN_ClaimVotingReward_Test is PWN_Test {
     using SlotComputingLib for bytes32;
 
-    address public voter = makeAddr("voter");
-    uint256 public proposalId = 69;
-    uint256 public reward = 100 ether;
-    uint256 public timepoint = 17e8;
-    uint64 public snapshotEpoch = 420;
-    uint256 public pastVotes = 100;
-
-    ITokenVoting.ProposalParameters public proposalParameters = ITokenVoting.ProposalParameters({
-        votingMode: ITokenVoting.VotingMode.Standard,
-        supportThreshold: 0,
-        startDate: 0,
-        endDate: 0,
-        snapshotEpoch: snapshotEpoch,
-        minVotingPower: 0
-    });
-    ITokenVoting.Tally public tally = ITokenVoting.Tally({
-        abstain: 100,
-        yes: 200,
-        no: 0
-    });
-    ITokenVoting.Action[] public actions;
-
-    event VotingRewardClaimed(uint256 indexed proposalId, address indexed voter, uint256 reward);
+    event VotingRewardClaimed(address indexed votingContract, uint256 indexed proposalId, address indexed voter, uint256 reward);
 
     function setUp() override public {
         super.setUp();
 
-        vm.mockCall(
-            tokenVoting,
-            abi.encodeWithSignature("getVotingToken()"),
-            abi.encode(votingToken)
-        );
-        vm.mockCall(
-            tokenVoting,
-            abi.encodeWithSignature("getVoteOption(uint256,address)", proposalId, voter),
-            abi.encode(ITokenVoting.VoteOption.Yes)
-        );
-        vm.mockCall(
-            tokenVoting,
-            abi.encodeWithSignature("getProposal(uint256)", proposalId),
-            abi.encode(true, true, proposalParameters, tally, actions, 0)
-        );
-        vm.mockCall(
-            votingToken,
-            abi.encodeWithSignature("getPastVotes(address,uint256)", voter, snapshotEpoch),
-            abi.encode(pastVotes)
-        );
         vm.store(
-            address(pwnToken), REWARDS_SLOT.withMappingKey(proposalId), bytes32(reward)
-        );
-        vm.store(
-            address(pwnToken), TOTAL_SUPPLY_SLOT, bytes32(uint256(100_000_000 ether))
+            address(pwnToken),
+            REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
+            bytes32(reward)
         );
     }
 
-
-    function test_shouldFail_whenTokenVotingNotSet() external {
-        vm.store(address(pwnToken), TOKEN_VOTING_SLOT, bytes32(uint256(0)));
-
-        vm.expectRevert(abi.encodeWithSelector(Error.ZeroTokenVotingContract.selector));
+    function test_shouldFail_whenZeroVotingContract() external {
+        vm.expectRevert(abi.encodeWithSelector(Error.ZeroVotingContract.selector));
         vm.prank(voter);
-        pwnToken.claimVotingReward(proposalId);
+        pwnToken.claimVotingReward(IVotingContract(address(0)), proposalId);
     }
 
     function test_shouldFail_whenProposalNotExecuted() external {
         vm.mockCall(
-            tokenVoting,
+            votingContract,
             abi.encodeWithSignature("getProposal(uint256)", proposalId),
             abi.encode(true, false /* executed */, proposalParameters, tally, actions, 0)
         );
 
         vm.expectRevert(abi.encodeWithSelector(Error.ProposalNotExecuted.selector));
         vm.prank(voter);
-        pwnToken.claimVotingReward(proposalId);
+        pwnToken.claimVotingReward(IVotingContract(votingContract), proposalId);
     }
 
     function testFuzz_shouldFail_whenCallerHasNotVoted(address caller) external {
         vm.mockCall(
-            tokenVoting,
+            votingContract,
             abi.encodeWithSignature("getVoteOption(uint256,address)", proposalId, caller),
-            abi.encode(ITokenVoting.VoteOption.None)
+            abi.encode(IVotingContract.VoteOption.None)
         );
 
         vm.expectRevert(abi.encodeWithSelector(Error.CallerHasNotVoted.selector));
         vm.prank(caller);
-        pwnToken.claimVotingReward(proposalId);
+        pwnToken.claimVotingReward(IVotingContract(votingContract), proposalId);
     }
 
     function test_shouldFail_whenNoRewardAssigned() external {
-        vm.store(address(pwnToken), REWARDS_SLOT.withMappingKey(proposalId), bytes32(0));
+        vm.store(
+            address(pwnToken),
+            REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
+            bytes32(0)
+        );
 
         vm.expectRevert(abi.encodeWithSelector(Error.ZeroReward.selector));
         vm.prank(voter);
-        pwnToken.claimVotingReward(proposalId);
+        pwnToken.claimVotingReward(IVotingContract(votingContract), proposalId);
     }
 
     function test_shouldFail_whenVoterAlreadyClaimedReward() external {
-        vm.store(
-            address(pwnToken),
-            REWARDS_CLAIMED_SLOT.withMappingKey(proposalId).withMappingKey(voter),
-            bytes32(uint256(1))
-        );
+        bytes32 claimedSlot = REWARDS_SLOT
+            .withMappingKey(votingContract)
+            .withMappingKey(proposalId)
+            .withArrayIndex(1)
+            .withMappingKey(voter);
+        vm.store(address(pwnToken), claimedSlot, bytes32(uint256(1)));
 
         vm.expectRevert(abi.encodeWithSelector(Error.RewardAlreadyClaimed.selector));
         vm.prank(voter);
-        pwnToken.claimVotingReward(proposalId);
+        pwnToken.claimVotingReward(IVotingContract(votingContract), proposalId);
     }
 
     function test_shouldStoreThatVoterClaimedReward() external {
         vm.prank(voter);
-        pwnToken.claimVotingReward(proposalId);
+        pwnToken.claimVotingReward(IVotingContract(votingContract), proposalId);
 
-        bytes32 rewardClaimedValue = vm.load(
-            address(pwnToken), REWARDS_CLAIMED_SLOT.withMappingKey(proposalId).withMappingKey(voter)
-        );
+        bytes32 claimedSlot = REWARDS_SLOT
+            .withMappingKey(votingContract)
+            .withMappingKey(proposalId)
+            .withArrayIndex(1)
+            .withMappingKey(voter);
+        bytes32 rewardClaimedValue = vm.load(address(pwnToken), claimedSlot);
         assertEq(uint256(rewardClaimedValue), 1);
     }
 
@@ -399,7 +402,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         );
 
         vm.prank(voter);
-        pwnToken.claimVotingReward(proposalId);
+        pwnToken.claimVotingReward(IVotingContract(votingContract), proposalId);
     }
 
     function testFuzz_shouldMintRewardToCaller(
@@ -412,7 +415,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         uint256 totalPower = tally.no + tally.yes + tally.abstain;
         votersPower = bound(votersPower, 1, totalPower);
         vm.mockCall(
-            tokenVoting,
+            votingContract,
             abi.encodeWithSignature("getProposal(uint256)", proposalId),
             abi.encode(true, true, proposalParameters, tally, actions, 0)
         );
@@ -421,13 +424,17 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
             abi.encodeWithSignature("getPastVotes(address,uint256)", voter, snapshotEpoch),
             abi.encode(votersPower)
         );
-        vm.store(address(pwnToken), REWARDS_SLOT.withMappingKey(proposalId), bytes32(reward));
+        vm.store(
+            address(pwnToken),
+            REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
+            bytes32(reward)
+        );
 
         uint256 originalTotalSupply = pwnToken.totalSupply();
         uint256 originalBalance = pwnToken.balanceOf(voter);
 
         vm.prank(voter);
-        pwnToken.claimVotingReward(proposalId);
+        pwnToken.claimVotingReward(IVotingContract(votingContract), proposalId);
 
         uint256 voterReward = Math.mulDiv(reward, votersPower, totalPower);
         assertEq(originalTotalSupply + voterReward, pwnToken.totalSupply());
@@ -440,12 +447,16 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         reward = bound(_reward, 1, 100 ether);
         totalPower = bound(totalPower, 1, type(uint256).max);
         votersPower = bound(votersPower, 1, totalPower);
-        vm.store(address(pwnToken), REWARDS_SLOT.withMappingKey(proposalId), bytes32(reward));
+        vm.store(
+            address(pwnToken),
+            REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
+            bytes32(reward)
+        );
         tally.no = 0;
         tally.yes = totalPower;
         tally.abstain = 0;
         vm.mockCall(
-            tokenVoting,
+            votingContract,
             abi.encodeWithSignature("getProposal(uint256)", proposalId),
             abi.encode(true, true, proposalParameters, tally, actions, 0)
         );
@@ -457,33 +468,10 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         uint256 voterReward = Math.mulDiv(reward, votersPower, totalPower);
 
         vm.expectEmit();
-        emit VotingRewardClaimed(proposalId, voter, voterReward);
+        emit VotingRewardClaimed(votingContract, proposalId, voter, voterReward);
 
         vm.prank(voter);
-        pwnToken.claimVotingReward(proposalId);
-    }
-
-}
-
-
-/*----------------------------------------------------------*|
-|*  # SET TOKEN VOTING CONTRACT                             *|
-|*----------------------------------------------------------*/
-
-contract PWN_SetTokenVotingContract_Test is PWN_Test {
-
-    function test_shouldFail_whenZeroAddress() external {
-        vm.expectRevert(abi.encodeWithSelector(Error.ZeroTokenVotingContract.selector));
-        vm.prank(owner);
-        pwnToken.setTokenVotingContract(ITokenVoting(address(0)));
-    }
-
-    function testFuzz_shouldStoreNewTokenVotingContract(address _tokenVoting) external checkAddress(_tokenVoting) {
-        vm.prank(owner);
-        pwnToken.setTokenVotingContract(ITokenVoting(_tokenVoting));
-
-        bytes32 tokenVotingValue = vm.load(address(pwnToken), TOKEN_VOTING_SLOT);
-        assertEq(address(uint160(uint256(tokenVotingValue))), _tokenVoting);
+        pwnToken.claimVotingReward(IVotingContract(votingContract), proposalId);
     }
 
 }

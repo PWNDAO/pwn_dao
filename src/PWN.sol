@@ -9,7 +9,7 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { Error } from "./lib/Error.sol";
 import { PWNEpochClock } from "./PWNEpochClock.sol";
 
-interface ITokenVoting {
+interface IVotingContract {
     enum VoteOption {
         None, Abstain, Yes, No
     }
@@ -72,20 +72,24 @@ contract PWN is Ownable2Step, ERC20 {
     uint256 public immutable INITIAL_EPOCH;
     PWNEpochClock public immutable epochClock;
 
-    ITokenVoting public tokenVoting;
     /// Amount of tokens already minted by the owner
     uint256 public mintedSupply;
 
-    mapping(uint256 proposalId => uint256 reward) public votingRewards;
-    mapping(uint256 proposalId => mapping(address voter => bool claimed)) public votingRewardsClaimed;
+    struct VotingReward {
+        uint256 reward;
+        mapping(address voter => bool claimed) claimed;
+    }
+    mapping(address votingContract => mapping(uint256 proposalId => VotingReward reward)) public votingRewards;
 
 
     /*----------------------------------------------------------*|
     |*  # EVENTS                                                *|
     |*----------------------------------------------------------*/
 
-    event VotingRewardAssigned(uint256 indexed proposalId, uint256 reward);
-    event VotingRewardClaimed(uint256 indexed proposalId, address indexed voter, uint256 reward);
+    event VotingRewardAssigned(address indexed votingContract, uint256 indexed proposalId, uint256 reward);
+    event VotingRewardClaimed(
+        address indexed votingContract, uint256 indexed proposalId, address indexed voter, uint256 reward
+    );
 
 
     /*----------------------------------------------------------*|
@@ -123,8 +127,18 @@ contract PWN is Ownable2Step, ERC20 {
     |*----------------------------------------------------------*/
 
     // can be assigned only once
-    function assignVotingReward(uint256 proposalId, uint256 reward) external onlyOwner {
-        if (epochClock.currentEpoch() - INITIAL_EPOCH < IMMUTABLE_PERIOD) {
+    function assignVotingReward(
+        IVotingContract votingContract, uint256 proposalId, uint256 reward
+    ) external onlyOwner {
+        if (address(votingContract) == address(0)) {
+            revert Error.ZeroVotingContract();
+        }
+
+        (
+            ,, IVotingContract.ProposalParameters memory proposalParameters,,,
+        ) = votingContract.getProposal(proposalId);
+
+        if (proposalParameters.snapshotEpoch - INITIAL_EPOCH < IMMUTABLE_PERIOD) {
             revert Error.InImmutablePeriod();
         }
         uint256 maxReward = Math.mulDiv(totalSupply(), MAX_INFLATION_RATE, INFLATION_DENOMINATOR);
@@ -134,61 +148,50 @@ contract PWN is Ownable2Step, ERC20 {
         if (reward == 0) {
             revert Error.ZeroReward();
         }
-        uint256 currentReward = votingRewards[proposalId];
-        if (currentReward > 0) {
-            revert Error.RewardAlreadyAssigned(currentReward);
+        VotingReward storage currentReward = votingRewards[address(votingContract)][proposalId];
+        if (currentReward.reward > 0) {
+            revert Error.RewardAlreadyAssigned(currentReward.reward);
         }
 
-        votingRewards[proposalId] = reward;
+        currentReward.reward = reward;
 
-        emit VotingRewardAssigned(proposalId, reward);
+        emit VotingRewardAssigned(address(votingContract), proposalId, reward);
     }
 
-    function claimVotingReward(uint256 proposalId) external {
+    function claimVotingReward(IVotingContract votingContract, uint256 proposalId) external {
         address voter = msg.sender;
-        if (address(tokenVoting) == address(0)) {
-            revert Error.ZeroTokenVotingContract();
+        if (address(votingContract) == address(0)) {
+            revert Error.ZeroVotingContract();
         }
         (
             , bool executed,
-            ITokenVoting.ProposalParameters memory proposalParameters,
-            ITokenVoting.Tally memory tally,,
-        ) = tokenVoting.getProposal(proposalId);
+            IVotingContract.ProposalParameters memory proposalParameters,
+            IVotingContract.Tally memory tally,,
+        ) = votingContract.getProposal(proposalId);
         if (!executed) {
             revert Error.ProposalNotExecuted();
         }
-        if (tokenVoting.getVoteOption(proposalId, voter) == ITokenVoting.VoteOption.None) {
+        if (votingContract.getVoteOption(proposalId, voter) == IVotingContract.VoteOption.None) {
             revert Error.CallerHasNotVoted();
         }
-        if (votingRewards[proposalId] == 0) {
+        VotingReward storage currentReward = votingRewards[address(votingContract)][proposalId];
+        if (currentReward.reward == 0) {
             revert Error.ZeroReward();
         }
-        if (votingRewardsClaimed[proposalId][voter]) {
+        if (currentReward.claimed[voter]) {
             revert Error.RewardAlreadyClaimed();
         }
-        votingRewardsClaimed[proposalId][voter] = true;
+        currentReward.claimed[voter] = true;
 
-        // voter is rewarded proportionally to the amount of votes he had at the snapshot block
+        // voter is rewarded proportionally to the amount of votes he had at the snapshot
         // it doesn't matter if he voted yes, no or abstained
-        uint256 callerVotes = tokenVoting.getVotingToken().getPastVotes(voter, proposalParameters.snapshotEpoch);
+        uint256 callerVotes = votingContract.getVotingToken().getPastVotes(voter, proposalParameters.snapshotEpoch);
         uint256 totalVotes = tally.abstain + tally.yes + tally.no;
-        uint256 reward = Math.mulDiv(votingRewards[proposalId], callerVotes, totalVotes);
+        uint256 reward = Math.mulDiv(currentReward.reward, callerVotes, totalVotes);
 
         _mint(voter, reward);
 
-        emit VotingRewardClaimed(proposalId, voter, reward);
-    }
-
-
-    /*----------------------------------------------------------*|
-    |*  # TOKEN VOTING SETTER                                   *|
-    |*----------------------------------------------------------*/
-
-    function setTokenVotingContract(ITokenVoting _tokenVoting) external onlyOwner {
-        if (address(_tokenVoting) == address(0)) {
-            revert Error.ZeroTokenVotingContract();
-        }
-        tokenVoting = _tokenVoting;
+        emit VotingRewardClaimed(address(votingContract), proposalId, voter, reward);
     }
 
 }

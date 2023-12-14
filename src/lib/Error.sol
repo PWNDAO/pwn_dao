@@ -9,7 +9,7 @@ library Error {
     error RewardTooHigh(uint256 maxReward);
     error ZeroReward();
     error RewardAlreadyAssigned(uint256 currentReward);
-    error ZeroTokenVotingContract();
+    error ZeroVotingContract();
     error ProposalNotExecuted();
     error CallerHasNotVoted();
     error RewardAlreadyClaimed();
