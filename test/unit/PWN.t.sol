@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
+import { Error } from "src/lib/Error.sol";
 import { PWN, ITokenVoting } from "src/PWN.sol";
 
 import { Base_Test } from "../Base.t.sol";
@@ -101,7 +102,7 @@ contract PWN_Mint_Test is PWN_Test {
         );
         vm.store(address(pwnToken), OWNER_MINTED_AMOUNT_SLOT, bytes32(ownerMintedAmount));
 
-        vm.expectRevert("PWN: mintable supply reached");
+        vm.expectRevert(abi.encodeWithSelector(Error.MintableSupplyExceeded.selector));
         vm.prank(owner);
         pwnToken.mint(amount);
     }
@@ -201,7 +202,7 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
             abi.encode(currentEpoch)
         );
 
-        vm.expectRevert("PWN: immutable period not reached");
+        vm.expectRevert(abi.encodeWithSelector(Error.InImmutablePeriod.selector));
         vm.prank(owner);
         pwnToken.assignVotingReward(proposalId, reward);
     }
@@ -209,13 +210,13 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
     function testFuzz_shouldFail_whenRewardTooHigh(uint256 _reward) external {
         reward = bound(_reward, _maxReward() + 1, type(uint256).max);
 
-        vm.expectRevert("PWN: reward too high");
+        vm.expectRevert(abi.encodeWithSelector(Error.RewardTooHigh.selector, _maxReward()));
         vm.prank(owner);
         pwnToken.assignVotingReward(proposalId, reward);
     }
 
     function test_shouldFail_whenZeroReward() external {
-        vm.expectRevert("PWN: reward cannot be zero");
+        vm.expectRevert(abi.encodeWithSelector(Error.ZeroReward.selector));
         vm.prank(owner);
         pwnToken.assignVotingReward(proposalId, 0);
     }
@@ -224,7 +225,7 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
         vm.prank(owner);
         pwnToken.assignVotingReward(proposalId, reward);
 
-        vm.expectRevert("PWN: reward already assigned");
+        vm.expectRevert(abi.encodeWithSelector(Error.RewardAlreadyAssigned.selector, reward));
         vm.prank(owner);
         pwnToken.assignVotingReward(proposalId, reward);
     }
@@ -332,7 +333,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
     function test_shouldFail_whenTokenVotingNotSet() external {
         vm.store(address(pwnToken), TOKEN_VOTING_SLOT, bytes32(uint256(0)));
 
-        vm.expectRevert("PWN: token voting not set");
+        vm.expectRevert(abi.encodeWithSelector(Error.ZeroTokenVotingContract.selector));
         vm.prank(voter);
         pwnToken.claimVotingReward(proposalId);
     }
@@ -344,7 +345,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
             abi.encode(true, false /* executed */, proposalParameters, tally, actions, 0)
         );
 
-        vm.expectRevert("PWN: proposal not executed");
+        vm.expectRevert(abi.encodeWithSelector(Error.ProposalNotExecuted.selector));
         vm.prank(voter);
         pwnToken.claimVotingReward(proposalId);
     }
@@ -356,7 +357,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
             abi.encode(ITokenVoting.VoteOption.None)
         );
 
-        vm.expectRevert("PWN: caller has not voted");
+        vm.expectRevert(abi.encodeWithSelector(Error.CallerHasNotVoted.selector));
         vm.prank(caller);
         pwnToken.claimVotingReward(proposalId);
     }
@@ -364,7 +365,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
     function test_shouldFail_whenNoRewardAssigned() external {
         vm.store(address(pwnToken), REWARDS_SLOT.withMappingKey(proposalId), bytes32(0));
 
-        vm.expectRevert("PWN: no reward");
+        vm.expectRevert(abi.encodeWithSelector(Error.ZeroReward.selector));
         vm.prank(voter);
         pwnToken.claimVotingReward(proposalId);
     }
@@ -376,7 +377,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
             bytes32(uint256(1))
         );
 
-        vm.expectRevert("PWN: reward already claimed");
+        vm.expectRevert(abi.encodeWithSelector(Error.RewardAlreadyClaimed.selector));
         vm.prank(voter);
         pwnToken.claimVotingReward(proposalId);
     }
@@ -472,7 +473,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
 contract PWN_SetTokenVotingContract_Test is PWN_Test {
 
     function test_shouldFail_whenZeroAddress() external {
-        vm.expectRevert("PWN: token voting zero address");
+        vm.expectRevert(abi.encodeWithSelector(Error.ZeroTokenVotingContract.selector));
         vm.prank(owner);
         pwnToken.setTokenVotingContract(ITokenVoting(address(0)));
     }

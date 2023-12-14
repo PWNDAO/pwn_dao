@@ -6,6 +6,7 @@ import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes
 import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
+import { Error } from "./lib/Error.sol";
 import { PWNEpochClock } from "./PWNEpochClock.sol";
 
 interface ITokenVoting {
@@ -103,7 +104,9 @@ contract PWN is Ownable2Step, ERC20 {
     |*----------------------------------------------------------*/
 
     function mint(uint256 amount) external onlyOwner {
-        require(mintedSupply + amount <= MINTABLE_TOTAL_SUPPLY, "PWN: mintable supply reached");
+        if (mintedSupply + amount > MINTABLE_TOTAL_SUPPLY) {
+            revert Error.MintableSupplyExceeded();
+        }
         unchecked {
             mintedSupply += amount;
         }
@@ -121,13 +124,20 @@ contract PWN is Ownable2Step, ERC20 {
 
     // can be assigned only once
     function assignVotingReward(uint256 proposalId, uint256 reward) external onlyOwner {
-        require(epochClock.currentEpoch() - INITIAL_EPOCH >= IMMUTABLE_PERIOD, "PWN: immutable period not reached");
-        require(
-            reward <= Math.mulDiv(totalSupply(), MAX_INFLATION_RATE, INFLATION_DENOMINATOR),
-            "PWN: reward too high"
-        );
-        require(reward > 0, "PWN: reward cannot be zero");
-        require(votingRewards[proposalId] == 0, "PWN: reward already assigned");
+        if (epochClock.currentEpoch() - INITIAL_EPOCH < IMMUTABLE_PERIOD) {
+            revert Error.InImmutablePeriod();
+        }
+        uint256 maxReward = Math.mulDiv(totalSupply(), MAX_INFLATION_RATE, INFLATION_DENOMINATOR);
+        if (reward > maxReward) {
+            revert Error.RewardTooHigh(maxReward);
+        }
+        if (reward == 0) {
+            revert Error.ZeroReward();
+        }
+        uint256 currentReward = votingRewards[proposalId];
+        if (currentReward > 0) {
+            revert Error.RewardAlreadyAssigned(currentReward);
+        }
 
         votingRewards[proposalId] = reward;
 
@@ -136,19 +146,26 @@ contract PWN is Ownable2Step, ERC20 {
 
     function claimVotingReward(uint256 proposalId) external {
         address voter = msg.sender;
-        require(address(tokenVoting) != address(0), "PWN: token voting not set");
+        if (address(tokenVoting) == address(0)) {
+            revert Error.ZeroTokenVotingContract();
+        }
         (
             , bool executed,
             ITokenVoting.ProposalParameters memory proposalParameters,
             ITokenVoting.Tally memory tally,,
         ) = tokenVoting.getProposal(proposalId);
-        require(executed, "PWN: proposal not executed");
-        require(
-            tokenVoting.getVoteOption(proposalId, voter) != ITokenVoting.VoteOption.None,
-            "PWN: caller has not voted"
-        );
-        require(votingRewards[proposalId] > 0, "PWN: no reward");
-        require(!votingRewardsClaimed[proposalId][voter], "PWN: reward already claimed");
+        if (!executed) {
+            revert Error.ProposalNotExecuted();
+        }
+        if (tokenVoting.getVoteOption(proposalId, voter) == ITokenVoting.VoteOption.None) {
+            revert Error.CallerHasNotVoted();
+        }
+        if (votingRewards[proposalId] == 0) {
+            revert Error.ZeroReward();
+        }
+        if (votingRewardsClaimed[proposalId][voter]) {
+            revert Error.RewardAlreadyClaimed();
+        }
         votingRewardsClaimed[proposalId][voter] = true;
 
         // voter is rewarded proportionally to the amount of votes he had at the snapshot block
@@ -168,7 +185,9 @@ contract PWN is Ownable2Step, ERC20 {
     |*----------------------------------------------------------*/
 
     function setTokenVotingContract(ITokenVoting _tokenVoting) external onlyOwner {
-        require(address(_tokenVoting) != address(0), "PWN: token voting zero address");
+        if (address(_tokenVoting) == address(0)) {
+            revert Error.ZeroTokenVotingContract();
+        }
         tokenVoting = _tokenVoting;
     }
 

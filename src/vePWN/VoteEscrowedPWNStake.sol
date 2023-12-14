@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import { SafeCast } from "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 
+import { Error } from "../lib/Error.sol";
 import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
 import { EpochPowerLib } from "../lib/EpochPowerLib.sol";
 import { PowerChangeEpochsLib } from "../lib/PowerChangeEpochsLib.sol";
@@ -50,16 +51,21 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @param lockUpEpochs Number of epochs to lock up the stake for.
     /// @return stakeId Id of the created stake.
     function createStake(uint256 amount, uint256 lockUpEpochs) external returns (uint256 stakeId) {
-        require(amount >= 100 && amount <= type(uint88).max, "vePWN: staked amount out of bounds");
-        // to prevent rounding errors when computing power
-        require(amount % 100 == 0, "vePWN: staked amount must be a multiple of 100");
+        if (amount < 100 || amount > type(uint88).max) {
+            revert Error.InvalidAmount();
+        }
+        // amount must be a multiple of 100 to prevent rounding errors when computing power
+        if (amount % 100 > 0) {
+            revert Error.InvalidAmount();
+        }
 
         // lock up for <1; 5> + {10} years
-        require(lockUpEpochs >= EPOCHS_IN_PERIOD, "vePWN: invalid lock up period range");
-        require(
-            lockUpEpochs <= 5 * EPOCHS_IN_PERIOD || lockUpEpochs == 10 * EPOCHS_IN_PERIOD,
-            "vePWN: invalid lock up period range"
-        );
+        if (lockUpEpochs < EPOCHS_IN_PERIOD) {
+            revert Error.InvalidLockUpPeriod();
+        }
+        if (lockUpEpochs > 5 * EPOCHS_IN_PERIOD && lockUpEpochs != 10 * EPOCHS_IN_PERIOD) {
+            revert Error.InvalidLockUpPeriod();
+        }
 
         address staker = msg.sender;
         uint16 initialEpoch = _currentEpoch() + 1;
@@ -101,10 +107,22 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint104 originalAmount = originalStake.amount;
         uint8 originalRemainingLockup = originalStake.remainingLockup;
 
-        require(stakedPWN.ownerOf(stakeId) == staker, "vePWN: caller is not the stake owner");
-        require(splitAmount > 0, "vePWN: split amount must be greater than 0");
-        require(splitAmount < originalAmount, "vePWN: split amount must be less than stake amount");
-        require(splitAmount % 100 == 0, "vePWN: split amount must be a multiple of 100");
+        // original stake must be owned by the caller
+        if (stakedPWN.ownerOf(stakeId) != staker) {
+            revert Error.NotStakeOwner();
+        }
+        // split amount must be greater than 0
+        if (splitAmount == 0) {
+            revert Error.InvalidAmount();
+        }
+        // split amount must be less than stake amount
+        if (splitAmount >= originalAmount) {
+            revert Error.InvalidAmount();
+        }
+        // split amount must be a multiple of 100 to prevent rounding errors when computing power
+        if (splitAmount % 100 > 0) {
+            revert Error.InvalidAmount();
+        }
 
         // delete original stake
         _deleteStake(stakeId);
@@ -133,10 +151,15 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint16 finalEpoch2 = stake2.initialEpoch + stake2.remainingLockup;
         uint16 newInitialEpoch = _currentEpoch() + 1;
 
-        require(stakedPWN.ownerOf(stakeId1) == staker, "vePWN: caller is not the first stake owner");
-        require(stakedPWN.ownerOf(stakeId2) == staker, "vePWN: caller is not the second stake owner");
-        require(finalEpoch1 >= finalEpoch2, "vePWN: the second stakes lockup is longer than the fist stakes lockup");
-        require(finalEpoch1 > newInitialEpoch, "vePWN: both stakes lockups ended");
+        // both stakes must be owned by the caller
+        if (stakedPWN.ownerOf(stakeId1) != staker || stakedPWN.ownerOf(stakeId2) != staker) {
+            revert Error.NotStakeOwner();
+        }
+        // the first stake lockup end must be greater than or equal to the second stake lockup end
+        // both stake lockup ends must be greater than the current epoch
+        if (finalEpoch1 < finalEpoch2 || finalEpoch1 <= newInitialEpoch) {
+            revert Error.LockUpPeriodMismatch();
+        }
 
         // only need to update second stake power changes
         uint8 newRemainingLockup = uint8(finalEpoch1 - newInitialEpoch); // safe cast
@@ -177,12 +200,21 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         Stake storage stake = stakes[stakeId];
         address staker = msg.sender;
 
-        require(stakedPWN.ownerOf(stakeId) == staker, "vePWN: caller is not the stake owner");
-        require(additionalAmount > 0 || additionalEpochs > 0, "vePWN: nothing to increase");
-        require(additionalAmount <= type(uint88).max, "vePWN: staked amount out of bounds");
+        // stake must be owned by the caller
+        if (stakedPWN.ownerOf(stakeId) != staker) {
+            revert Error.NotStakeOwner();
+        }
+        // additional amount or additional epochs must be greater than 0
+        if (additionalAmount == 0 && additionalEpochs == 0) {
+            revert Error.NothingToIncrease();
+        }
         // to prevent rounding errors when computing power
-        require(additionalAmount % 100 == 0, "vePWN: staked amount must be a multiple of 100");
-        require(additionalEpochs <= 10 * EPOCHS_IN_PERIOD, "vePWN: additional epochs out of bounds");
+        if (additionalAmount > type(uint88).max || additionalAmount % 100 > 0) {
+            revert Error.InvalidAmount();
+        }
+        if (additionalEpochs > 10 * EPOCHS_IN_PERIOD) {
+            revert Error.InvalidLockUpPeriod();
+        }
 
         uint16 newInitialEpoch = _currentEpoch() + 1;
         uint16 oldFinalEpoch = stake.initialEpoch + stake.remainingLockup;
@@ -190,11 +222,12 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             oldFinalEpoch <= newInitialEpoch ? additionalEpochs : oldFinalEpoch + additionalEpochs - newInitialEpoch
         );
         // extended lockup must be in <1; 5> + {10} years
-        require(newRemainingLockup >= EPOCHS_IN_PERIOD, "vePWN: invalid lock up period range");
-        require(
-            newRemainingLockup <= 5 * EPOCHS_IN_PERIOD || newRemainingLockup == 10 * EPOCHS_IN_PERIOD,
-            "vePWN: invalid lock up period range"
-        );
+        if (newRemainingLockup < EPOCHS_IN_PERIOD) {
+            revert Error.InvalidLockUpPeriod();
+        }
+        if (newRemainingLockup > 5 * EPOCHS_IN_PERIOD && newRemainingLockup != 10 * EPOCHS_IN_PERIOD) {
+            revert Error.InvalidLockUpPeriod();
+        }
 
         uint104 oldAmount = stake.amount;
         uint104 newAmount = oldAmount + uint104(additionalAmount); // safe cast
@@ -240,11 +273,14 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         Stake storage stake = stakes[stakeId];
         address staker = msg.sender;
 
-        require(stakedPWN.ownerOf(stakeId) == staker, "vePWN: caller is not the stake owner");
-        require(
-            stake.initialEpoch + stake.remainingLockup <= _currentEpoch(),
-            "vePWN: staker cannot withdraw before lockup period"
-        );
+        // stake must be owned by the caller
+        if (stakedPWN.ownerOf(stakeId) != staker) {
+            revert Error.NotStakeOwner();
+        }
+        // stake must be unlocked
+        if (stake.initialEpoch + stake.remainingLockup > _currentEpoch()) {
+            revert Error.WithrawalBeforeLockUpEnd();
+        }
 
         // delete data before external call
         uint256 amount = uint256(stake.amount);
@@ -263,15 +299,20 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @param to Address to transfer the stake to.
     /// @param stakeId Id of the stake to transfer.
     function transferStake(address from, address to, uint256 stakeId) external {
-        require(msg.sender == address(stakedPWN), "vePWN: caller is not stakedPWN");
+        if (msg.sender != address(stakedPWN)) {
+            revert Error.NotStakedPWNContract();
+        }
 
-        if (from == address(0) || to == address(0))
+        if (from == address(0) || to == address(0)) {
             return; // mint or burn, no update needed
+        }
 
         Stake storage stake = stakes[stakeId];
         uint16 newInitialEpoch = _currentEpoch() + 1;
 
-        require(stakedPWN.ownerOf(stakeId) == from, "vePWN: sender is not the stake owner");
+        if (stakedPWN.ownerOf(stakeId) != from) {
+            revert Error.NotStakeOwner();
+        }
 
         if (newInitialEpoch - stake.initialEpoch >= stake.remainingLockup) {
             emit StakeTransferred(stakeId, from, to, stake.amount);
@@ -366,10 +407,11 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         epochIndex = stakersPowerChangeEpochs.findIndex(epoch, lowEpochIndex);
         bool indexFound = epochIndex < stakersPowerChangeEpochs.length && stakersPowerChangeEpochs[epochIndex] == epoch;
 
-        if (epochWithPowerChange && !indexFound)
+        if (epochWithPowerChange && !indexFound) {
             stakersPowerChangeEpochs.insertEpoch(epoch, epochIndex);
-        else if (!epochWithPowerChange && indexFound)
+        } else if (!epochWithPowerChange && indexFound) {
             stakersPowerChangeEpochs.removeEpoch(epochIndex);
+        }
     }
 
     /// @dev `remainingLockup` must be > 0

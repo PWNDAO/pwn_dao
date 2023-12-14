@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
+import { Error } from "src/lib/Error.sol";
+
 import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
 import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
 
@@ -45,13 +47,13 @@ contract VoteEscrowedPWN_Base_IERC20_Test is VoteEscrowedPWN_Base_Test {
         address to = makeAddr("to");
         uint256 amount = 420;
 
-        vm.expectRevert("vePWN: transfer is disabled");
+        vm.expectRevert(abi.encodeWithSelector(Error.TransferDisabled.selector));
         vePWN.transfer(to, amount);
 
-        vm.expectRevert("vePWN: transferFrom is disabled");
+        vm.expectRevert(abi.encodeWithSelector(Error.TransferFromDisabled.selector));
         vePWN.transferFrom(from, to, amount);
 
-        vm.expectRevert("vePWN: approve is disabled");
+        vm.expectRevert(abi.encodeWithSelector(Error.ApproveDisabled.selector));
         vePWN.approve(to, amount);
 
         uint256 allowance = vePWN.allowance(from, to);
@@ -111,10 +113,10 @@ contract VoteEscrowedPWN_Base_Votes_Test is VoteEscrowedPWN_Base_Test {
 
         assertEq(vePWN.delegates(delegatee), address(0));
 
-        vm.expectRevert("vePWN: delegate is disabled");
+        vm.expectRevert(abi.encodeWithSelector(Error.DelegateDisabled.selector));
         vePWN.delegate(delegatee);
 
-        vm.expectRevert("vePWN: delegateBySig is disabled");
+        vm.expectRevert(abi.encodeWithSelector(Error.DelegateBySigDisabled.selector));
         vePWN.delegateBySig(delegatee, 0, 0, 0, 0, 0);
     }
 

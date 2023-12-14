@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
+import { Error } from "./lib/Error.sol";
+
 contract PWNEpochClock {
 
     // # INVARIANTS
@@ -12,7 +14,9 @@ contract PWNEpochClock {
 
     constructor(uint256 initialEpochTimestamp) {
         // provide `initialEpochTimestamp` to sync the clock between different chains
-        require(initialEpochTimestamp <= block.timestamp, "PWNEpochClock: initial epoch timestamp is in the future");
+        if (initialEpochTimestamp > block.timestamp) {
+            revert Error.InitialEpochTimestampInFuture(block.timestamp);
+        }
         INITIAL_EPOCH_TIMESTAMP = initialEpochTimestamp;
     }
 

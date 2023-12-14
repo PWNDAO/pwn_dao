@@ -4,6 +4,8 @@ pragma solidity 0.8.18;
 import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import { ERC721 } from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 
+import { Error } from "./lib/Error.sol";
+
 interface IVoteEscrowedPWN {
     function transferStake(address from, address to, uint256 stakeId) external;
 }
@@ -28,7 +30,9 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*----------------------------------------------------------*/
 
     modifier onlyVoteEscrowedPWNContract() {
-        require(msg.sender == address(voteEscrowedPWN), "StakedPWN: caller is not vote escrowed pwn contract");
+        if (msg.sender != address(voteEscrowedPWN)) {
+            revert Error.NotVoteEscrowedPWNContract();
+        }
         _;
     }
 
@@ -61,7 +65,9 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*----------------------------------------------------------*/
 
     function enableTransfers() external onlyOwner {
-        require(!transfersEnabled, "StakedPWN: transfers are already enabled");
+        if (transfersEnabled) {
+            revert Error.TransfersAlreadyEnabled();
+        }
         transfersEnabled = true;
     }
 
@@ -74,8 +80,8 @@ contract StakedPWN is Ownable2Step, ERC721 {
         address from, address to, uint256 firstTokenId, uint256 /* batchSize */
     ) override internal {
         // filter mints and burns from require condition
-        if (from != address(0) && to != address(0)) {
-            require(transfersEnabled, "StakedPWN: transfers are disabled");
+        if (!transfersEnabled && from != address(0) && to != address(0)) {
+            revert Error.TransfersDisabled();
         }
         voteEscrowedPWN.transferStake(from, to, firstTokenId);
     }

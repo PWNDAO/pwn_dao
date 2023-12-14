@@ -3,6 +3,8 @@ pragma solidity 0.8.18;
 
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
+import { Error } from "src/lib/Error.sol";
+
 import { BitMaskLib } from "../utils/BitMaskLib.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
@@ -26,24 +28,24 @@ contract VoteEscrowedPWN_Stake_CreateStake_Test is VoteEscrowedPWN_Stake_Test {
 
 
     function test_shouldFail_whenInvalidAmount() external {
-        vm.expectRevert("vePWN: staked amount out of bounds");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vePWN.createStake({ amount: 0, lockUpEpochs: EPOCHS_IN_PERIOD });
 
-        vm.expectRevert("vePWN: staked amount out of bounds");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vePWN.createStake({ amount: 99, lockUpEpochs: EPOCHS_IN_PERIOD });
 
-        vm.expectRevert("vePWN: staked amount out of bounds");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vePWN.createStake({ amount: uint256(type(uint88).max) + 1, lockUpEpochs: EPOCHS_IN_PERIOD });
 
-        vm.expectRevert("vePWN: staked amount must be a multiple of 100");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vePWN.createStake({ amount: 101, lockUpEpochs: EPOCHS_IN_PERIOD });
     }
 
     function test_shouldFail_whenInvalidLockUpEpochs() external {
-        vm.expectRevert("vePWN: invalid lock up period range");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
         vePWN.createStake({ amount: 100, lockUpEpochs: EPOCHS_IN_PERIOD - 1 });
 
-        vm.expectRevert("vePWN: invalid lock up period range");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
         vePWN.createStake({ amount: 100, lockUpEpochs: 10 * EPOCHS_IN_PERIOD + 1 });
     }
 
@@ -257,24 +259,24 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
     function testFuzz_shouldFail_whenCallerNotStakeOwner(address caller) external {
         vm.assume(caller != staker);
 
-        vm.expectRevert("vePWN: caller is not the stake owner");
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeOwner.selector));
         vm.prank(caller);
         vePWN.splitStake(stakeId, amount / 2);
     }
 
     function testFuzz_shouldFail_whenInvalidSplitAmount(uint256 splitAmount) external {
-        vm.expectRevert("vePWN: split amount must be greater than 0");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vm.prank(staker);
         vePWN.splitStake(stakeId, 0);
 
         splitAmount = bound(splitAmount, amount, type(uint256).max);
-        vm.expectRevert("vePWN: split amount must be less than stake amount");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vm.prank(staker);
         vePWN.splitStake(stakeId, splitAmount);
 
         splitAmount = bound(splitAmount, 1, amount / 100 - 1) * 100;
         splitAmount += bound(splitAmount, 1, 99);
-        vm.expectRevert("vePWN: split amount must be a multiple of 100");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vm.prank(staker);
         vePWN.splitStake(stakeId, splitAmount);
     }
@@ -393,7 +395,7 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
     function test_shouldFail_whenCallerNotFirstStakeOwner() external {
         _mockStake(makeAddr("notOwner"), stakeId1, initialEpoch, remainingLockup, amount);
 
-        vm.expectRevert("vePWN: caller is not the first stake owner");
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeOwner.selector));
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
     }
@@ -402,7 +404,7 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount);
         _mockStake(makeAddr("notOwner"), stakeId2, initialEpoch, remainingLockup, amount);
 
-        vm.expectRevert("vePWN: caller is not the second stake owner");
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeOwner.selector));
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
     }
@@ -413,7 +415,7 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         _mockStake(staker, stakeId1, initialEpoch, remainingLockup1, amount);
         _mockStake(staker, stakeId2, initialEpoch, remainingLockup2, amount);
 
-        vm.expectRevert("vePWN: the second stakes lockup is longer than the fist stakes lockup");
+        vm.expectRevert(abi.encodeWithSelector(Error.LockUpPeriodMismatch.selector));
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
     }
@@ -423,7 +425,7 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount);
         _mockStake(staker, stakeId2, initialEpoch, remainingLockup, amount);
 
-        vm.expectRevert("vePWN: both stakes lockups ended");
+        vm.expectRevert(abi.encodeWithSelector(Error.LockUpPeriodMismatch.selector));
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
     }
@@ -615,13 +617,13 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
     function testFuzz_shouldFail_whenCallerNotStakeOwner(address caller) external {
         vm.assume(caller != staker);
 
-        vm.expectRevert("vePWN: caller is not the stake owner");
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeOwner.selector));
         vm.prank(caller);
         vePWN.increaseStake(stakeId, additionalAmount, additionalEpochs);
     }
 
     function test_shouldFail_whenNothingToIncrease() external {
-        vm.expectRevert("vePWN: nothing to increase");
+        vm.expectRevert(abi.encodeWithSelector(Error.NothingToIncrease.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, 0);
     }
@@ -631,14 +633,14 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
 
         // over max
         additionalAmount = bound(_additionalAmount, uint256(type(uint88).max) + 1, type(uint256).max / 100);
-        vm.expectRevert("vePWN: staked amount out of bounds");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, additionalAmount * 100, additionalEpochs);
 
         // not a multiple of 100
         additionalAmount = bound(_additionalAmount, 1, uint256(type(uint88).max) - 1);
         additionalAmount += additionalAmount % 100 == 0 ? 1 : 0;
-        vm.expectRevert("vePWN: staked amount must be a multiple of 100");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, additionalAmount, additionalEpochs);
     }
@@ -649,13 +651,13 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         uint8 remainingLockup = uint8(initialEpoch + lockUpEpochs - currentEpoch) - 1;
         // out of bounds
         additionalEpochs = bound(_additionalEpochs, 10 * EPOCHS_IN_PERIOD + 1, type(uint256).max);
-        vm.expectRevert("vePWN: additional epochs out of bounds");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, additionalEpochs);
 
         // under a period
         additionalEpochs = bound(_additionalEpochs, 1, EPOCHS_IN_PERIOD - remainingLockup - 1);
-        vm.expectRevert("vePWN: invalid lock up period range");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, additionalEpochs);
 
@@ -663,7 +665,7 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         additionalEpochs = bound(
             _additionalEpochs, 5 * EPOCHS_IN_PERIOD - remainingLockup + 1, 10 * EPOCHS_IN_PERIOD - remainingLockup - 1
         );
-        vm.expectRevert("vePWN: invalid lock up period range");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, additionalEpochs);
 
@@ -671,7 +673,7 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         additionalEpochs = bound(
             _additionalEpochs, 10 * EPOCHS_IN_PERIOD - remainingLockup + 1, 10 * EPOCHS_IN_PERIOD
         );
-        vm.expectRevert("vePWN: invalid lock up period range");
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, additionalEpochs);
     }
@@ -851,7 +853,7 @@ contract VoteEscrowedPWN_Stake_WithdrawStake_Test is VoteEscrowedPWN_Stake_Test 
     function testFuzz_shouldFail_whenCallerIsNotStakeOwner(address caller) external {
         vm.assume(caller != staker);
 
-        vm.expectRevert("vePWN: caller is not the stake owner");
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeOwner.selector));
         vm.prank(caller);
         vePWN.withdrawStake(stakeId);
     }
@@ -868,7 +870,7 @@ contract VoteEscrowedPWN_Stake_WithdrawStake_Test is VoteEscrowedPWN_Stake_Test 
             staker, runningStakeId, uint16(currentEpoch) - lockUpEpochs + remainingLockup, lockUpEpochs, uint104(amount)
         );
 
-        vm.expectRevert("vePWN: staker cannot withdraw before lockup period");
+        vm.expectRevert(abi.encodeWithSelector(Error.WithrawalBeforeLockUpEnd.selector));
         vm.prank(staker);
         vePWN.withdrawStake(runningStakeId);
     }
@@ -933,7 +935,7 @@ contract VoteEscrowedPWN_Stake_TransferStake_Test is VoteEscrowedPWN_Stake_Test 
 
 
     function test_shouldFail_whenCallerIsNotStakedPwnContract() external {
-        vm.expectRevert("vePWN: caller is not stakedPWN");
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakedPWNContract.selector));
         vePWN.transferStake(from, to, stakeId);
     }
 
@@ -978,7 +980,7 @@ contract VoteEscrowedPWN_Stake_TransferStake_Test is VoteEscrowedPWN_Stake_Test 
             abi.encode(makeAddr("notOwner"))
         );
 
-        vm.expectRevert("vePWN: sender is not the stake owner");
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeOwner.selector));
         vm.prank(stakedPWN);
         vePWN.transferStake(from, to, stakeId);
     }

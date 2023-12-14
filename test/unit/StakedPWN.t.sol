@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
+import { Error } from "src/lib/Error.sol";
 import { StakedPWN } from "src/StakedPWN.sol";
 
 import { Base_Test } from "../Base.t.sol";
@@ -69,7 +70,7 @@ contract StakedPWN_Mint_Test is StakedPWN_Test {
     function testFuzz_shouldFail_whenCallerNotVoteEscrowedPWN(address caller) external {
         vm.assume(caller != vePWN);
 
-        vm.expectRevert("StakedPWN: caller is not vote escrowed pwn contract");
+        vm.expectRevert(abi.encodeWithSelector(Error.NotVoteEscrowedPWNContract.selector));
         vm.prank(caller);
         stakedPWN.mint(caller, 420);
     }
@@ -118,7 +119,7 @@ contract StakedPWN_Burn_Test is StakedPWN_Test {
         vm.assume(caller != vePWN);
         _mockToken(caller, 420);
 
-        vm.expectRevert("StakedPWN: caller is not vote escrowed pwn contract");
+        vm.expectRevert(abi.encodeWithSelector(Error.NotVoteEscrowedPWNContract.selector));
         vm.prank(caller);
         stakedPWN.burn(420);
     }
@@ -157,7 +158,7 @@ contract StakedPWN_EnableTransfer_Test is StakedPWN_Test {
     function test_shouldFail_whenTransfersEnabled() external {
         vm.store(address(stakedPWN), TRANSFERS_ENABLED_SLOT, bytes32(uint256(1)));
 
-        vm.expectRevert("StakedPWN: transfers are already enabled");
+        vm.expectRevert(abi.encodeWithSelector(Error.TransfersAlreadyEnabled.selector));
         vm.prank(owner);
         stakedPWN.enableTransfers();
     }
@@ -190,7 +191,7 @@ contract StakedPWN_TransferCallback_Test is StakedPWN_Test {
         vm.store(address(stakedPWN), TRANSFERS_ENABLED_SLOT, bytes32(0));
         _mockToken(from, tokenId);
 
-        vm.expectRevert("StakedPWN: transfers are disabled");
+        vm.expectRevert(abi.encodeWithSelector(Error.TransfersDisabled.selector));
         vm.prank(from);
         stakedPWN.transferFrom(from, to, tokenId);
     }

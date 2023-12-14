@@ -5,6 +5,7 @@ import { IERC6372 } from "openzeppelin-contracts/contracts/interfaces/IERC6372.s
 import { SafeCast } from "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
 
+import { Error } from "../lib/Error.sol";
 import { VoteEscrowedPWNStorage } from "./VoteEscrowedPWNStorage.sol";
 
 abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC20Metadata {
@@ -34,11 +35,11 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
     }
 
     function transfer(address /* to */, uint256 /* amount */) external pure returns (bool) {
-        revert("vePWN: transfer is disabled");
+        revert Error.TransferDisabled();
     }
 
     function transferFrom(address /* from */, address /* to */, uint256 /* amount */) external pure returns (bool) {
-        revert("vePWN: transferFrom is disabled");
+        revert Error.TransferFromDisabled();
     }
 
     function allowance(address /* owner */, address /* spender */) external pure returns (uint256) {
@@ -46,7 +47,7 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
     }
 
     function approve(address /* spender */, uint256 /* amount */) external pure returns (bool) {
-        revert("vePWN: approve is disabled");
+        revert Error.ApproveDisabled();
     }
 
     /*----------------------------------------------------------*|
@@ -70,7 +71,7 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
     }
 
     function delegate(address /* delegatee */) external pure {
-        revert("vePWN: delegate is disabled");
+        revert Error.DelegateDisabled();
     }
 
     function delegateBySig(
@@ -81,7 +82,7 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
         bytes32 /* r */,
         bytes32 /* s */
     ) external pure {
-        revert("vePWN: delegateBySig is disabled");
+        revert Error.DelegateBySigDisabled();
     }
 
     /*----------------------------------------------------------*|

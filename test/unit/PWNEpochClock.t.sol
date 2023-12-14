@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
+import { Error } from "src/lib/Error.sol";
 import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
 import { Base_Test } from "../Base.t.sol";
@@ -45,7 +46,7 @@ contract PWNEpochClock_Constructor_Test is PWNEpochClock_Test {
         initialEpochTimestamp = bound(initialEpochTimestamp, currentTimestamp + 1, type(uint256).max);
         vm.warp(currentTimestamp);
 
-        vm.expectRevert("PWNEpochClock: initial epoch timestamp is in the future");
+        vm.expectRevert(abi.encodeWithSelector(Error.InitialEpochTimestampInFuture.selector, currentTimestamp));
         new PWNEpochClock(initialEpochTimestamp);
     }
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
+import { Error } from "src/lib/Error.sol";
+
 import { BitMaskLib } from "../utils/BitMaskLib.sol";
 import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
@@ -194,7 +196,7 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
     event StakerPowerCalculated(address indexed staker, uint256 indexed epoch);
 
     function test_shouldFail_whenNoPowerChanges() external {
-        vm.expectRevert("vePWN: staker has no power changes");
+        vm.expectRevert(abi.encodeWithSelector(Error.NoPowerChanges.selector));
         vePWN.calculateStakerPowerUpTo(staker, 1);
     }
 
@@ -203,7 +205,7 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
         _storePowerChanges(staker, powerChanges);
         epoch = bound(epoch, currentEpoch, type(uint256).max);
 
-        vm.expectRevert("vePWN: epoch hasn't ended yet");
+        vm.expectRevert(abi.encodeWithSelector(Error.EpochStillRunning.selector));
         vePWN.calculateStakerPowerUpTo(staker, epoch);
     }
 
@@ -220,7 +222,7 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
             epochClock, abi.encodeWithSignature("currentEpoch()"), abi.encode(lastCalculatedEpoch + 1)
         );
 
-        vm.expectRevert("vePWN: staker power already calculated");
+        vm.expectRevert(abi.encodeWithSelector(Error.PowerAlreadyCalculated.selector, lastCalculatedEpoch));
         vePWN.calculateStakerPowerUpTo(staker, epoch);
     }
 
@@ -381,7 +383,7 @@ contract VoteEscrowedPWN_Power_CalculateTotalPower_Test is VoteEscrowedPWN_Power
     function testFuzz_shouldFail_whenEpochDoesNotEnded(uint256 epoch) external {
         epoch = bound(epoch, currentEpoch, type(uint256).max);
 
-        vm.expectRevert("vePWN: epoch hasn't ended yet");
+        vm.expectRevert(abi.encodeWithSelector(Error.EpochStillRunning.selector));
         vePWN.calculateTotalPowerUpTo(epoch);
     }
 
@@ -390,7 +392,7 @@ contract VoteEscrowedPWN_Power_CalculateTotalPower_Test is VoteEscrowedPWN_Power
         epoch = bound(epoch, 0, lcEpoch);
         _mockLastCalculatedTotalPowerEpoch(lcEpoch);
 
-        vm.expectRevert("vePWN: total power already calculated");
+        vm.expectRevert(abi.encodeWithSelector(Error.PowerAlreadyCalculated.selector, lcEpoch));
         vePWN.calculateTotalPowerUpTo(epoch);
     }
 

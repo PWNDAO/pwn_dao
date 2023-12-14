@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import { SafeCast } from "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 
+import { Error } from "../lib/Error.sol";
 import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
 import { EpochPowerLib } from "../lib/EpochPowerLib.sol";
 import { PowerChangeEpochsLib } from "../lib/PowerChangeEpochsLib.sol";
@@ -80,10 +81,14 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     function calculateStakerPowerUpTo(address staker, uint256 epoch) public {
         uint16[] storage _powerChangeEpochs = powerChangeEpochs[staker];
 
-        require(_powerChangeEpochs.length > 0, "vePWN: staker has no power changes");
+        if (_powerChangeEpochs.length == 0) {
+            revert Error.NoPowerChanges();
+        }
         // epoch is on purpose smaller than current epoch to allow quick access to current epoch - 1
         // for voting purposes where `lastCalculatedEpoch` is up to date
-        require(epoch < epochClock.currentEpoch(), "vePWN: epoch hasn't ended yet");
+        if (epoch >= epochClock.currentEpoch()) {
+            revert Error.EpochStillRunning();
+        }
 
         EpochWithPosition storage lastCalculatedEpoch = _lastCalculatedStakerEpoch[staker];
         // set last calculated epoch as first epoch if necessary
@@ -92,7 +97,9 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
 
         uint256 lcEpoch = lastCalculatedEpoch.epoch;
         uint256 lcIndex = lastCalculatedEpoch.index;
-        require(lcEpoch < epoch, "vePWN: staker power already calculated");
+        if (lcEpoch >= epoch) {
+            revert Error.PowerAlreadyCalculated(lcEpoch);
+        }
 
         // calculate stakers power
         for (uint256 i = lcIndex + 1; i < _powerChangeEpochs.length;) {
@@ -107,7 +114,9 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
             });
 
             // check invariant
-            require(stakerNamespace.getEpochPower(nextEpoch) >= 0, "vePWN: staker power cannot be negative");
+            if (stakerNamespace.getEpochPower(nextEpoch) < 0) {
+                revert Error.InvariantFail_NegativeCalculatedPower();
+            }
 
             lcEpoch = nextEpoch;
             lcIndex = i;
@@ -145,8 +154,12 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     }
 
     function calculateTotalPowerUpTo(uint256 epoch) public {
-        require(epoch < epochClock.currentEpoch(), "vePWN: epoch hasn't ended yet");
-        require(lastCalculatedTotalPowerEpoch < epoch, "vePWN: total power already calculated");
+        if (epoch >= epochClock.currentEpoch()) {
+            revert Error.EpochStillRunning();
+        }
+        if (lastCalculatedTotalPowerEpoch >= epoch) {
+            revert Error.PowerAlreadyCalculated(lastCalculatedTotalPowerEpoch);
+        }
 
         for (uint256 i = lastCalculatedTotalPowerEpoch; i < epoch;) {
             _totalPowerNamespace().updateEpochPower({
@@ -155,7 +168,9 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
             });
 
             // check invariant
-            require(_totalPowerNamespace().getEpochPower(i + 1) >= 0, "vePWN: total power cannot be negative");
+            if (_totalPowerNamespace().getEpochPower(i + 1) < 0) {
+                revert Error.InvariantFail_NegativeCalculatedPower();
+            }
 
             unchecked { ++i; }
         }
