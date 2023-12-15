@@ -68,7 +68,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
 
         address staker = msg.sender;
-        uint16 initialEpoch = _currentEpoch() + 1;
+        uint16 initialEpoch = epochClock.currentEpoch() + 1;
         uint8 remainingLockup = uint8(lockUpEpochs); // safe cast
         int104 int104amount = SafeCast.toInt104(int256(uint256(amount)));
 
@@ -149,7 +149,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         address staker = msg.sender;
         uint16 finalEpoch1 = stake1.initialEpoch + stake1.remainingLockup;
         uint16 finalEpoch2 = stake2.initialEpoch + stake2.remainingLockup;
-        uint16 newInitialEpoch = _currentEpoch() + 1;
+        uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
 
         // both stakes must be owned by the caller
         if (stakedPWN.ownerOf(stakeId1) != staker || stakedPWN.ownerOf(stakeId2) != staker) {
@@ -216,7 +216,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             revert Error.InvalidLockUpPeriod();
         }
 
-        uint16 newInitialEpoch = _currentEpoch() + 1;
+        uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
         uint16 oldFinalEpoch = stake.initialEpoch + stake.remainingLockup;
         uint8 newRemainingLockup = SafeCast.toUint8(
             oldFinalEpoch <= newInitialEpoch ? additionalEpochs : oldFinalEpoch + additionalEpochs - newInitialEpoch
@@ -278,7 +278,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             revert Error.NotStakeOwner();
         }
         // stake must be unlocked
-        if (stake.initialEpoch + stake.remainingLockup > _currentEpoch()) {
+        if (stake.initialEpoch + stake.remainingLockup > epochClock.currentEpoch()) {
             revert Error.WithrawalBeforeLockUpEnd();
         }
 
@@ -308,7 +308,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
 
         Stake storage stake = stakes[stakeId];
-        uint16 newInitialEpoch = _currentEpoch() + 1;
+        uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
 
         if (stakedPWN.ownerOf(stakeId) != from) {
             revert Error.NotStakeOwner();

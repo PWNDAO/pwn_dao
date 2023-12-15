@@ -42,7 +42,7 @@ contract VoteEscrowedPWN_Base_IERC20_Test is VoteEscrowedPWN_Base_Test {
         assertEq(balance, power);
     }
 
-    function test_shouldHaveDisabledTransfer() external {
+    function test_shouldHaveTransferDisabled() external {
         address from = makeAddr("from");
         address to = makeAddr("to");
         uint256 amount = 420;
@@ -80,30 +80,20 @@ contract VoteEscrowedPWN_Base_Votes_Test is VoteEscrowedPWN_Base_Test {
         assertEq(votes, power);
     }
 
-    function testFuzz_shouldReturnStakerPower_forGetPastVotes(
-        address voter, uint256 power, uint256 timepoint, uint16 epoch
-    ) external {
-        vm.expectCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint));
-        vm.mockCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint), abi.encode(epoch));
-
+    function testFuzz_shouldReturnStakerPower_forGetPastVotes(address voter, uint256 power, uint16 epoch) external {
         vePWN.workaround_setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput({ staker: voter, epoch: epoch }));
         vePWN.workaround_setStakerPowerReturn(power);
 
-        uint256 votes = vePWN.getPastVotes(voter, timepoint);
+        uint256 votes = vePWN.getPastVotes(voter, epoch);
 
         assertEq(votes, power);
     }
 
-    function testFuzz_shouldReturnTotalPower_forGetPastTotalSupply(
-        uint256 _totalSupply, uint256 timepoint, uint16 epoch
-    ) external {
-        vm.expectCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint));
-        vm.mockCall(epochClock, abi.encodeWithSignature("epochFor(uint256)", timepoint), abi.encode(epoch));
-
+    function testFuzz_shouldReturnTotalPower_forGetPastTotalSupply(uint256 _totalSupply, uint16 epoch) external {
         vePWN.workaround_setTotalPowerAtInput(VoteEscrowedPWNHarness.TotalPowerAtInput({ epoch: epoch }));
         vePWN.workaround_setTotalPowerAtReturn(_totalSupply);
 
-        uint256 totalSupply = vePWN.getPastTotalSupply(timepoint);
+        uint256 totalSupply = vePWN.getPastTotalSupply(epoch);
 
         assertEq(totalSupply, _totalSupply);
     }
@@ -118,6 +108,28 @@ contract VoteEscrowedPWN_Base_Votes_Test is VoteEscrowedPWN_Base_Test {
 
         vm.expectRevert(abi.encodeWithSelector(Error.DelegateBySigDisabled.selector));
         vePWN.delegateBySig(delegatee, 0, 0, 0, 0, 0);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # CLOCK - ERC6372                                       *|
+|*----------------------------------------------------------*/
+
+contract VoteEscrowedPWN_Base_Clock_Test is VoteEscrowedPWN_Base_Test {
+
+    function test_shouldCallEpochClock() external {
+        vm.expectCall(epochClock, abi.encodeWithSignature("currentEpoch()"));
+
+        uint64 clock = vePWN.clock();
+        assertEq(clock, currentEpoch);
+    }
+
+    function test_shouldReturnCorrectClockMode() external {
+        string memory clockMode = vePWN.CLOCK_MODE();
+
+        assertEq(clockMode, "mode=pwn-epoch");
     }
 
 }

@@ -62,50 +62,27 @@ contract PWNEpochClock_Constructor_Test is PWNEpochClock_Test {
 
 
 /*----------------------------------------------------------*|
-|*  # CLOCK                                                 *|
+|*  # CURRENT EPOCH                                         *|
 |*----------------------------------------------------------*/
 
-contract PWNEpochClock_Clock_Test is PWNEpochClock_Test {
+contract PWNEpochClock_CurrentEpoch_Test is PWNEpochClock_Test {
 
-    function testFuzz_clock_shouldReturnBlockTimestamp(uint256 timestamp) external {
-        timestamp = bound(timestamp, 0, type(uint48).max);
-
-        vm.warp(timestamp);
-        assertEq(clock.clock(), timestamp);
-    }
-
-    function test_clockMode_shouldReturnModeTimestamp() external {
-        assertEq(clock.CLOCK_MODE(), "mode=timestamp");
-    }
-
-}
-
-
-/*----------------------------------------------------------*|
-|*  # EPOCH                                                 *|
-|*----------------------------------------------------------*/
-
-contract PWNEpochClock_Epoch_Test is PWNEpochClock_Test {
-
-    function testFuzz_currentEpoch_shouldReturnCorrectEpoch(uint256 timestamp) external {
-        timestamp = bound(timestamp, initialTimestamp, type(uint256).max);
-
-        vm.warp(timestamp);
-
-        uint256 epoch = (timestamp - initialTimestamp) / clock.SECONDS_IN_EPOCH() + 1;
-        assertEq(clock.currentEpoch(), epoch);
-    }
-
-    function testFuzz_epochFor_shouldReturnCorrectEpoch_whenTimestampAfterInitialTimestamp(uint256 timestamp) external {
-        timestamp = bound(timestamp, initialTimestamp, type(uint256).max);
-        uint256 epoch = (timestamp - initialTimestamp) / clock.SECONDS_IN_EPOCH() + 1;
-        assertTrue(epoch > 0);
-        assertEq(clock.epochFor(timestamp), epoch);
-    }
-
-    function testFuzz_epochFor_shouldReturnEpochZero_whenTimestampBeforeInitialTimestamp(uint256 timestamp) external {
+    function testFuzz_shouldReturnEpochZero_whenPreInitialTimestamp(uint256 timestamp) external {
         timestamp = bound(timestamp, 0, initialTimestamp - 1);
-        assertEq(clock.epochFor(timestamp), 0);
+
+        vm.warp(timestamp);
+
+        assertEq(clock.currentEpoch(), 0);
+    }
+
+    function testFuzz_shouldReturnCorrectEpoch_whenPostInitialTimestamp(uint256 timestamp) external {
+        timestamp = bound(timestamp, initialTimestamp, type(uint256).max);
+        uint256 epoch = (timestamp - initialTimestamp) / clock.SECONDS_IN_EPOCH() + 1;
+        vm.assume(epoch <= type(uint16).max);
+
+        vm.warp(timestamp);
+
+        assertEq(clock.currentEpoch(), epoch);
     }
 
 }

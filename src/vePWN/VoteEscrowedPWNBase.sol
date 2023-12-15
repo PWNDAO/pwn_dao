@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { IERC6372 } from "openzeppelin-contracts/contracts/interfaces/IERC6372.sol";
-import { SafeCast } from "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
+import { IERC6372 } from "openzeppelin-contracts/contracts/interfaces/IERC6372.sol";
 
 import { Error } from "../lib/Error.sol";
 import { VoteEscrowedPWNStorage } from "./VoteEscrowedPWNStorage.sol";
 
-abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC20Metadata {
+abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC20Metadata, IERC6372 {
 
     /*----------------------------------------------------------*|
     |*  # IERC20 METADATA                                       *|
@@ -50,6 +49,7 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
         revert Error.ApproveDisabled();
     }
 
+
     /*----------------------------------------------------------*|
     |*  # VOTES                                                 *|
     |*----------------------------------------------------------*/
@@ -58,12 +58,12 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
         return stakerPower(account, epochClock.currentEpoch());
     }
 
-    function getPastVotes(address account, uint256 timepoint) external view returns (uint256) {
-        return stakerPower(account, epochClock.epochFor(timepoint));
+    function getPastVotes(address account, uint256 epoch) external view returns (uint256) {
+        return stakerPower(account, epoch);
     }
 
-    function getPastTotalSupply(uint256 timepoint) external view returns (uint256) {
-        return totalPowerAt(epochClock.epochFor(timepoint));
+    function getPastTotalSupply(uint256 epoch) external view returns (uint256) {
+        return totalPowerAt(epoch);
     }
 
     function delegates(address /* account */) external pure returns (address) {
@@ -85,22 +85,20 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC6372, IERC2
         revert Error.DelegateBySigDisabled();
     }
 
+
     /*----------------------------------------------------------*|
     |*  # CLOCK - ERC6372                                       *|
     |*----------------------------------------------------------*/
 
     function clock() external view returns (uint48) {
-        return epochClock.clock();
+        return epochClock.currentEpoch();
     }
 
     // solhint-disable-next-line func-name-mixedcase
-    function CLOCK_MODE() external view returns (string memory) {
-        return epochClock.CLOCK_MODE();
+    function CLOCK_MODE() external pure returns (string memory) {
+        return "mode=pwn-epoch";
     }
 
-    function _currentEpoch() internal view returns (uint16) {
-        return SafeCast.toUint16(epochClock.currentEpoch());
-    }
 
     /*----------------------------------------------------------*|
     |*  # POWER FUNCTION PLACEHOLDERS                           *|

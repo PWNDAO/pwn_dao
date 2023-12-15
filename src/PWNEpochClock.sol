@@ -6,7 +6,7 @@ import { Error } from "./lib/Error.sol";
 contract PWNEpochClock {
 
     // # INVARIANTS
-    // - timestamps prior to `INITIAL_EPOCH_TIMESTAMP` are considered to be in epoch 0
+    // - timestamps prior to `INITIAL_EPOCH_TIMESTAMP` are in epoch 0
 
     uint256 public constant SECONDS_IN_EPOCH = 2_419_200; // 4 weeks
     // solhint-disable-next-line immutable-vars-naming
@@ -20,39 +20,19 @@ contract PWNEpochClock {
         INITIAL_EPOCH_TIMESTAMP = initialEpochTimestamp;
     }
 
-    /*----------------------------------------------------------*|
-    |*  # CLOCK                                                 *|
-    |*----------------------------------------------------------*/
-
-    // use timestamp to support chains with different block times
-    function clock() external view returns (uint48) {
-        return uint48(block.timestamp);
-    }
-
-    // solhint-disable-next-line func-name-mixedcase
-    function CLOCK_MODE() external pure returns (string memory) {
-        return "mode=timestamp";
-    }
 
     /*----------------------------------------------------------*|
-    |*  # EPOCH                                                 *|
+    |*  # CURRENT EPOCH                                         *|
     |*----------------------------------------------------------*/
 
-    function currentEpoch() external view returns (uint256) {
-        return _epochFor(block.timestamp);
-    }
-
-    function epochFor(uint256 timestamp) external view returns (uint256) {
-        return _epochFor(timestamp);
-    }
-
-    function _epochFor(uint256 timestamp) internal view returns (uint256) {
+    function currentEpoch() external view returns (uint16) {
         // timestamps prior to `INITIAL_EPOCH_TIMESTAMP` are considered to be in epoch 0
-        if (timestamp < INITIAL_EPOCH_TIMESTAMP) {
+        if (block.timestamp < INITIAL_EPOCH_TIMESTAMP) {
             return 0;
         }
         // first epoch is 1
-        return (timestamp - INITIAL_EPOCH_TIMESTAMP) / SECONDS_IN_EPOCH + 1;
+        uint256 epoch = (block.timestamp - INITIAL_EPOCH_TIMESTAMP) / SECONDS_IN_EPOCH + 1;
+        return uint16(epoch); // safe cast for the next 5041 years after deployment
     }
 
 }
