@@ -4,23 +4,19 @@ pragma solidity 0.8.18;
 import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import { ERC721 } from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 
+import { IStakedPWNSupplyManager } from "./interfaces/IStakedPWNSupplyManager.sol";
 import { Error } from "./lib/Error.sol";
-
-interface IVoteEscrowedPWN {
-    function transferStake(address from, address to, uint256 stakeId) external;
-}
 
 contract StakedPWN is Ownable2Step, ERC721 {
 
     // # INVARIANTS
-    // - `VoteEscrowedPWN.transferStake` is called everytime `stPWN` token is transferred
-    // - every `VoteEscrowedPWN` stake has exactly one `stPWN` token
+    // - `IStakedPWNSupplyManager.transferStake` is called everytime `stPWN` token is transferred
 
     /*----------------------------------------------------------*|
     |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
     |*----------------------------------------------------------*/
 
-    IVoteEscrowedPWN public immutable voteEscrowedPWN;
+    IStakedPWNSupplyManager public immutable supplyManager;
 
     bool public transfersEnabled;
 
@@ -29,9 +25,9 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*  # MODIFIERS                                             *|
     |*----------------------------------------------------------*/
 
-    modifier onlyVoteEscrowedPWNContract() {
-        if (msg.sender != address(voteEscrowedPWN)) {
-            revert Error.NotVoteEscrowedPWNContract();
+    modifier onlySupplyManager() {
+        if (msg.sender != address(supplyManager)) {
+            revert Error.CallerNotSupplyManager();
         }
         _;
     }
@@ -41,8 +37,8 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*  # CONSTRUCTOR                                           *|
     |*----------------------------------------------------------*/
 
-    constructor(address _owner, address _vePWN) ERC721("Staked PWN", "stPWN") {
-        voteEscrowedPWN = IVoteEscrowedPWN(_vePWN);
+    constructor(address _owner, address _supplyManager) ERC721("Staked PWN", "stPWN") {
+        supplyManager = IStakedPWNSupplyManager(_supplyManager);
         _transferOwnership(_owner);
     }
 
@@ -51,11 +47,11 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*  # MINT & BURN                                           *|
     |*----------------------------------------------------------*/
 
-    function mint(address to, uint256 tokenId) external onlyVoteEscrowedPWNContract {
+    function mint(address to, uint256 tokenId) external onlySupplyManager {
         _safeMint(to, tokenId);
     }
 
-    function burn(uint256 tokenId) external onlyVoteEscrowedPWNContract {
+    function burn(uint256 tokenId) external onlySupplyManager {
         _burn(tokenId);
     }
 
@@ -83,7 +79,7 @@ contract StakedPWN is Ownable2Step, ERC721 {
         if (!transfersEnabled && from != address(0) && to != address(0)) {
             revert Error.TransfersDisabled();
         }
-        voteEscrowedPWN.transferStake(from, to, firstTokenId);
+        supplyManager.transferStake(from, to, firstTokenId);
     }
 
 }

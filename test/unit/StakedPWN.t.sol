@@ -20,13 +20,13 @@ abstract contract StakedPWN_Test is Base_Test {
     StakedPWN public stakedPWN;
 
     address public owner = makeAddr("owner");
-    address public vePWN = makeAddr("vePWN");
+    address public supplyManager = makeAddr("supplyManager");
 
     function setUp() virtual public {
-        stakedPWN = new StakedPWN(owner, vePWN);
+        stakedPWN = new StakedPWN(owner, supplyManager);
 
         vm.mockCall(
-            vePWN,
+            supplyManager,
             abi.encodeWithSignature("transferStake(address,address,uint256)"),
             abi.encode("")
         );
@@ -51,11 +51,11 @@ abstract contract StakedPWN_Test is Base_Test {
 
 contract StakedPWN_Constructor_Test is StakedPWN_Test {
 
-    function testFuzz_shouldSetInitialParams(address _vePWN) external {
-        stakedPWN = new StakedPWN(owner, _vePWN);
+    function testFuzz_shouldSetInitialParams(address _supplyManager) external {
+        stakedPWN = new StakedPWN(owner, _supplyManager);
 
         assertEq(address(stakedPWN.owner()), owner);
-        assertEq(address(stakedPWN.voteEscrowedPWN()), _vePWN);
+        assertEq(address(stakedPWN.supplyManager()), _supplyManager);
     }
 
 }
@@ -68,9 +68,9 @@ contract StakedPWN_Constructor_Test is StakedPWN_Test {
 contract StakedPWN_Mint_Test is StakedPWN_Test {
 
     function testFuzz_shouldFail_whenCallerNotVoteEscrowedPWN(address caller) external {
-        vm.assume(caller != vePWN);
+        vm.assume(caller != supplyManager);
 
-        vm.expectRevert(abi.encodeWithSelector(Error.NotVoteEscrowedPWNContract.selector));
+        vm.expectRevert(abi.encodeWithSelector(Error.CallerNotSupplyManager.selector));
         vm.prank(caller);
         stakedPWN.mint(caller, 420);
     }
@@ -78,11 +78,11 @@ contract StakedPWN_Mint_Test is StakedPWN_Test {
     function testFuzz_shouldMintStakedPWNToken(address to, uint256 tokenId) external checkAddress(to) {
         vm.assume(to.code.length == 0);
         vm.expectCall(
-            vePWN,
+            supplyManager,
             abi.encodeWithSignature("transferStake(address,address,uint256)", address(0), to, tokenId)
         );
 
-        vm.prank(vePWN);
+        vm.prank(supplyManager);
         stakedPWN.mint(to, tokenId);
 
         assertEq(stakedPWN.ownerOf(tokenId), to);
@@ -99,10 +99,10 @@ contract StakedPWN_Mint_Test is StakedPWN_Test {
 
         vm.expectCall(
             to,
-            abi.encodeWithSelector(ON_ERC721_RECEIVED_SELECTOR, vePWN, address(0), tokenId, bytes(""))
+            abi.encodeWithSelector(ON_ERC721_RECEIVED_SELECTOR, supplyManager, address(0), tokenId, bytes(""))
         );
 
-        vm.prank(vePWN);
+        vm.prank(supplyManager);
         stakedPWN.mint(to, tokenId);
     }
 
@@ -116,10 +116,10 @@ contract StakedPWN_Mint_Test is StakedPWN_Test {
 contract StakedPWN_Burn_Test is StakedPWN_Test {
 
     function testFuzz_shouldFail_whenCallerNotVoteEscrowedPWN(address caller) external {
-        vm.assume(caller != vePWN);
+        vm.assume(caller != supplyManager);
         _mockToken(caller, 420);
 
-        vm.expectRevert(abi.encodeWithSelector(Error.NotVoteEscrowedPWNContract.selector));
+        vm.expectRevert(abi.encodeWithSelector(Error.CallerNotSupplyManager.selector));
         vm.prank(caller);
         stakedPWN.burn(420);
     }
@@ -127,11 +127,11 @@ contract StakedPWN_Burn_Test is StakedPWN_Test {
     function testFuzz_shouldBurnStakedPWNToken(address from, uint256 tokenId) external checkAddress(from) {
         _mockToken(from, tokenId);
         vm.expectCall(
-            vePWN,
+            supplyManager,
             abi.encodeWithSignature("transferStake(address,address,uint256)", from, address(0), tokenId)
         );
 
-        vm.prank(vePWN);
+        vm.prank(supplyManager);
         stakedPWN.burn(tokenId);
 
         vm.expectRevert();
@@ -202,7 +202,7 @@ contract StakedPWN_TransferCallback_Test is StakedPWN_Test {
         _mockToken(from, tokenId);
 
         vm.expectCall({
-            callee: vePWN,
+            callee: supplyManager,
             data: abi.encodeWithSignature("transferStake(address,address,uint256)", from, to, tokenId),
             count: 1
         });
@@ -215,7 +215,7 @@ contract StakedPWN_TransferCallback_Test is StakedPWN_Test {
         address from, address to, uint256 tokenId
     ) external checkAddress(from) checkAddress(to) {
         vm.expectCall({
-            callee: vePWN,
+            callee: supplyManager,
             data: abi.encodeWithSignature("transferStake(address,address,uint256)", from, to, tokenId),
             count: 0
         });
@@ -236,7 +236,7 @@ contract StakedPWN_TransferCallback_Test is StakedPWN_Test {
         );
 
         vm.expectCall({
-            callee: vePWN,
+            callee: supplyManager,
             data: abi.encodeWithSignature("transferStake(address,address,uint256)", from, to, tokenId),
             count: 1
         });
@@ -255,7 +255,7 @@ contract StakedPWN_TransferCallback_Test is StakedPWN_Test {
         );
 
         vm.expectCall({
-            callee: vePWN,
+            callee: supplyManager,
             data: abi.encodeWithSignature("transferStake(address,address,uint256)", from, to, tokenId),
             count: 0
         });

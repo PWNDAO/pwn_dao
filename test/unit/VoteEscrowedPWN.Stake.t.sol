@@ -935,7 +935,7 @@ contract VoteEscrowedPWN_Stake_TransferStake_Test is VoteEscrowedPWN_Stake_Test 
 
 
     function test_shouldFail_whenCallerIsNotStakedPwnContract() external {
-        vm.expectRevert(abi.encodeWithSelector(Error.NotStakedPWNContract.selector));
+        vm.expectRevert(abi.encodeWithSelector(Error.CallerNotStakedPWNContract.selector));
         vePWN.transferStake(from, to, stakeId);
     }
 

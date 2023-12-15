@@ -23,7 +23,7 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower {
     // - `lastCalculatedStakerEpoch.epoch` < current epoch (to have a low index when looking up `currect epoch - 1`)
     // - address without stake has empty `powerChangeEpochs`
     // - stakes `remainingLockup` is always > 0
-    // - for every stake there is a stPWN token
+    // - every stake has exactly one `stPWN` token
 
     // max stake ≈ 7e28 < max int104 (1e31)
     //  - total initial supply with decimals (1e26)

@@ -3,12 +3,13 @@ pragma solidity 0.8.18;
 
 import { SafeCast } from "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 
+import { IStakedPWNSupplyManager } from "../interfaces/IStakedPWNSupplyManager.sol";
 import { Error } from "../lib/Error.sol";
 import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
 import { EpochPowerLib } from "../lib/EpochPowerLib.sol";
 import { PowerChangeEpochsLib } from "../lib/PowerChangeEpochsLib.sol";
 
-abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
+abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyManager {
     using EpochPowerLib for bytes32;
     using PowerChangeEpochsLib for uint16[];
 
@@ -300,7 +301,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @param stakeId Id of the stake to transfer.
     function transferStake(address from, address to, uint256 stakeId) external {
         if (msg.sender != address(stakedPWN)) {
-            revert Error.NotStakedPWNContract();
+            revert Error.CallerNotStakedPWNContract();
         }
 
         if (from == address(0) || to == address(0)) {

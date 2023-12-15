@@ -18,7 +18,7 @@ library Error {
     error InitialEpochTimestampInFuture(uint256 currentTimestamp);
 
     // StakedPWN
-    error NotVoteEscrowedPWNContract();
+    error CallerNotSupplyManager();
     error TransfersDisabled();
     error TransfersAlreadyEnabled();
 
@@ -42,6 +42,6 @@ library Error {
     error LockUpPeriodMismatch();
     error NothingToIncrease();
     error WithrawalBeforeLockUpEnd();
-    error NotStakedPWNContract();
+    error CallerNotStakedPWNContract();
 
 }
