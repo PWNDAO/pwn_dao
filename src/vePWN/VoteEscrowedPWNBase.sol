@@ -30,7 +30,7 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC20Metadata,
     }
 
     function balanceOf(address account) external view returns (uint256) {
-        return stakerPower(account, epochClock.currentEpoch());
+        return stakerPowerAt(account, epochClock.currentEpoch());
     }
 
     function transfer(address /* to */, uint256 /* amount */) external pure returns (bool) {
@@ -55,11 +55,11 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC20Metadata,
     |*----------------------------------------------------------*/
 
     function getVotes(address account) external view returns (uint256) {
-        return stakerPower(account, epochClock.currentEpoch());
+        return stakerPowerAt(account, epochClock.currentEpoch());
     }
 
     function getPastVotes(address account, uint256 epoch) external view returns (uint256) {
-        return stakerPower(account, epoch);
+        return stakerPowerAt(account, epoch);
     }
 
     function getPastTotalSupply(uint256 epoch) external view returns (uint256) {
@@ -104,7 +104,7 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC20Metadata,
     |*  # POWER FUNCTION PLACEHOLDERS                           *|
     |*----------------------------------------------------------*/
 
-    function stakerPower(address, uint256) virtual public view returns (uint256);
+    function stakerPowerAt(address, uint256) virtual public view returns (uint256);
 
     function totalPowerAt(uint256) virtual public view returns (uint256);
 

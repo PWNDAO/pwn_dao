@@ -13,7 +13,7 @@ abstract contract VoteEscrowedPWN_Power_Test is VoteEscrowedPWN_Test {
     function setUp() override virtual public {
         super.setUp();
 
-        vePWN.workaround_setMockStakerPower(false);
+        vePWN.workaround_setMockStakerPowerAt(false);
         vePWN.workaround_setMockTotalPowerAt(false);
     }
 
@@ -87,13 +87,13 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
     using SlotComputingLib for bytes32;
 
     function test_shouldReturnZero_whenEpochIsZero() external {
-        uint256 power = vePWN.stakerPower(staker, 0);
+        uint256 power = vePWN.stakerPowerAt(staker, 0);
 
         assertEq(power, 0);
     }
 
     function test_shouldReturnZero_whenNoPowerChanges() external {
-        uint256 power = vePWN.stakerPower(staker, currentEpoch);
+        uint256 power = vePWN.stakerPowerAt(staker, currentEpoch);
 
         assertEq(power, 0);
     }
@@ -104,7 +104,7 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
         _storePowerChanges(staker, powerChanges);
         uint256 epochToFind = bound(epoch, 0, powerChanges[0].epoch - 1);
 
-        uint256 power = vePWN.stakerPower(staker, epochToFind);
+        uint256 power = vePWN.stakerPowerAt(staker, epochToFind);
 
         assertEq(power, 0);
     }
@@ -115,7 +115,7 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
         uint256 epochToFind = bound(epoch, uint256(type(uint16).max) + 1, type(uint256).max);
 
         vm.expectRevert("SafeCast: value doesn't fit in 16 bits");
-        vePWN.stakerPower(staker, epochToFind);
+        vePWN.stakerPowerAt(staker, epochToFind);
     }
 
     /// forge-config: default.fuzz.runs = 512
@@ -128,7 +128,7 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
         uint256 lastCalculatedEpoch = powerChanges[lastCalculatedEpochIndex].epoch;
         _mockLastCalculatedStakerEpoch(staker, lastCalculatedEpoch, lastCalculatedEpochIndex);
 
-        uint256 power = vePWN.stakerPower(staker, lastCalculatedEpoch);
+        uint256 power = vePWN.stakerPowerAt(staker, lastCalculatedEpoch);
 
         assertEq(power, uint256(uint104(powerChanges[lastCalculatedEpochIndex].powerChange)));
     }
@@ -151,7 +151,7 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
         assertLt(indexToFind, lastCalculatedEpochIndex);
         assertLt(epochToFind, lastCalculatedEpoch);
 
-        uint256 power = vePWN.stakerPower(staker, epochToFind);
+        uint256 power = vePWN.stakerPowerAt(staker, epochToFind);
 
         assertEq(power, uint256(uint104(powerChanges[indexToFind].powerChange)));
     }
@@ -174,7 +174,7 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
         assertGt(indexToFind, lastCalculatedEpochIndex);
         assertGt(epochToFind, lastCalculatedEpoch);
 
-        uint256 power = vePWN.stakerPower(staker, epochToFind);
+        uint256 power = vePWN.stakerPowerAt(staker, epochToFind);
 
         int104 expectedPower;
         for (uint256 i = lastCalculatedEpochIndex; i <= indexToFind; ++i)

@@ -32,10 +32,10 @@ contract VoteEscrowedPWN_Base_IERC20_Test is VoteEscrowedPWN_Base_Test {
     }
 
     function testFuzz_shouldReturnStakerPower_forBalanceOf(address holder, uint256 power) external {
-        vePWN.workaround_setStakerPowerInput(
-            VoteEscrowedPWNHarness.StakerPowerInput({ staker: holder, epoch: currentEpoch })
+        vePWN.workaround_setStakerPowerAtInput(
+            VoteEscrowedPWNHarness.StakerPowerAtInput({ staker: holder, epoch: currentEpoch })
         );
-        vePWN.workaround_setStakerPowerReturn(power);
+        vePWN.workaround_setStakerPowerAtReturn(power);
 
         uint256 balance = vePWN.balanceOf(holder);
 
@@ -70,10 +70,10 @@ contract VoteEscrowedPWN_Base_IERC20_Test is VoteEscrowedPWN_Base_Test {
 contract VoteEscrowedPWN_Base_Votes_Test is VoteEscrowedPWN_Base_Test {
 
     function testFuzz_shouldReturnStakerPower_forGetVotes(address voter, uint256 power) external {
-        vePWN.workaround_setStakerPowerInput(
-            VoteEscrowedPWNHarness.StakerPowerInput({ staker: voter, epoch: currentEpoch })
+        vePWN.workaround_setStakerPowerAtInput(
+            VoteEscrowedPWNHarness.StakerPowerAtInput({ staker: voter, epoch: currentEpoch })
         );
-        vePWN.workaround_setStakerPowerReturn(power);
+        vePWN.workaround_setStakerPowerAtReturn(power);
 
         uint256 votes = vePWN.getVotes(voter);
 
@@ -81,8 +81,10 @@ contract VoteEscrowedPWN_Base_Votes_Test is VoteEscrowedPWN_Base_Test {
     }
 
     function testFuzz_shouldReturnStakerPower_forGetPastVotes(address voter, uint256 power, uint16 epoch) external {
-        vePWN.workaround_setStakerPowerInput(VoteEscrowedPWNHarness.StakerPowerInput({ staker: voter, epoch: epoch }));
-        vePWN.workaround_setStakerPowerReturn(power);
+        vePWN.workaround_setStakerPowerAtInput(
+            VoteEscrowedPWNHarness.StakerPowerAtInput({ staker: voter, epoch: epoch })
+        );
+        vePWN.workaround_setStakerPowerAtReturn(power);
 
         uint256 votes = vePWN.getPastVotes(voter, epoch);
 

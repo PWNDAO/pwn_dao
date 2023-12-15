@@ -28,7 +28,7 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     /// @param staker Staker address.
     /// @param epoch Epoch number.
     /// @return Staker power.
-    function stakerPower(address staker, uint256 epoch) override virtual public view returns (uint256) {
+    function stakerPowerAt(address staker, uint256 epoch) override virtual public view returns (uint256) {
         uint16 _epoch = SafeCast.toUint16(epoch);
 
         // for epoch zero return 0

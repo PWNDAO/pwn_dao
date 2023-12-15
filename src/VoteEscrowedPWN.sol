@@ -55,14 +55,14 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower {
 
     // The following functions are overrides required by Solidity.
 
-    function stakerPower(address staker, uint256 epoch)
+    function stakerPowerAt(address staker, uint256 epoch)
         public
         view
         virtual
         override(VoteEscrowedPWNBase, VoteEscrowedPWNPower)
         returns (uint256)
     {
-        return super.stakerPower(staker, epoch);
+        return super.stakerPowerAt(staker, epoch);
     }
 
     function totalPowerAt(uint256 epoch)

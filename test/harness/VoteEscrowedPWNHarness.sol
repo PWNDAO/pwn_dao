@@ -53,20 +53,20 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
     }
 
 
-    struct StakerPowerInput {
+    struct StakerPowerAtInput {
         address staker;
         uint256 epoch;
     }
-    StakerPowerInput public expectedStakerPowerInput;
-    uint256 public stakerPowerReturn;
-    bool public mockStakerPower = true;
-    function stakerPower(address staker, uint256 epoch) virtual public view override returns (uint256) {
-        if (mockStakerPower) {
-            require(expectedStakerPowerInput.staker == staker, "vePWNHarness:stakerPower:staker");
-            require(expectedStakerPowerInput.epoch == epoch, "vePWNHarness:stakerPower:epoch");
-            return stakerPowerReturn;
+    StakerPowerAtInput public expectedStakerPowerAtInput;
+    uint256 public stakerPowerAtReturn;
+    bool public mockStakerPowerAt = true;
+    function stakerPowerAt(address staker, uint256 epoch) virtual public view override returns (uint256) {
+        if (mockStakerPowerAt) {
+            require(expectedStakerPowerAtInput.staker == staker, "vePWNHarness:stakerPowerAt:staker");
+            require(expectedStakerPowerAtInput.epoch == epoch, "vePWNHarness:stakerPowerAt:epoch");
+            return stakerPowerAtReturn;
         } else {
-            return super.stakerPower(staker, epoch);
+            return super.stakerPowerAt(staker, epoch);
         }
     }
 
@@ -88,16 +88,16 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
 
     // setters
 
-    function workaround_setMockStakerPower(bool value) external {
-        mockStakerPower = value;
+    function workaround_setMockStakerPowerAt(bool value) external {
+        mockStakerPowerAt = value;
     }
 
-    function workaround_setStakerPowerInput(StakerPowerInput memory input) external {
-        expectedStakerPowerInput = input;
+    function workaround_setStakerPowerAtInput(StakerPowerAtInput memory input) external {
+        expectedStakerPowerAtInput = input;
     }
 
-    function workaround_setStakerPowerReturn(uint256 value) external {
-        stakerPowerReturn = value;
+    function workaround_setStakerPowerAtReturn(uint256 value) external {
+        stakerPowerAtReturn = value;
     }
 
     function workaround_setMockTotalPowerAt(bool value) external {
