@@ -5,7 +5,7 @@ library Error {
 
     // PWN
     error MintableSupplyExceeded();
-    error InImmutablePeriod();
+    error SnapshotInImmutablePeriod();
     error RewardTooHigh(uint256 maxReward);
     error ZeroReward();
     error RewardAlreadyAssigned(uint256 currentReward);

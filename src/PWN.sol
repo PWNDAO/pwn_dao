@@ -84,20 +84,20 @@ contract PWN is Ownable2Step, ERC20 {
         if (address(votingContract) == address(0)) {
             revert Error.ZeroVotingContract();
         }
+        if (reward == 0) {
+            revert Error.ZeroReward();
+        }
 
         (
             ,, IVotingContract.ProposalParameters memory proposalParameters,,,
         ) = votingContract.getProposal(proposalId);
 
         if (proposalParameters.snapshotEpoch <= IMMUTABLE_PERIOD) {
-            revert Error.InImmutablePeriod();
+            revert Error.SnapshotInImmutablePeriod();
         }
         uint256 maxReward = Math.mulDiv(totalSupply(), MAX_INFLATION_RATE, INFLATION_DENOMINATOR);
         if (reward > maxReward) {
             revert Error.RewardTooHigh(maxReward);
-        }
-        if (reward == 0) {
-            revert Error.ZeroReward();
         }
         VotingReward storage currentReward = votingRewards[address(votingContract)][proposalId];
         if (currentReward.reward > 0) {
@@ -134,11 +134,11 @@ contract PWN is Ownable2Step, ERC20 {
         }
         currentReward.claimed[voter] = true;
 
-        // voter is rewarded proportionally to the amount of votes he had at the snapshot
+        // voter is rewarded proportionally to the amount of votes he had in the snapshot epoch
         // it doesn't matter if he voted yes, no or abstained
-        uint256 callerVotes = votingContract.getVotingToken().getPastVotes(voter, proposalParameters.snapshotEpoch);
+        uint256 voterVotes = votingContract.getVotingToken().getPastVotes(voter, proposalParameters.snapshotEpoch);
         uint256 totalVotes = tally.abstain + tally.yes + tally.no;
-        uint256 reward = Math.mulDiv(currentReward.reward, callerVotes, totalVotes);
+        uint256 reward = Math.mulDiv(currentReward.reward, voterVotes, totalVotes);
 
         _mint(voter, reward);
 

@@ -215,7 +215,7 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
             abi.encode(true, false, proposalParameters, tally, actions, 0)
         );
 
-        vm.expectRevert(abi.encodeWithSelector(Error.InImmutablePeriod.selector));
+        vm.expectRevert(abi.encodeWithSelector(Error.SnapshotInImmutablePeriod.selector));
         vm.prank(owner);
         pwnToken.assignVotingReward(IVotingContract(votingContract), proposalId, reward);
     }
