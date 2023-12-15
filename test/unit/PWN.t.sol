@@ -103,7 +103,7 @@ contract PWN_Constants_Test is PWN_Test {
 contract PWN_Constructor_Test is PWN_Test {
 
     function testFuzz_shouldSetInitialParams(
-        address _owner, address _clock, uint256 initialEpoch
+        address _owner, address _clock, uint16 initialEpoch
     ) external checkAddress(_clock) {
         // `0x2e23...470b` will be an address of the PWN token in this test
         // foundry sometimes provide this address as a clock address
@@ -113,7 +113,6 @@ contract PWN_Constructor_Test is PWN_Test {
         pwnToken = new PWN(_owner, _clock);
 
         assertEq(pwnToken.owner(), _owner);
-        assertEq(address(pwnToken.epochClock()), _clock);
         assertEq(pwnToken.INITIAL_EPOCH(), initialEpoch);
     }
 

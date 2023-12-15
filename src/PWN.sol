@@ -70,7 +70,6 @@ contract PWN is Ownable2Step, ERC20 {
 
     // solhint-disable-next-line immutable-vars-naming, var-name-mixedcase
     uint256 public immutable INITIAL_EPOCH;
-    PWNEpochClock public immutable epochClock;
 
     /// Amount of tokens already minted by the owner
     uint256 public mintedSupply;
@@ -98,8 +97,7 @@ contract PWN is Ownable2Step, ERC20 {
 
     constructor(address _owner, address _epochClock) ERC20("PWN DAO", "PWN") {
         _transferOwnership(_owner);
-        epochClock = PWNEpochClock(_epochClock);
-        INITIAL_EPOCH = epochClock.currentEpoch();
+        INITIAL_EPOCH = PWNEpochClock(_epochClock).currentEpoch();
     }
 
 
