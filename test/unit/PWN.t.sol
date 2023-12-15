@@ -20,7 +20,6 @@ abstract contract PWN_Test is Base_Test {
     PWN public pwnToken;
 
     address public owner = makeAddr("owner");
-    address public clock = makeAddr("clock");
     address public votingContract = makeAddr("votingContract");
     address public votingToken = makeAddr("votingToken");
     address public voter = makeAddr("voter");
@@ -46,11 +45,6 @@ abstract contract PWN_Test is Base_Test {
 
     function setUp() virtual public {
         vm.mockCall(
-            clock,
-            abi.encodeWithSignature("currentEpoch()"),
-            abi.encode(1)
-        );
-        vm.mockCall(
             votingContract,
             abi.encodeWithSignature("getVotingToken()"),
             abi.encode(votingToken)
@@ -71,7 +65,7 @@ abstract contract PWN_Test is Base_Test {
             abi.encode(pastVotes)
         );
 
-        pwnToken = new PWN(owner, clock);
+        pwnToken = new PWN(owner);
 
         vm.store(address(pwnToken), TOTAL_SUPPLY_SLOT, bytes32(uint256(100_000_000 ether)));
     }
@@ -103,18 +97,10 @@ contract PWN_Constants_Test is PWN_Test {
 
 contract PWN_Constructor_Test is PWN_Test {
 
-    function testFuzz_shouldSetInitialParams(
-        address _owner, address _clock, uint16 initialEpoch
-    ) external checkAddress(_clock) {
-        // `0x2e23...470b` will be an address of the PWN token in this test
-        // foundry sometimes provide this address as a clock address
-        vm.assume(_clock != 0x2e234DAe75C793f67A35089C9d99245E1C58470b);
-        vm.mockCall(_clock, abi.encodeWithSignature("currentEpoch()"), abi.encode(initialEpoch));
-
-        pwnToken = new PWN(_owner, _clock);
+    function testFuzz_shouldSetInitialParams(address _owner) external {
+        pwnToken = new PWN(_owner);
 
         assertEq(pwnToken.owner(), _owner);
-        assertEq(pwnToken.INITIAL_EPOCH(), initialEpoch);
     }
 
 }
@@ -201,16 +187,6 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
 
     event VotingRewardAssigned(address indexed votingContract, uint256 indexed proposalId, uint256 reward);
 
-    function setUp() override public {
-        super.setUp();
-
-        vm.mockCall(
-            clock,
-            abi.encodeWithSignature("currentEpoch()"),
-            abi.encode(pwnToken.IMMUTABLE_PERIOD() + 1)
-        );
-    }
-
     function _maxReward() private view returns (uint256) {
         return pwnToken.totalSupply() * pwnToken.MAX_INFLATION_RATE() / pwnToken.INFLATION_DENOMINATOR();
     }
@@ -231,9 +207,7 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
     }
 
     function testFuzz_shouldFail_whenImmutablePeriodNotReached(uint256 snapshotEpoch) external {
-        snapshotEpoch = bound(
-            snapshotEpoch, pwnToken.INITIAL_EPOCH(), pwnToken.IMMUTABLE_PERIOD() + pwnToken.INITIAL_EPOCH() - 1
-        );
+        snapshotEpoch = bound(snapshotEpoch, 1, pwnToken.IMMUTABLE_PERIOD());
         proposalParameters.snapshotEpoch = uint64(snapshotEpoch);
         vm.mockCall(
             votingContract,

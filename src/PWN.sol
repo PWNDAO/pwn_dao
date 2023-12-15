@@ -7,13 +7,12 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 import { IVotingContract } from "./interfaces/IVotingContract.sol";
 import { Error } from "./lib/Error.sol";
-import { PWNEpochClock } from "./PWNEpochClock.sol";
 
 contract PWN is Ownable2Step, ERC20 {
 
     // # INVARIANTS
-    // - owner can mint max MINTABLE_TOTAL_SUPPLY regardless of burned amount
-    // - after reaching the IMMUTABLE_PERIOD, token can be inflated by MAX_INFLATION_RATE
+    // - owner can mint max `MINTABLE_TOTAL_SUPPLY` regardless of a burned amount
+    // - after reaching the `IMMUTABLE_PERIOD`, token can be inflated by `MAX_INFLATION_RATE`
     // - voting reward per proposal can be assigned only once
     // - voting reward can be claimed only once per proposal per voter
 
@@ -25,9 +24,6 @@ contract PWN is Ownable2Step, ERC20 {
     uint256 public constant MAX_INFLATION_RATE = 20; // max inflation rate (2 decimals) after immutable period
     uint256 public constant INFLATION_DENOMINATOR = 10000; // 2 decimals
     uint256 public constant IMMUTABLE_PERIOD = 65; // ~5 years in epochs
-
-    // solhint-disable-next-line immutable-vars-naming, var-name-mixedcase
-    uint256 public immutable INITIAL_EPOCH;
 
     /// Amount of tokens already minted by the owner
     uint256 public mintedSupply;
@@ -53,9 +49,8 @@ contract PWN is Ownable2Step, ERC20 {
     |*  # CONSTRUCTOR                                           *|
     |*----------------------------------------------------------*/
 
-    constructor(address _owner, address _epochClock) ERC20("PWN DAO", "PWN") {
+    constructor(address _owner) ERC20("PWN DAO", "PWN") {
         _transferOwnership(_owner);
-        INITIAL_EPOCH = PWNEpochClock(_epochClock).currentEpoch();
     }
 
 
@@ -94,7 +89,7 @@ contract PWN is Ownable2Step, ERC20 {
             ,, IVotingContract.ProposalParameters memory proposalParameters,,,
         ) = votingContract.getProposal(proposalId);
 
-        if (proposalParameters.snapshotEpoch - INITIAL_EPOCH < IMMUTABLE_PERIOD) {
+        if (proposalParameters.snapshotEpoch <= IMMUTABLE_PERIOD) {
             revert Error.InImmutablePeriod();
         }
         uint256 maxReward = Math.mulDiv(totalSupply(), MAX_INFLATION_RATE, INFLATION_DENOMINATOR);
