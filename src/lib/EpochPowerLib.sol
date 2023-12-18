@@ -6,6 +6,7 @@ library EpochPowerLib {
     struct EpochPowerWord {
         int104 power1;
         int104 power2;
+        // uint48 __padding;
     }
 
 
