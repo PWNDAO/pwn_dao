@@ -49,7 +49,7 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
     }
 
     function workaround_stakerPowerChangeEpochsLength(address staker) external view returns (uint256) {
-        return powerChangeEpochs[staker].length;
+        return _powerChangeEpochs[staker].length;
     }
 
 

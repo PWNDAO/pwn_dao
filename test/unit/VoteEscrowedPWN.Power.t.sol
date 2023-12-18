@@ -63,12 +63,9 @@ abstract contract VoteEscrowedPWN_Power_Test is VoteEscrowedPWN_Test {
         delete totalPowerChanges;
     }
 
-    function _mockLastCalculatedStakerEpoch(address _staker, uint256 epoch, uint256 index) internal {
-        bytes memory rawLastCalculatedEpochData = abi.encodePacked(uint224(0), uint16(index), uint16(epoch));
+    function _mockLastCalculatedStakerEpochIndex(address _staker, uint256 index) internal {
         vm.store(
-            address(vePWN),
-            LAST_CALCULATED_STAKER_POWER_EPOCH_SLOT.withMappingKey(_staker),
-            abi.decode(rawLastCalculatedEpochData, (bytes32))
+            address(vePWN), LAST_CALCULATED_STAKER_POWER_EPOCH_INDEX_SLOT.withMappingKey(_staker), bytes32(index)
         );
     }
 
@@ -126,7 +123,7 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
         _storePowerChanges(staker, powerChanges);
         uint256 lastCalculatedEpochIndex = bound(lcIndex, 0, powerChanges.length - 1);
         uint256 lastCalculatedEpoch = powerChanges[lastCalculatedEpochIndex].epoch;
-        _mockLastCalculatedStakerEpoch(staker, lastCalculatedEpoch, lastCalculatedEpochIndex);
+        _mockLastCalculatedStakerEpochIndex(staker, lastCalculatedEpochIndex);
 
         uint256 power = vePWN.stakerPowerAt(staker, lastCalculatedEpoch);
 
@@ -141,7 +138,7 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
         _storePowerChanges(staker, powerChanges);
         uint256 lastCalculatedEpochIndex = bound(lcIndex, 1, powerChanges.length - 1);
         uint256 lastCalculatedEpoch = powerChanges[lastCalculatedEpochIndex].epoch;
-        _mockLastCalculatedStakerEpoch(staker, lastCalculatedEpoch, lastCalculatedEpochIndex);
+        _mockLastCalculatedStakerEpochIndex(staker, lastCalculatedEpochIndex);
         uint256 indexToFind = bound(index, 0, lastCalculatedEpochIndex - 1);
         uint256 epochToFind = bound(
             epoch,
@@ -164,7 +161,7 @@ contract VoteEscrowedPWN_Power_StakerPower_Test is VoteEscrowedPWN_Power_Test {
         _storePowerChanges(staker, powerChanges);
         uint256 lastCalculatedEpochIndex = bound(lcIndex, 0, powerChanges.length - 2);
         uint256 lastCalculatedEpoch = powerChanges[lastCalculatedEpochIndex].epoch;
-        _mockLastCalculatedStakerEpoch(staker, lastCalculatedEpoch, lastCalculatedEpochIndex);
+        _mockLastCalculatedStakerEpochIndex(staker, lastCalculatedEpochIndex);
         uint256 indexToFind = bound(index, lastCalculatedEpochIndex + 1, powerChanges.length - 1);
         uint256 epochToFind = bound(
             epoch,
@@ -216,7 +213,7 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
         _storePowerChanges(staker, powerChanges);
         uint256 lastCalculatedEpochIndex = bound(lcIndex, 1, powerChanges.length - 1);
         uint256 lastCalculatedEpoch = powerChanges[lastCalculatedEpochIndex].epoch;
-        _mockLastCalculatedStakerEpoch(staker, lastCalculatedEpoch, lastCalculatedEpochIndex);
+        _mockLastCalculatedStakerEpochIndex(staker, lastCalculatedEpochIndex);
         epoch = bound(epoch, 1, lastCalculatedEpoch);
         vm.mockCall(
             epochClock, abi.encodeWithSignature("currentEpoch()"), abi.encode(lastCalculatedEpoch + 1)
@@ -226,6 +223,7 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
         vePWN.calculateStakerPowerUpTo(staker, epoch);
     }
 
+    event log_pch(TestPowerChangeEpoch pch);
     function testFuzz_shouldCalculateStakingPowers_whenFirstTime(uint256 seed, uint256 index, uint256 epoch) external {
         TestPowerChangeEpoch[] memory powerChanges = _createPowerChangeEpochs(seed, 2);
         _storePowerChanges(staker, powerChanges);
@@ -238,6 +236,11 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
         vm.mockCall(
             epochClock, abi.encodeWithSignature("currentEpoch()"), abi.encode(epoch + 1)
         );
+
+        // ------
+        for (uint256 i; i < powerChanges.length; ++i)
+            emit log_pch(powerChanges[i]);
+        // ------
 
         vePWN.calculateStakerPowerUpTo(staker, epoch);
 
@@ -260,8 +263,7 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
             index == powerChanges.length - 1 ? powerChanges[index].epoch : powerChanges[index + 1].epoch - 1
         );
         uint256 lastCalculatedEpochIndex = bound(lcIndex, 0, index - 1);
-        uint256 lastCalculatedEpoch = powerChanges[lastCalculatedEpochIndex].epoch;
-        _mockLastCalculatedStakerEpoch(staker, lastCalculatedEpoch, lastCalculatedEpochIndex);
+        _mockLastCalculatedStakerEpochIndex(staker, lastCalculatedEpochIndex);
         vm.mockCall(
             epochClock, abi.encodeWithSignature("currentEpoch()"), abi.encode(epoch + 1)
         );
@@ -290,12 +292,11 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
 
         vePWN.calculateStakerPowerUpTo(staker, epoch);
 
-        bytes32 lastCalculatedEpochValue = vm.load(
-            address(vePWN), LAST_CALCULATED_STAKER_POWER_EPOCH_SLOT.withMappingKey(staker)
+        bytes32 lastCalculatedEpochIndexValue = vm.load(
+            address(vePWN), LAST_CALCULATED_STAKER_POWER_EPOCH_INDEX_SLOT.withMappingKey(staker)
         );
-        assertEq(lastCalculatedEpochValue.maskUint16(0), powerChanges[index].epoch);
-        assertEq(lastCalculatedEpochValue.maskUint16(16), uint16(index));
-        assertEq(vePWN.lastCalculatedStakerEpoch(staker), uint256(powerChanges[index].epoch));
+        assertEq(uint256(lastCalculatedEpochIndexValue), index);
+        assertEq(vePWN.lastCalculatedStakerPowerEpoch(staker), uint256(powerChanges[index].epoch));
     }
 
     function testFuzz_shouldEmit_StakerPowerCalculated(uint256 seed, uint256 index, uint256 epoch) external {

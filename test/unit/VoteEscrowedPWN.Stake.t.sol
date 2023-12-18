@@ -148,7 +148,7 @@ contract VoteEscrowedPWN_Stake_CreateStake_Test is VoteEscrowedPWN_Stake_Test {
 
         TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(lockUpEpochs, amount);
         for (uint256 i; i < powerChanges.length; ++i) {
-            assertEq(powerChanges[i].epoch, vePWN.powerChangeEpochs(staker, i));
+            assertEq(powerChanges[i].epoch, vePWN.powerChangeEpochs(staker)[i]);
         }
 
         _assertPowerChangesSumToZero(staker);
@@ -164,7 +164,7 @@ contract VoteEscrowedPWN_Stake_CreateStake_Test is VoteEscrowedPWN_Stake_Test {
 
         TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(lockUpEpochs, amount);
         for (uint256 i; i < powerChanges.length; ++i) {
-            assertEq(powerChanges[i].epoch, vePWN.powerChangeEpochs(staker, i));
+            assertEq(powerChanges[i].epoch, vePWN.powerChangeEpochs(staker)[i]);
         }
 
         _assertPowerChangesSumToZero(staker);
@@ -190,8 +190,8 @@ contract VoteEscrowedPWN_Stake_CreateStake_Test is VoteEscrowedPWN_Stake_Test {
 
         assertEq(powerChanges1.length, powerChanges2.length);
         for (uint256 i; i < powerChanges1.length; ++i) {
-            assertEq(powerChanges1[i].epoch, vePWN.powerChangeEpochs(staker, 2 * i));
-            assertEq(powerChanges2[i].epoch, vePWN.powerChangeEpochs(staker, 2 * i + 1));
+            assertEq(powerChanges1[i].epoch, vePWN.powerChangeEpochs(staker)[2 * i]);
+            assertEq(powerChanges2[i].epoch, vePWN.powerChangeEpochs(staker)[2 * i + 1]);
         }
 
         _assertPowerChangesSumToZero(staker);

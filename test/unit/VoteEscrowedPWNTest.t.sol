@@ -11,7 +11,7 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
     uint8 public constant EPOCHS_IN_PERIOD = 13;
     bytes32 public constant STAKES_SLOT = bytes32(uint256(6));
     bytes32 public constant POWER_CHANGES_EPOCHS_SLOT = bytes32(uint256(7));
-    bytes32 public constant LAST_CALCULATED_STAKER_POWER_EPOCH_SLOT = bytes32(uint256(8));
+    bytes32 public constant LAST_CALCULATED_STAKER_POWER_EPOCH_INDEX_SLOT = bytes32(uint256(8));
     bytes32 public constant LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT = bytes32(uint256(9));
 
     VoteEscrowedPWNHarness public vePWN;
@@ -199,7 +199,7 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
         uint256 length = vePWN.workaround_stakerPowerChangeEpochsLength(_staker);
         int104 sum;
         for (uint256 i; i < length; ++i) {
-            uint16 epoch = vePWN.powerChangeEpochs(_staker, i);
+            uint16 epoch = vePWN.powerChangeEpochs(_staker)[i];
             sum += vePWN.workaround_getStakerEpochPower(_staker, epoch);
         }
         assertEq(sum, 0);
@@ -214,7 +214,7 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
     }
 
     function _assertEpochPowerAndPosition(address _staker, uint256 _index, uint16 _epoch, int104 _power) internal {
-        assertEq(vePWN.powerChangeEpochs(_staker, _index), _epoch, "epoch mismatch");
+        assertEq(vePWN.powerChangeEpochs(_staker)[_index], _epoch, "epoch mismatch");
         assertEq(vePWN.workaround_getStakerEpochPower(_staker, _epoch), _power, "power mismatch");
     }
 
@@ -245,7 +245,7 @@ contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWN_Test {
         _storePowerChanges(_staker, powerChanges);
 
         for (uint256 i; i < powerChanges.length; ++i) {
-            assertEq(powerChanges[i].epoch, vePWN.powerChangeEpochs(_staker, i));
+            assertEq(powerChanges[i].epoch, vePWN.powerChangeEpochs(_staker)[i]);
             assertEq(powerChanges[i].powerChange, vePWN.workaround_getStakerEpochPower(_staker, powerChanges[i].epoch));
         }
     }
@@ -331,7 +331,7 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
 
         uint256 index = vePWN.exposed_updateEpochPower(staker, epoch, 0, power);
 
-        assertEq(vePWN.powerChangeEpochs(staker, index), epoch);
+        assertEq(vePWN.powerChangeEpochs(staker)[index], epoch);
     }
 
     function test_updatePowerChangeEpoch_shouldKeepArraySorted() external {
@@ -353,13 +353,12 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
         for (uint256 i; i < epochs.length; ++i)
             assertEq(vePWN.exposed_updateEpochPower(staker, epochs[i], 0, 100e10), indices[i]);
 
-        assertEq(vePWN.powerChangeEpochs(staker, 0), 0);
-        assertEq(vePWN.powerChangeEpochs(staker, 1), 2);
-        assertEq(vePWN.powerChangeEpochs(staker, 2), 3);
-        assertEq(vePWN.powerChangeEpochs(staker, 3), 5);
-
-        vm.expectRevert();
-        vePWN.powerChangeEpochs(staker, 4);
+        uint16[] memory stakerPowerChangeEpochs = vePWN.powerChangeEpochs(staker);
+        assertEq(stakerPowerChangeEpochs.length, 4);
+        assertEq(stakerPowerChangeEpochs[0], 0);
+        assertEq(stakerPowerChangeEpochs[1], 2);
+        assertEq(stakerPowerChangeEpochs[2], 3);
+        assertEq(stakerPowerChangeEpochs[3], 5);
     }
 
     function testFuzz_updatePowerChangeEpoch_shouldKeepEpochInArray_whenPowerChangedFromNonZeroToNonZero(
@@ -369,7 +368,7 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
 
         uint256 index = vePWN.exposed_updateEpochPower(staker, epoch, 0, power);
 
-        assertEq(vePWN.powerChangeEpochs(staker, index), epoch);
+        assertEq(vePWN.powerChangeEpochs(staker)[index], epoch);
         assertEq(vePWN.exposed_updateEpochPower(staker, epoch, 0, 1), index);
     }
 
@@ -380,12 +379,14 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
 
         uint256 index = vePWN.exposed_updateEpochPower(staker, epoch, 0, power);
 
-        assertEq(vePWN.powerChangeEpochs(staker, index), epoch);
+        uint16[] memory stakerPowerChangeEpochs = vePWN.powerChangeEpochs(staker);
+        assertEq(stakerPowerChangeEpochs.length, 1);
+        assertEq(stakerPowerChangeEpochs[index], epoch);
 
         index = vePWN.exposed_updateEpochPower(staker, epoch, 0, -power);
 
-        vm.expectRevert();
-        vePWN.powerChangeEpochs(staker, index);
+        stakerPowerChangeEpochs = vePWN.powerChangeEpochs(staker);
+        assertEq(stakerPowerChangeEpochs.length, 0);
     }
 
     function testFuzz_powerChangeMultipliers_initialPower(

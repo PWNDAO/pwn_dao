@@ -31,39 +31,40 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     function stakerPowerAt(address staker, uint256 epoch) override virtual public view returns (uint256) {
         uint16 _epoch = SafeCast.toUint16(epoch);
 
-        // for epoch zero return 0
-        if (_epoch == 0)
+        // nobody can have any power before epoch 1
+        if (_epoch == 0) {
             return 0;
+        }
 
         // for no power changes return 0
-        uint16[] storage _powerChangeEpochs = powerChangeEpochs[staker];
-        if (_powerChangeEpochs.length == 0)
+        uint16[] storage stakerPowerChangeEpochs = _powerChangeEpochs[staker];
+        if (stakerPowerChangeEpochs.length == 0) {
             return 0;
+        }
 
         // for epoch before first power change return 0
-        if (_epoch < _powerChangeEpochs[0])
+        if (_epoch < stakerPowerChangeEpochs[0]) {
             return 0;
+        }
 
         bytes32 stakerNamespace = _stakerPowerNamespace(staker);
-        EpochWithPosition storage lastCalculatedEpoch = _lastCalculatedStakerEpoch[staker];
-        uint16 lcEpoch = lastCalculatedEpoch.epoch;
-        uint16 lcIndex = lastCalculatedEpoch.index;
+        uint256 lcIndex = _lastCalculatedStakerEpochIndex[staker];
+        uint16 lcEpoch = stakerPowerChangeEpochs[lcIndex];
         if (lcEpoch == _epoch) {
-            return uint256(int256(stakerNamespace.getEpochPower(_powerChangeEpochs[lcIndex])));
+            return SafeCast.toUint256(int256(stakerNamespace.getEpochPower(lcEpoch)));
 
         } else if (lcEpoch > _epoch) {
-            uint256 index = _powerChangeEpochs.findNearestIndex(_epoch, 0, lcIndex);
-            return uint256(int256(stakerNamespace.getEpochPower(_powerChangeEpochs[index])));
+            uint256 index = stakerPowerChangeEpochs.findNearestIndex(_epoch, 0, lcIndex);
+            return SafeCast.toUint256(int256(stakerNamespace.getEpochPower(stakerPowerChangeEpochs[index])));
 
         } else {
-            uint256 index = _powerChangeEpochs.findNearestIndex(_epoch, lcIndex, _powerChangeEpochs.length);
+            uint256 index = stakerPowerChangeEpochs.findNearestIndex(_epoch, lcIndex, stakerPowerChangeEpochs.length);
             int104 power;
             for (uint256 i = lcIndex; i <= index;) {
-                power += stakerNamespace.getEpochPower(_powerChangeEpochs[i]);
+                power += stakerNamespace.getEpochPower(stakerPowerChangeEpochs[i]);
                 unchecked { ++i; }
             }
-
-            return uint256(uint104(power));
+            return SafeCast.toUint256(int256(power));
         }
     }
 
@@ -79,9 +80,9 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     /// @param staker Staker address.
     /// @param epoch Epoch number.
     function calculateStakerPowerUpTo(address staker, uint256 epoch) public {
-        uint16[] storage _powerChangeEpochs = powerChangeEpochs[staker];
+        uint16[] storage stakerPowerChangeEpochs = _powerChangeEpochs[staker];
 
-        if (_powerChangeEpochs.length == 0) {
+        if (stakerPowerChangeEpochs.length == 0) {
             revert Error.NoPowerChanges();
         }
         // epoch is on purpose smaller than current epoch to allow quick access to current epoch - 1
@@ -90,24 +91,20 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
             revert Error.EpochStillRunning();
         }
 
-        EpochWithPosition storage lastCalculatedEpoch = _lastCalculatedStakerEpoch[staker];
-        // set last calculated epoch as first epoch if necessary
-        if (lastCalculatedEpoch.epoch == 0)
-            lastCalculatedEpoch.epoch = _powerChangeEpochs[0];
-
-        uint256 lcEpoch = lastCalculatedEpoch.epoch;
-        uint256 lcIndex = lastCalculatedEpoch.index;
+        uint256 lcIndex = _lastCalculatedStakerEpochIndex[staker];
+        uint256 lcEpoch = stakerPowerChangeEpochs[lcIndex];
         if (lcEpoch >= epoch) {
             revert Error.PowerAlreadyCalculated(lcEpoch);
         }
 
         // calculate stakers power
-        for (uint256 i = lcIndex + 1; i < _powerChangeEpochs.length;) {
-            uint256 nextEpoch = _powerChangeEpochs[i];
-            if (nextEpoch > epoch)
+        bytes32 stakerNamespace = _stakerPowerNamespace(staker);
+        for (uint256 i = lcIndex + 1; i < stakerPowerChangeEpochs.length;) {
+            uint256 nextEpoch = stakerPowerChangeEpochs[i];
+            if (nextEpoch > epoch) {
                 break;
+            }
 
-            bytes32 stakerNamespace = _stakerPowerNamespace(staker);
             stakerNamespace.updateEpochPower({
                 epoch: nextEpoch,
                 power: stakerNamespace.getEpochPower(lcEpoch)
@@ -124,8 +121,7 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
             unchecked { ++i; }
         }
 
-        lastCalculatedEpoch.epoch = SafeCast.toUint16(lcEpoch);
-        lastCalculatedEpoch.index = SafeCast.toUint16(lcIndex);
+        _lastCalculatedStakerEpochIndex[staker] = lcIndex;
 
         emit StakerPowerCalculated(staker, lcEpoch);
     }
@@ -136,8 +132,9 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     |*----------------------------------------------------------*/
 
     function totalPowerAt(uint256 epoch) override virtual public view returns (uint256) {
-        if (lastCalculatedTotalPowerEpoch >= epoch)
+        if (lastCalculatedTotalPowerEpoch >= epoch) {
             return SafeCast.toUint256(int256(_totalPowerNamespace().getEpochPower(epoch)));
+        }
 
         // sum the rest of epochs
         int104 totalPower;
@@ -161,14 +158,15 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
             revert Error.PowerAlreadyCalculated(lastCalculatedTotalPowerEpoch);
         }
 
+        bytes32 totalPowerNamespace = _totalPowerNamespace();
         for (uint256 i = lastCalculatedTotalPowerEpoch; i < epoch;) {
-            _totalPowerNamespace().updateEpochPower({
+            totalPowerNamespace.updateEpochPower({
                 epoch: i + 1,
-                power: _totalPowerNamespace().getEpochPower(i)
+                power: totalPowerNamespace.getEpochPower(i)
             });
 
             // check invariant
-            if (_totalPowerNamespace().getEpochPower(i + 1) < 0) {
+            if (totalPowerNamespace.getEpochPower(i + 1) < 0) {
                 revert Error.InvariantFail_NegativeCalculatedPower();
             }
 

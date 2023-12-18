@@ -38,7 +38,7 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
 
 
     /*----------------------------------------------------------*|
-    |*  # POWER                                                 *|
+    |*  # STAKER POWER                                          *|
     |*----------------------------------------------------------*/
 
     // represent any stored power as:
@@ -51,20 +51,30 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
         return keccak256(abi.encode(staker, STAKER_POWER_NAMESPACE));
     }
 
+    // epochs are sorted in ascending order without duplicates
+    mapping(address staker => uint16[]) internal _powerChangeEpochs;
+    function powerChangeEpochs(address staker) public view returns (uint16[] memory) {
+        return _powerChangeEpochs[staker];
+    }
+
+    mapping(address staker => uint256) internal _lastCalculatedStakerEpochIndex;
+    function lastCalculatedStakerPowerEpoch(address staker) public view returns (uint256) {
+        if (_powerChangeEpochs[staker].length == 0) {
+            return 0;
+        }
+        uint256 lcEpochIndex = _lastCalculatedStakerEpochIndex[staker];
+        return _powerChangeEpochs[staker][lcEpochIndex];
+    }
+
+
+    /*----------------------------------------------------------*|
+    |*  # TOTAL POWER                                           *|
+    |*----------------------------------------------------------*/
+
     // 0x920c353e14947c4dbbef6103c601d908b93371995902e76fd01b61e605e633fc
     bytes32 public constant TOTAL_POWER_NAMESPACE = bytes32(uint256(keccak256("vePWN.TOTAL_POWER")) - 1);
     function _totalPowerNamespace() internal pure returns (bytes32) {
         return TOTAL_POWER_NAMESPACE;
-    }
-
-    struct EpochWithPosition {
-        uint16 epoch;
-        uint16 index;
-        // uint224 __padding;
-    }
-    mapping(address staker => EpochWithPosition) internal _lastCalculatedStakerEpoch;
-    function lastCalculatedStakerEpoch(address staker) public view returns (uint256) {
-        return uint256(_lastCalculatedStakerEpoch[staker].epoch);
     }
 
     uint256 public lastCalculatedTotalPowerEpoch;

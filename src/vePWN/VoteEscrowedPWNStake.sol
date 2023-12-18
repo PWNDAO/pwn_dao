@@ -402,7 +402,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
         bytes32 stakerNamespace = _stakerPowerNamespace(staker);
         stakerNamespace.updateEpochPower(epoch, power);
 
-        uint16[] storage stakersPowerChangeEpochs = powerChangeEpochs[staker];
+        uint16[] storage stakersPowerChangeEpochs = _powerChangeEpochs[staker];
         // update stakers power changes epochs
         bool epochWithPowerChange = stakerNamespace.getEpochPower(epoch) != 0;
         epochIndex = stakersPowerChangeEpochs.findIndex(epoch, lowEpochIndex);
