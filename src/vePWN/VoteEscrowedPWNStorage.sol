@@ -36,14 +36,6 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
     }
     mapping(uint256 stakeId => Stake) public stakes;
 
-    // staker power change data
-    struct PowerChange {
-        int104 power;
-        // uint152 __padding;
-    }
-    // epochs are sorted in ascending order without duplicates
-    mapping(address staker => uint16[]) public powerChangeEpochs;
-
 
     /*----------------------------------------------------------*|
     |*  # POWER                                                 *|
