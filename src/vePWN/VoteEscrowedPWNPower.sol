@@ -69,6 +69,15 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
         return SafeCast.toUint256(int256(power));
     }
 
+    function stakerPowers(address staker, uint256[] calldata epochs) external view returns (uint256[] memory) {
+        uint256[] memory powers = new uint256[](epochs.length);
+        for (uint256 i; i < epochs.length;) {
+            powers[i] = stakerPowerAt(staker, epochs[i]);
+            unchecked { ++i; }
+        }
+        return powers;
+    }
+
     function calculatePower() external {
         calculateStakerPower(msg.sender);
     }
@@ -145,6 +154,15 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
         }
 
         return SafeCast.toUint256(int256(totalPower));
+    }
+
+    function totalPowers(uint256[] calldata epochs) external view returns (uint256[] memory) {
+        uint256[] memory powers = new uint256[](epochs.length);
+        for (uint256 i; i < epochs.length;) {
+            powers[i] = totalPowerAt(epochs[i]);
+            unchecked { ++i; }
+        }
+        return powers;
     }
 
     function calculateTotalPower() external {
