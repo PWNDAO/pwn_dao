@@ -10,24 +10,23 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
 
     // exposed
 
-    function exposed_nextEpochAndRemainingLockup(
-        int104 amount, uint16 epoch, uint8 remainingLockup
-    ) external pure returns (int104, uint16, uint8) {
-        return _nextEpochAndRemainingLockup(amount, epoch, remainingLockup);
+    function exposed_epochsToNextPowerChange(uint8 remainingLockup) external pure returns (uint8) {
+        return _epochsToNextPowerChange(remainingLockup);
     }
 
-    function exposed_updateEpochPower(
-        address staker, uint16 epoch, uint256 lowEpochIndex, int104 power
-    ) external returns (uint256 epochIndex) {
-        return _unsafe_updateEpochPower(staker, epoch, lowEpochIndex, power);
+    function exposed_updateEpochPowerChange(address staker, uint16 epoch, uint256 lowEpochIndex, int104 power)
+        external
+        returns (uint256 epochIndex)
+    {
+        return _updateEpochPowerChange(staker, epoch, lowEpochIndex, power);
     }
 
-    function exposed_initialPower(int104 amount, uint8 epochs) external pure returns (int104) {
-        return _initialPower(amount, epochs);
+    function exposed_initialPower(int104 amount, uint8 remainingLockup) external pure returns (int104) {
+        return _initialPower(amount, remainingLockup);
     }
 
-    function exposed_decreasePower(int104 amount, uint8 epoch) external pure returns (int104) {
-        return _decreasePower(amount, epoch);
+    function exposed_decreasePower(int104 amount, uint8 remainingLockup) external pure returns (int104) {
+        return _decreasePower(amount, remainingLockup);
     }
 
     // workaround

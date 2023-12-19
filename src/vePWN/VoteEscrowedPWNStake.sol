@@ -19,7 +19,12 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
 
     event StakeCreated(uint256 indexed stakeId, address indexed staker, uint256 amount, uint256 lockUpEpochs);
     event StakeSplit(
-        uint256 indexed stakeId, address indexed staker, uint256 splitAmount, uint256 newStakeId1, uint256 newStakeId2
+        uint256 indexed stakeId,
+        address indexed staker,
+        uint256 amount1,
+        uint256 amount2,
+        uint256 newStakeId1,
+        uint256 newStakeId2
     );
     event StakeMerged(
         uint256 indexed stakeId1,
@@ -33,12 +38,18 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
         uint256 indexed stakeId,
         address indexed staker,
         uint256 additionalAmount,
+        uint256 newAmount,
         uint256 additionalEpochs,
+        uint256 newEpochs,
         uint256 newStakeId
     );
-    event StakeWithdrawn(address indexed staker, uint256 amount);
+    event StakeWithdrawn(uint256 indexed stakeId, address indexed staker, uint256 amount);
     event StakeTransferred(
-        uint256 indexed stakeId, address indexed fromStaker, address indexed toStaker, uint256 amount
+        uint256 indexed stakeId,
+        address indexed fromStaker,
+        address indexed toStaker,
+        uint256 amount,
+        uint256 remainingLockup
     );
 
 
@@ -52,6 +63,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
     /// @param lockUpEpochs Number of epochs to lock up the stake for.
     /// @return stakeId Id of the created stake.
     function createStake(uint256 amount, uint256 lockUpEpochs) external returns (uint256 stakeId) {
+        // max stake of total initial supply (100M) with decimals 1e26 < max uint88 (3e26)
         if (amount < 100 || amount > type(uint88).max) {
             revert Error.InvalidAmount();
         }
@@ -59,7 +71,6 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
         if (amount % 100 > 0) {
             revert Error.InvalidAmount();
         }
-
         // lock up for <1; 5> + {10} years
         if (lockUpEpochs < EPOCHS_IN_PERIOD) {
             revert Error.InvalidLockUpPeriod();
@@ -70,20 +81,12 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
 
         address staker = msg.sender;
         uint16 initialEpoch = epochClock.currentEpoch() + 1;
-        uint8 remainingLockup = uint8(lockUpEpochs); // safe cast
-        int104 int104amount = SafeCast.toInt104(int256(uint256(amount)));
 
         // store power changes
-        _updatePowerChanges({
-            staker: staker,
-            amount: int104amount,
-            powerChangeEpoch: initialEpoch,
-            remainingLockup: remainingLockup,
-            addition: true
-        });
+        _updatePowerChanges(staker, uint104(amount), initialEpoch, uint8(lockUpEpochs), true);
 
         // create new stake
-        stakeId = _createStake(staker, initialEpoch, uint104(amount), remainingLockup);
+        stakeId = _createStake(staker, initialEpoch, uint104(amount), uint8(lockUpEpochs));
 
         // transfer pwn token
         pwnToken.transferFrom(staker, address(this), amount);
@@ -102,8 +105,8 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
         external
         returns (uint256 newStakeId1, uint256 newStakeId2)
     {
-        Stake storage originalStake = stakes[stakeId];
         address staker = msg.sender;
+        Stake storage originalStake = stakes[stakeId];
         uint16 originalInitialEpoch = originalStake.initialEpoch;
         uint104 originalAmount = originalStake.amount;
         uint8 originalRemainingLockup = originalStake.remainingLockup;
@@ -135,7 +138,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
         newStakeId2 = _createStake(staker, originalInitialEpoch, uint104(splitAmount), originalRemainingLockup);
 
         // emit event
-        emit StakeSplit(stakeId, staker, splitAmount, newStakeId1, newStakeId2);
+        emit StakeSplit(stakeId, staker, originalAmount - uint104(splitAmount), splitAmount, newStakeId1, newStakeId2);
     }
 
     /// @notice Merges two stakes for a caller.
@@ -145,15 +148,18 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
     /// @param stakeId2 Id of the second stake to merge.
     /// @return newStakeId Id of the new merged stake.
     function mergeStakes(uint256 stakeId1, uint256 stakeId2) external returns (uint256 newStakeId) {
+        address staker = msg.sender;
         Stake storage stake1 = stakes[stakeId1];
         Stake storage stake2 = stakes[stakeId2];
-        address staker = msg.sender;
         uint16 finalEpoch1 = stake1.initialEpoch + stake1.remainingLockup;
         uint16 finalEpoch2 = stake2.initialEpoch + stake2.remainingLockup;
         uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
 
         // both stakes must be owned by the caller
-        if (stakedPWN.ownerOf(stakeId1) != staker || stakedPWN.ownerOf(stakeId2) != staker) {
+        if (stakedPWN.ownerOf(stakeId1) != staker) {
+            revert Error.NotStakeOwner();
+        }
+        if (stakedPWN.ownerOf(stakeId2) != staker) {
             revert Error.NotStakeOwner();
         }
         // the first stake lockup end must be greater than or equal to the second stake lockup end
@@ -162,10 +168,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
             revert Error.LockUpPeriodMismatch();
         }
 
-        // only need to update second stake power changes
         uint8 newRemainingLockup = uint8(finalEpoch1 - newInitialEpoch); // safe cast
+        // only need to update second stake power changes if has different final epoch
         if (finalEpoch1 != finalEpoch2) {
-            int104 amount2 = SafeCast.toInt104(int256(uint256(stake2.amount)));
+            uint104 amount2 = stake2.amount;
             // clear second stake power changes if necessary
             if (finalEpoch2 > newInitialEpoch) {
                 _updatePowerChanges(staker, amount2, newInitialEpoch, uint8(finalEpoch2 - newInitialEpoch), false);
@@ -195,11 +201,12 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
     /// @param additionalAmount Amount of PWN tokens to increase the stake by.
     /// @param additionalEpochs Number of epochs to add to exisitng stake lockup.
     /// @return newStakeId Id of the new stake.
-    function increaseStake(
-        uint256 stakeId, uint256 additionalAmount, uint256 additionalEpochs
-    ) external returns (uint256 newStakeId) {
-        Stake storage stake = stakes[stakeId];
+    function increaseStake(uint256 stakeId, uint256 additionalAmount, uint256 additionalEpochs)
+        external
+        returns (uint256 newStakeId)
+    {
         address staker = msg.sender;
+        Stake storage stake = stakes[stakeId];
 
         // stake must be owned by the caller
         if (stakedPWN.ownerOf(stakeId) != staker) {
@@ -209,8 +216,11 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
         if (additionalAmount == 0 && additionalEpochs == 0) {
             revert Error.NothingToIncrease();
         }
+        if (additionalAmount > type(uint88).max) {
+            revert Error.InvalidAmount();
+        }
         // to prevent rounding errors when computing power
-        if (additionalAmount > type(uint88).max || additionalAmount % 100 > 0) {
+        if (additionalAmount % 100 > 0) {
             revert Error.InvalidAmount();
         }
         if (additionalEpochs > 10 * EPOCHS_IN_PERIOD) {
@@ -233,25 +243,20 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
         uint104 oldAmount = stake.amount;
         uint104 newAmount = oldAmount + uint104(additionalAmount); // safe cast
 
-        // clear old power changes
-        if (additionalEpochs > 0 && newRemainingLockup > additionalEpochs) {
-            _updatePowerChanges({
-                staker: staker,
-                amount: SafeCast.toInt104(int256(uint256(oldAmount))),
-                powerChangeEpoch: newInitialEpoch,
-                remainingLockup: newRemainingLockup - SafeCast.toUint8(additionalEpochs),
-                addition: false
-            });
-        }
+        { // avoid stack too deep
+            bool additionOnly = additionalEpochs == 0;
 
-        // store new power changes
-        _updatePowerChanges({
-            staker: staker,
-            amount: SafeCast.toInt104(int256(uint256(additionalEpochs > 0 ? newAmount : additionalAmount))),
-            powerChangeEpoch: newInitialEpoch,
-            remainingLockup: newRemainingLockup,
-            addition: true
-        });
+            // clear old power changes if adding epochs
+            if (!additionOnly && newRemainingLockup > additionalEpochs) {
+                _updatePowerChanges(
+                    staker, oldAmount, newInitialEpoch, newRemainingLockup - uint8(additionalEpochs), false
+                );
+            }
+
+            // store new power changes
+            uint104 amount = additionOnly ? uint104(additionalAmount) : newAmount;
+            _updatePowerChanges(staker, amount, newInitialEpoch, newRemainingLockup, true);
+        }
 
         // delete original stake
         _deleteStake(stakeId);
@@ -260,19 +265,22 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
         newStakeId = _createStake(staker, newInitialEpoch, newAmount, newRemainingLockup);
 
         // transfer additional PWN tokens
-        if (additionalAmount > 0)
+        if (additionalAmount > 0) {
             pwnToken.transferFrom(staker, address(this), additionalAmount);
+        }
 
         // emit event
-        emit StakeIncreased(stakeId, staker, additionalAmount, additionalEpochs, newStakeId);
+        emit StakeIncreased(
+            stakeId, staker, additionalAmount, newAmount, additionalEpochs, newRemainingLockup, newStakeId
+        );
     }
 
     /// @notice Withdraws a stake for a caller.
     /// @dev Burns stPWN token and transfers PWN tokens to the caller.
     /// @param stakeId Id of the stake to withdraw.
     function withdrawStake(uint256 stakeId) external {
-        Stake storage stake = stakes[stakeId];
         address staker = msg.sender;
+        Stake storage stake = stakes[stakeId];
 
         // stake must be owned by the caller
         if (stakedPWN.ownerOf(stakeId) != staker) {
@@ -291,7 +299,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
         pwnToken.transfer(staker, amount);
 
         // emit event
-        emit StakeWithdrawn(staker, amount);
+        emit StakeWithdrawn(stakeId, staker, amount);
     }
 
     /// @notice Transfers a stake for a caller.
@@ -300,53 +308,42 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
     /// @param to Address to transfer the stake to.
     /// @param stakeId Id of the stake to transfer.
     function transferStake(address from, address to, uint256 stakeId) external {
+        // only callable by stakedPWN contract
         if (msg.sender != address(stakedPWN)) {
             revert Error.CallerNotStakedPWNContract();
         }
-
+        // mint or burn, no update needed
         if (from == address(0) || to == address(0)) {
-            return; // mint or burn, no update needed
+            return;
         }
 
         Stake storage stake = stakes[stakeId];
         uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
 
+        // sender must be the owner of the stake
         if (stakedPWN.ownerOf(stakeId) != from) {
             revert Error.NotStakeOwner();
         }
-
         if (newInitialEpoch - stake.initialEpoch >= stake.remainingLockup) {
-            emit StakeTransferred(stakeId, from, to, stake.amount);
+            emit StakeTransferred(stakeId, from, to, stake.amount, 0);
             return; // lockup period ended, just emit event and return
         }
 
         uint8 newRemainingLockup = stake.remainingLockup - SafeCast.toUint8(newInitialEpoch - stake.initialEpoch);
-        int104 int104amount = SafeCast.toInt104(int256(uint256(stake.amount)));
+        uint104 amount = stake.amount;
 
         // update stake data
         stake.initialEpoch = newInitialEpoch;
         stake.remainingLockup = newRemainingLockup;
 
         // clear power changes for `from`
-        _updatePowerChanges({
-            staker: from,
-            amount: int104amount,
-            powerChangeEpoch: newInitialEpoch,
-            remainingLockup: newRemainingLockup,
-            addition: false
-        });
+        _updatePowerChanges(from, amount, newInitialEpoch, newRemainingLockup, false);
 
         // store new power changes for `to`
-        _updatePowerChanges({
-            staker: to,
-            amount: int104amount,
-            powerChangeEpoch: newInitialEpoch,
-            remainingLockup: newRemainingLockup,
-            addition: true
-        });
+        _updatePowerChanges(to, amount, newInitialEpoch, newRemainingLockup, true);
 
         // emit event
-        emit StakeTransferred(stakeId, from, to, stake.amount);
+        emit StakeTransferred(stakeId, from, to, stake.amount, newRemainingLockup);
     }
 
 
@@ -355,9 +352,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
     |*----------------------------------------------------------*/
 
     /// @dev Store stake data, mint stPWN token and return new stake id
-    function _createStake(
-        address staker, uint16 initialEpoch, uint104 amount, uint8 remainingLockup
-    ) internal returns (uint256 newStakeId) {
+    function _createStake(address staker, uint16 initialEpoch, uint104 amount, uint8 remainingLockup)
+        internal
+        returns (uint256 newStakeId)
+    {
         newStakeId = ++lastStakeId;
         Stake storage stake = stakes[newStakeId];
         stake.initialEpoch = initialEpoch;
@@ -374,64 +372,67 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
     }
 
     function _updatePowerChanges(
-        address staker, int104 amount, uint16 powerChangeEpoch, uint8 remainingLockup, bool addition
+        address staker, uint104 amount, uint16 initialEpoch, uint8 lockUpEpochs, bool addition
     ) internal {
-        int104 sign = addition ? int104(1) : -1;
-        int104 powerChange = _initialPower(amount, remainingLockup);
-        uint256 epochIndex = _unsafe_updateEpochPower(staker, powerChangeEpoch, 0, powerChange * sign);
-        do {
-            (powerChange, powerChangeEpoch, remainingLockup) =
-                _nextEpochAndRemainingLockup(amount, powerChangeEpoch, remainingLockup);
-            epochIndex = _unsafe_updateEpochPower(staker, powerChangeEpoch, epochIndex, powerChange * sign);
-        } while (remainingLockup > 0);
+        int104 _amount = int104(amount) * (addition ? int104(1) : -1);
+        uint8 remainingLockup = lockUpEpochs;
+        // epochs are sorted in ascending order without duplicates
+        // so we can use epoch index of a previous epoch power change as a `lowEpochIndex`
+        // to reduce search space in `_powerChangeEpochs`
+        uint256 epochIndex = _updateEpochPowerChange({
+            staker: staker,
+            epoch: initialEpoch,
+            lowEpochIndex: 0,
+            power: _initialPower(_amount, remainingLockup)
+        });
+        while (remainingLockup > 0) {
+            remainingLockup -= _epochsToNextPowerChange(remainingLockup);
+            epochIndex = _updateEpochPowerChange({
+                staker: staker,
+                epoch: initialEpoch + lockUpEpochs - remainingLockup,
+                lowEpochIndex: epochIndex,
+                power: _decreasePower(_amount, remainingLockup)
+            });
+        }
     }
 
+    function _epochsToNextPowerChange(uint8 remainingLockup) internal pure returns (uint8) {
+        if (remainingLockup > 5 * EPOCHS_IN_PERIOD) {
+            return remainingLockup - (5 * EPOCHS_IN_PERIOD);
+        } else {
+            uint8 nextPowerChangeEpochDelta = remainingLockup % EPOCHS_IN_PERIOD;
+            return nextPowerChangeEpochDelta == 0 ? EPOCHS_IN_PERIOD : nextPowerChangeEpochDelta;
+        }
+    }
 
     /// @dev Updates power change for a staker at an epoch and add/remove epoch from `powerChangeEpochs`.
     /// WARNING: `powerChangeEpochs` should be sorted in ascending order without duplicates,
     /// but `lowEpochIndex` can force to insert epoch at a wrong index.
     /// Use `lowEpochIndex` only if you are sure that the epoch cannot be found before the index.
     // solhint-disable-next-line func-name-mixedcase
-    function _unsafe_updateEpochPower(
-        address staker, uint16 epoch, uint256 lowEpochIndex, int104 power
-    ) internal returns (uint256 epochIndex) {
-        // update total epoch power
-        _totalPowerNamespace().updateEpochPower(epoch, power);
-
+    function _updateEpochPowerChange(address staker, uint16 epoch, uint256 lowEpochIndex, int104 power)
+        internal
+        returns (uint256 epochIndex)
+    {
         // update staker epoch power
         bytes32 stakerNamespace = _stakerPowerNamespace(staker);
         stakerNamespace.updateEpochPower(epoch, power);
 
+        // update stakers power changes epochs array
         uint16[] storage stakersPowerChangeEpochs = _powerChangeEpochs[staker];
-        // update stakers power changes epochs
         bool epochWithPowerChange = stakerNamespace.getEpochPower(epoch) != 0;
         epochIndex = stakersPowerChangeEpochs.findIndex(epoch, lowEpochIndex);
-        bool indexFound = epochIndex < stakersPowerChangeEpochs.length && stakersPowerChangeEpochs[epochIndex] == epoch;
+        bool epochFound = epochIndex < stakersPowerChangeEpochs.length
+            && stakersPowerChangeEpochs[epochIndex] == epoch;
 
-        if (epochWithPowerChange && !indexFound) {
+        if (epochWithPowerChange && !epochFound) {
             stakersPowerChangeEpochs.insertEpoch(epoch, epochIndex);
-        } else if (!epochWithPowerChange && indexFound) {
+        } else if (!epochWithPowerChange && epochFound) {
             stakersPowerChangeEpochs.removeEpoch(epochIndex);
         }
-    }
 
-    /// @dev `remainingLockup` must be > 0
-    function _nextEpochAndRemainingLockup(
-        int104 amount, uint16 epoch, uint8 remainingLockup
-    ) internal pure returns (int104, uint16, uint8) {
-        uint8 nextPowerChangeEpochDelta;
-        if (remainingLockup > 5 * EPOCHS_IN_PERIOD) {
-            nextPowerChangeEpochDelta = remainingLockup - (5 * EPOCHS_IN_PERIOD);
-        } else {
-            nextPowerChangeEpochDelta = remainingLockup % EPOCHS_IN_PERIOD;
-            nextPowerChangeEpochDelta = nextPowerChangeEpochDelta == 0 ? EPOCHS_IN_PERIOD : nextPowerChangeEpochDelta;
-        }
-
-        return (
-            _decreasePower(amount, remainingLockup - nextPowerChangeEpochDelta),
-            epoch + nextPowerChangeEpochDelta,
-            remainingLockup - nextPowerChangeEpochDelta
-        );
+        // update total epoch power
+        _totalPowerNamespace().updateEpochPower(epoch, power);
     }
 
     function _initialPower(int104 amount, uint8 remainingLockup) internal pure returns (int104) {

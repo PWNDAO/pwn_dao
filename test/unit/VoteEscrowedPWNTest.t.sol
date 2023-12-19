@@ -83,10 +83,16 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
 
         helper_powerChanges.push(TestPowerChangeEpoch({ epoch: epoch, powerChange: powerChange }));
         while (remainingLockup > 0) {
-            (powerChange, epoch, remainingLockup)
-                = vePWN.exposed_nextEpochAndRemainingLockup(int104amount, epoch, remainingLockup);
+            uint8 epochsToNextPowerChange = vePWN.exposed_epochsToNextPowerChange(remainingLockup);
+            remainingLockup -= epochsToNextPowerChange;
+            epoch += epochsToNextPowerChange;
             if (epoch >= _finalEpoch) break;
-            helper_powerChanges.push(TestPowerChangeEpoch({ epoch: epoch, powerChange: powerChange }));
+            helper_powerChanges.push(
+                TestPowerChangeEpoch({
+                    epoch: epoch,
+                    powerChange: vePWN.exposed_decreasePower(int104amount, remainingLockup)
+                })
+            );
         }
         TestPowerChangeEpoch[] memory array = helper_powerChanges;
         delete helper_powerChanges;
@@ -260,67 +266,54 @@ contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWN_Test {
 contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
     using SlotComputingLib for bytes32;
 
-    function testFuzz_nextEpochAndRemainingLockup_whenLessThanFivePeriods_whenDivisibleByPeriod(
+    // epochsToNextPowerChange
+
+    function testFuzz_epochsToNextPowerChange_whenLessThanFivePeriods_whenDivisibleByPeriod(
         uint8 originalRemainingLockup
     ) external {
         originalRemainingLockup = uint8(bound(originalRemainingLockup, 1, 5) * EPOCHS_IN_PERIOD);
 
-        int104 amount = 100;
-        uint16 originalEpoch = 100;
-        (, uint16 epoch, uint8 remainingLockup) = vePWN.exposed_nextEpochAndRemainingLockup(
-            amount, originalEpoch, originalRemainingLockup
-        );
+        uint8 epochsToNextPowerChange = vePWN.exposed_epochsToNextPowerChange(originalRemainingLockup);
 
-        assertEq(epoch, originalEpoch + EPOCHS_IN_PERIOD);
-        assertEq(remainingLockup, originalRemainingLockup - EPOCHS_IN_PERIOD);
+        assertEq(epochsToNextPowerChange, EPOCHS_IN_PERIOD);
     }
 
-    function testFuzz_nextEpochAndRemainingLockup_whenLessThanFivePeriods_whenNotDivisibleByPeriod(
+    function testFuzz_epochsToNextPowerChange_whenLessThanFivePeriods_whenNotDivisibleByPeriod(
         uint8 originalRemainingLockup
     ) external {
         originalRemainingLockup = uint8(bound(originalRemainingLockup, EPOCHS_IN_PERIOD + 1, 5 * EPOCHS_IN_PERIOD - 1));
         vm.assume(originalRemainingLockup % EPOCHS_IN_PERIOD > 0);
 
-        int104 amount = 100;
-        uint16 originalEpoch = 100;
-        (, uint16 epoch, uint8 remainingLockup) = vePWN.exposed_nextEpochAndRemainingLockup(
-            amount, originalEpoch, originalRemainingLockup
-        );
+        uint8 epochsToNextPowerChange = vePWN.exposed_epochsToNextPowerChange(originalRemainingLockup);
 
-        uint16 diff = uint16(originalRemainingLockup % EPOCHS_IN_PERIOD);
-        assertEq(epoch, originalEpoch + diff);
-        assertEq(remainingLockup, originalRemainingLockup - diff);
+        assertEq(epochsToNextPowerChange, uint16(originalRemainingLockup % EPOCHS_IN_PERIOD));
     }
 
-    function testFuzz_nextEpochAndRemainingLockup_whenMoreThanFivePeriods(uint8 originalRemainingLockup) external {
+    function testFuzz_epochsToNextPowerChange_whenMoreThanFivePeriods(uint8 originalRemainingLockup) external {
         originalRemainingLockup = uint8(bound(
             originalRemainingLockup, 5 * EPOCHS_IN_PERIOD + 1, 10 * EPOCHS_IN_PERIOD
         ));
 
-        int104 amount = 100;
-        uint16 originalEpoch = 100;
-        (, uint16 epoch, uint8 remainingLockup) = vePWN.exposed_nextEpochAndRemainingLockup(
-            amount, originalEpoch, originalRemainingLockup
-        );
+        uint8 epochsToNextPowerChange = vePWN.exposed_epochsToNextPowerChange(originalRemainingLockup);
 
-        uint16 diff = uint16(originalRemainingLockup - 5 * EPOCHS_IN_PERIOD);
-        assertEq(epoch, originalEpoch + diff);
-        assertEq(remainingLockup, originalRemainingLockup - diff);
+        assertEq(epochsToNextPowerChange, uint16(originalRemainingLockup - 5 * EPOCHS_IN_PERIOD));
     }
 
-    function testFuzz_updatePowerChangeEpoch_shouldUpdatePowerChangeValue(
+    // updateEpochPowerChange
+
+    function testFuzz_updateEpochPowerChange_shouldUpdatePowerChangeValue(
         address staker, uint16 epoch, int104 power
     ) external {
         power = int104(bound(power, 2, type(int104).max));
         int104 powerFraction = int104(bound(power, 1, power - 1));
 
-        vePWN.exposed_updateEpochPower(staker, epoch, 0, powerFraction);
+        vePWN.exposed_updateEpochPowerChange(staker, epoch, 0, powerFraction);
         assertEq(vePWN.workaround_getStakerEpochPower(staker, epoch), powerFraction);
 
-        vePWN.exposed_updateEpochPower(staker, epoch, 0, power - powerFraction);
+        vePWN.exposed_updateEpochPowerChange(staker, epoch, 0, power - powerFraction);
         assertEq(vePWN.workaround_getStakerEpochPower(staker, epoch), power);
 
-        vePWN.exposed_updateEpochPower(staker, epoch, 0, -power);
+        vePWN.exposed_updateEpochPowerChange(staker, epoch, 0, -power);
         assertEq(vePWN.workaround_getStakerEpochPower(staker, epoch), 0);
     }
 
@@ -329,7 +322,7 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
     ) external {
         power = int104(bound(power, 1, type(int104).max));
 
-        uint256 index = vePWN.exposed_updateEpochPower(staker, epoch, 0, power);
+        uint256 index = vePWN.exposed_updateEpochPowerChange(staker, epoch, 0, power);
 
         assertEq(vePWN.powerChangeEpochs(staker)[index], epoch);
     }
@@ -351,7 +344,7 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
         indices[4] = 0;
 
         for (uint256 i; i < epochs.length; ++i)
-            assertEq(vePWN.exposed_updateEpochPower(staker, epochs[i], 0, 100e10), indices[i]);
+            assertEq(vePWN.exposed_updateEpochPowerChange(staker, epochs[i], 0, 100e10), indices[i]);
 
         uint16[] memory stakerPowerChangeEpochs = vePWN.powerChangeEpochs(staker);
         assertEq(stakerPowerChangeEpochs.length, 4);
@@ -366,10 +359,10 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
     ) external {
         power = int104(bound(power, 1, type(int104).max - 1));
 
-        uint256 index = vePWN.exposed_updateEpochPower(staker, epoch, 0, power);
+        uint256 index = vePWN.exposed_updateEpochPowerChange(staker, epoch, 0, power);
 
         assertEq(vePWN.powerChangeEpochs(staker)[index], epoch);
-        assertEq(vePWN.exposed_updateEpochPower(staker, epoch, 0, 1), index);
+        assertEq(vePWN.exposed_updateEpochPowerChange(staker, epoch, 0, 1), index);
     }
 
     function testFuzz_updatePowerChangeEpoch_shouldRemoveEpochFromArray_whenPowerChangedFromNonZeroToZero(
@@ -377,17 +370,19 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
     ) external {
         power = int104(bound(power, 1, type(int104).max));
 
-        uint256 index = vePWN.exposed_updateEpochPower(staker, epoch, 0, power);
+        uint256 index = vePWN.exposed_updateEpochPowerChange(staker, epoch, 0, power);
 
         uint16[] memory stakerPowerChangeEpochs = vePWN.powerChangeEpochs(staker);
         assertEq(stakerPowerChangeEpochs.length, 1);
         assertEq(stakerPowerChangeEpochs[index], epoch);
 
-        index = vePWN.exposed_updateEpochPower(staker, epoch, 0, -power);
+        index = vePWN.exposed_updateEpochPowerChange(staker, epoch, 0, -power);
 
         stakerPowerChangeEpochs = vePWN.powerChangeEpochs(staker);
         assertEq(stakerPowerChangeEpochs.length, 0);
     }
+
+    // powerChangeMultipliers
 
     function testFuzz_powerChangeMultipliers_initialPower(
         uint256 amount, uint8 remainingLockup
@@ -444,12 +439,12 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
     function test_powerChangeMultipliers_powerChangesShouldSumToZero(uint8 remainingLockup) external {
         vm.assume(remainingLockup > 0);
 
-        int104 powerChange;
         int104 amount = 100;
         int104 sum = vePWN.exposed_initialPower(amount, remainingLockup);
         while (remainingLockup > 0) {
-            (powerChange, , remainingLockup) = vePWN.exposed_nextEpochAndRemainingLockup(amount, 0, remainingLockup);
-            sum += powerChange;
+            uint8 epochsToNextPowerChange = vePWN.exposed_epochsToNextPowerChange(remainingLockup);
+            remainingLockup -= epochsToNextPowerChange;
+            sum += vePWN.exposed_decreasePower(amount, remainingLockup);
         }
 
         assertEq(sum, 0);

@@ -242,7 +242,12 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
     uint8 public lockUpEpochs = 13;
 
     event StakeSplit(
-        uint256 indexed stakeId, address indexed staker, uint256 splitAmount, uint256 newStakeId1, uint256 newStakeId2
+        uint256 indexed stakeId,
+        address indexed staker,
+        uint256 amount1,
+        uint256 amount2,
+        uint256 newStakeId1,
+        uint256 newStakeId2
     );
 
     function setUp() override public {
@@ -327,7 +332,7 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
 
     function test_shouldEmit_StakeSplit() external {
         vm.expectEmit();
-        emit StakeSplit(stakeId, staker, amount / 4, vePWN.lastStakeId() + 1, vePWN.lastStakeId() + 2);
+        emit StakeSplit(stakeId, staker, amount * 3 / 4, amount / 4, vePWN.lastStakeId() + 1, vePWN.lastStakeId() + 2);
 
         vm.prank(staker);
         vePWN.splitStake(stakeId, amount / 4);
@@ -581,7 +586,9 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         uint256 indexed stakeId,
         address indexed staker,
         uint256 additionalAmount,
+        uint256 newAmount,
         uint256 additionalEpochs,
+        uint256 newEpochs,
         uint256 newStakeId
     );
 
@@ -756,7 +763,15 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         _mockStake(staker, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
 
         vm.expectEmit();
-        emit StakeIncreased(stakeId, staker, additionalAmount, additionalEpochs, vePWN.lastStakeId() + 1);
+        emit StakeIncreased(
+            stakeId,
+            staker,
+            additionalAmount,
+            additionalAmount + amount,
+            additionalEpochs,
+            additionalEpochs + lockUpEpochs + initialEpoch - currentEpoch - 1,
+            vePWN.lastStakeId() + 1
+        );
 
         vm.prank(staker);
         vePWN.increaseStake(stakeId, additionalAmount, additionalEpochs);
@@ -825,7 +840,7 @@ contract VoteEscrowedPWN_Stake_WithdrawStake_Test is VoteEscrowedPWN_Stake_Test 
     uint16 public initialEpoch = 400;
     uint8 public lockUpEpochs = 13;
 
-    event StakeWithdrawn(address indexed staker, uint256 amount);
+    event StakeWithdrawn(uint256 indexed stakeId, address indexed staker, uint256 amount);
 
     function setUp() override public {
         super.setUp();
@@ -887,7 +902,7 @@ contract VoteEscrowedPWN_Stake_WithdrawStake_Test is VoteEscrowedPWN_Stake_Test 
 
     function test_shouldEmit_StakeWithdrawn() external {
         vm.expectEmit();
-        emit StakeWithdrawn(staker, amount);
+        emit StakeWithdrawn(stakeId, staker, amount);
 
         vm.prank(staker);
         vePWN.withdrawStake(stakeId);
@@ -930,7 +945,11 @@ contract VoteEscrowedPWN_Stake_TransferStake_Test is VoteEscrowedPWN_Stake_Test 
     uint8 public remainingLockup = 130;
 
     event StakeTransferred(
-        uint256 indexed stakeId, address indexed fromStaker, address indexed toStaker, uint256 amount
+        uint256 indexed stakeId,
+        address indexed fromStaker,
+        address indexed toStaker,
+        uint256 amount,
+        uint256 remainingLockup
     );
 
 
@@ -1108,11 +1127,21 @@ contract VoteEscrowedPWN_Stake_TransferStake_Test is VoteEscrowedPWN_Stake_Test 
         _assertTotalPowerChangesSumToZero(powerChanges[powerChanges.length - 1].epoch);
     }
 
-    function test_shouldEmit_StakeTransferred() external {
+    function test_shouldEmit_StakeTransferred_whenLockUpNotEnded() external {
         _mockStake(from, stakeId, initialEpoch, remainingLockup, amount);
 
         vm.expectEmit();
-        emit StakeTransferred(stakeId, from, to, amount);
+        emit StakeTransferred(stakeId, from, to, amount, remainingLockup - (currentEpoch - initialEpoch) - 1);
+
+        vm.prank(stakedPWN);
+        vePWN.transferStake(from, to, stakeId);
+    }
+
+    function test_shouldEmit_StakeTransferred_whenLockUpEnded() external {
+        _mockStake(from, stakeId, initialEpoch, 10, amount);
+
+        vm.expectEmit();
+        emit StakeTransferred(stakeId, from, to, amount, 0);
 
         vm.prank(stakedPWN);
         vePWN.transferStake(from, to, stakeId);
