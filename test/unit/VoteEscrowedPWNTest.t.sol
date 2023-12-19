@@ -8,7 +8,7 @@ import { Base_Test } from "../Base.t.sol";
 abstract contract VoteEscrowedPWN_Test is Base_Test {
     using SlotComputingLib for bytes32;
 
-    uint8 public constant EPOCHS_IN_PERIOD = 13;
+    uint8 public constant EPOCHS_IN_YEAR = 13;
     bytes32 public constant STAKES_SLOT = bytes32(uint256(6));
     bytes32 public constant POWER_CHANGES_EPOCHS_SLOT = bytes32(uint256(7));
     bytes32 public constant LAST_CALCULATED_STAKER_POWER_EPOCH_INDEX_SLOT = bytes32(uint256(8));
@@ -191,12 +191,12 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
     }
 
     function _boundLockUpEpochs(uint256 seed) internal pure returns (uint8) {
-        uint8 lockUpEpochs = uint8(bound(seed, EPOCHS_IN_PERIOD, 10 * EPOCHS_IN_PERIOD));
-        return lockUpEpochs > 5 * EPOCHS_IN_PERIOD ? 10 * EPOCHS_IN_PERIOD : lockUpEpochs;
+        uint8 lockUpEpochs = uint8(bound(seed, EPOCHS_IN_YEAR, 10 * EPOCHS_IN_YEAR));
+        return lockUpEpochs > 5 * EPOCHS_IN_YEAR ? 10 * EPOCHS_IN_YEAR : lockUpEpochs;
     }
 
     function _boundRemainingLockups(uint256 seed) internal pure returns (uint8) {
-        return uint8(bound(seed, 1, 10 * EPOCHS_IN_PERIOD));
+        return uint8(bound(seed, 1, 10 * EPOCHS_IN_YEAR));
     }
 
     // assert
@@ -268,35 +268,35 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
 
     // epochsToNextPowerChange
 
-    function testFuzz_epochsToNextPowerChange_whenLessThanFivePeriods_whenDivisibleByPeriod(
+    function testFuzz_epochsToNextPowerChange_whenLessThanFiveYears_whenDivisibleByYear(
         uint8 originalRemainingLockup
     ) external {
-        originalRemainingLockup = uint8(bound(originalRemainingLockup, 1, 5) * EPOCHS_IN_PERIOD);
+        originalRemainingLockup = uint8(bound(originalRemainingLockup, 1, 5) * EPOCHS_IN_YEAR);
 
         uint8 epochsToNextPowerChange = vePWN.exposed_epochsToNextPowerChange(originalRemainingLockup);
 
-        assertEq(epochsToNextPowerChange, EPOCHS_IN_PERIOD);
+        assertEq(epochsToNextPowerChange, EPOCHS_IN_YEAR);
     }
 
-    function testFuzz_epochsToNextPowerChange_whenLessThanFivePeriods_whenNotDivisibleByPeriod(
+    function testFuzz_epochsToNextPowerChange_whenLessThanFiveYears_whenNotDivisibleByYear(
         uint8 originalRemainingLockup
     ) external {
-        originalRemainingLockup = uint8(bound(originalRemainingLockup, EPOCHS_IN_PERIOD + 1, 5 * EPOCHS_IN_PERIOD - 1));
-        vm.assume(originalRemainingLockup % EPOCHS_IN_PERIOD > 0);
+        originalRemainingLockup = uint8(bound(originalRemainingLockup, EPOCHS_IN_YEAR + 1, 5 * EPOCHS_IN_YEAR - 1));
+        vm.assume(originalRemainingLockup % EPOCHS_IN_YEAR > 0);
 
         uint8 epochsToNextPowerChange = vePWN.exposed_epochsToNextPowerChange(originalRemainingLockup);
 
-        assertEq(epochsToNextPowerChange, uint16(originalRemainingLockup % EPOCHS_IN_PERIOD));
+        assertEq(epochsToNextPowerChange, uint16(originalRemainingLockup % EPOCHS_IN_YEAR));
     }
 
-    function testFuzz_epochsToNextPowerChange_whenMoreThanFivePeriods(uint8 originalRemainingLockup) external {
+    function testFuzz_epochsToNextPowerChange_whenMoreThanFiveYears(uint8 originalRemainingLockup) external {
         originalRemainingLockup = uint8(bound(
-            originalRemainingLockup, 5 * EPOCHS_IN_PERIOD + 1, 10 * EPOCHS_IN_PERIOD
+            originalRemainingLockup, 5 * EPOCHS_IN_YEAR + 1, 10 * EPOCHS_IN_YEAR
         ));
 
         uint8 epochsToNextPowerChange = vePWN.exposed_epochsToNextPowerChange(originalRemainingLockup);
 
-        assertEq(epochsToNextPowerChange, uint16(originalRemainingLockup - 5 * EPOCHS_IN_PERIOD));
+        assertEq(epochsToNextPowerChange, uint16(originalRemainingLockup - 5 * EPOCHS_IN_YEAR));
     }
 
     // updateEpochPowerChange
@@ -390,22 +390,22 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
         amount = _boundAmount(amount);
         remainingLockup = uint8(bound(remainingLockup, 1, 130));
 
-        int104[] memory periodMultiplier = new int104[](6);
-        periodMultiplier[0] = 100;
-        periodMultiplier[1] = 115;
-        periodMultiplier[2] = 130;
-        periodMultiplier[3] = 150;
-        periodMultiplier[4] = 175;
-        periodMultiplier[5] = 350;
+        int104[] memory yearMultiplier = new int104[](6);
+        yearMultiplier[0] = 100;
+        yearMultiplier[1] = 115;
+        yearMultiplier[2] = 130;
+        yearMultiplier[3] = 150;
+        yearMultiplier[4] = 175;
+        yearMultiplier[5] = 350;
 
         int104 power = vePWN.exposed_initialPower(int104(uint104(amount)), remainingLockup);
 
         int104 multiplier;
-        if (remainingLockup > EPOCHS_IN_PERIOD * 5)
-            multiplier = periodMultiplier[5];
+        if (remainingLockup > EPOCHS_IN_YEAR * 5)
+            multiplier = yearMultiplier[5];
         else
-            multiplier = periodMultiplier[
-                remainingLockup / EPOCHS_IN_PERIOD - (remainingLockup % EPOCHS_IN_PERIOD == 0 ? 1 : 0)
+            multiplier = yearMultiplier[
+                remainingLockup / EPOCHS_IN_YEAR - (remainingLockup % EPOCHS_IN_YEAR == 0 ? 1 : 0)
             ];
         assertEq(power, int104(uint104(amount)) * multiplier / 100);
     }
@@ -414,24 +414,24 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
         amount = _boundAmount(amount);
         remainingLockup = uint8(bound(remainingLockup, 1, 130));
 
-        int104[] memory periodMultiplier = new int104[](6);
-        periodMultiplier[0] = 15;
-        periodMultiplier[1] = 15;
-        periodMultiplier[2] = 20;
-        periodMultiplier[3] = 25;
-        periodMultiplier[4] = 175;
-        periodMultiplier[5] = 0;
+        int104[] memory yearMultiplier = new int104[](6);
+        yearMultiplier[0] = 15;
+        yearMultiplier[1] = 15;
+        yearMultiplier[2] = 20;
+        yearMultiplier[3] = 25;
+        yearMultiplier[4] = 175;
+        yearMultiplier[5] = 0;
 
         int104 power = vePWN.exposed_decreasePower(int104(uint104(amount)), remainingLockup);
 
         int104 multiplier;
-        if (remainingLockup > EPOCHS_IN_PERIOD * 5)
-            multiplier = periodMultiplier[5];
+        if (remainingLockup > EPOCHS_IN_YEAR * 5)
+            multiplier = yearMultiplier[5];
         else if (remainingLockup == 0)
             multiplier = 100;
         else
-            multiplier = periodMultiplier[
-                remainingLockup / EPOCHS_IN_PERIOD - (remainingLockup % EPOCHS_IN_PERIOD == 0 ? 1 : 0)
+            multiplier = yearMultiplier[
+                remainingLockup / EPOCHS_IN_YEAR - (remainingLockup % EPOCHS_IN_YEAR == 0 ? 1 : 0)
             ];
         assertEq(power, -int104(uint104(amount)) * multiplier / 100);
     }

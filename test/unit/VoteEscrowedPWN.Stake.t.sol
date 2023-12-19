@@ -29,24 +29,24 @@ contract VoteEscrowedPWN_Stake_CreateStake_Test is VoteEscrowedPWN_Stake_Test {
 
     function test_shouldFail_whenInvalidAmount() external {
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
-        vePWN.createStake({ amount: 0, lockUpEpochs: EPOCHS_IN_PERIOD });
+        vePWN.createStake({ amount: 0, lockUpEpochs: EPOCHS_IN_YEAR });
 
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
-        vePWN.createStake({ amount: 99, lockUpEpochs: EPOCHS_IN_PERIOD });
+        vePWN.createStake({ amount: 99, lockUpEpochs: EPOCHS_IN_YEAR });
 
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
-        vePWN.createStake({ amount: uint256(type(uint88).max) + 1, lockUpEpochs: EPOCHS_IN_PERIOD });
+        vePWN.createStake({ amount: uint256(type(uint88).max) + 1, lockUpEpochs: EPOCHS_IN_YEAR });
 
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
-        vePWN.createStake({ amount: 101, lockUpEpochs: EPOCHS_IN_PERIOD });
+        vePWN.createStake({ amount: 101, lockUpEpochs: EPOCHS_IN_YEAR });
     }
 
     function test_shouldFail_whenInvalidLockUpEpochs() external {
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
-        vePWN.createStake({ amount: 100, lockUpEpochs: EPOCHS_IN_PERIOD - 1 });
+        vePWN.createStake({ amount: 100, lockUpEpochs: EPOCHS_IN_YEAR - 1 });
 
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
-        vePWN.createStake({ amount: 100, lockUpEpochs: 10 * EPOCHS_IN_PERIOD + 1 });
+        vePWN.createStake({ amount: 100, lockUpEpochs: 10 * EPOCHS_IN_YEAR + 1 });
     }
 
     function test_shouldIncreaseStakeId() external {
@@ -415,8 +415,8 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
     }
 
     function testFuzz_shouldFail_whenFirstRemainingLockupSmallerThanSecond(uint256 seed) external {
-        uint8 remainingLockup1 = uint8(bound(seed, 1, 10 * EPOCHS_IN_PERIOD - 1));
-        uint8 remainingLockup2 = uint8(bound(seed, remainingLockup1 + 1, 10 * EPOCHS_IN_PERIOD));
+        uint8 remainingLockup1 = uint8(bound(seed, 1, 10 * EPOCHS_IN_YEAR - 1));
+        uint8 remainingLockup2 = uint8(bound(seed, remainingLockup1 + 1, 10 * EPOCHS_IN_YEAR));
         _mockStake(staker, stakeId1, initialEpoch, remainingLockup1, amount);
         _mockStake(staker, stakeId2, initialEpoch, remainingLockup2, amount);
 
@@ -441,7 +441,7 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         uint256 _remainingLockup1, uint256 _remainingLockup2,
         uint256 _amount1, uint256 _amount2
     ) external {
-        uint8 maxLockup = 10 * EPOCHS_IN_PERIOD;
+        uint8 maxLockup = 10 * EPOCHS_IN_YEAR;
         uint16 initialEpoch1 = uint16(bound(
             _initialEpoch1, uint16(currentEpoch + 2 - maxLockup), uint16(currentEpoch + 1)
         ));
@@ -524,7 +524,7 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
 
     function testFuzz_shouldCreateNewStake(uint256 _remainingLockup, uint256 _amount1, uint256 _amount2) external {
         remainingLockup = uint8(bound(
-            _remainingLockup, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_PERIOD
+            _remainingLockup, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_YEAR
         ));
         uint104 amount1 = uint104(_boundAmount(_amount1));
         uint104 amount2 = uint104(_boundAmount(_amount2));
@@ -548,7 +548,7 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
 
     function testFuzz_shouldEmit_StakeMerged(uint256 _remainingLockup, uint256 _amount1, uint256 _amount2) external {
         remainingLockup = uint8(bound(
-            _remainingLockup, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_PERIOD
+            _remainingLockup, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_YEAR
         ));
         uint8 newRemainingLockup = remainingLockup - uint8(currentEpoch + 1 - initialEpoch);
         uint104 amount1 = uint104(_boundAmount(_amount1));
@@ -610,11 +610,11 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         uint256 additionalAmount_ = bound(_additionalAmount, 0, type(uint88).max / 100) * 100;
         uint256 additionalEpochs_ = bound(
             _additionalEpochs,
-            Math.max(1 * EPOCHS_IN_PERIOD, remainingLockup) - remainingLockup,
-            Math.max(5 * EPOCHS_IN_PERIOD, remainingLockup) - remainingLockup
+            Math.max(1 * EPOCHS_IN_YEAR, remainingLockup) - remainingLockup,
+            Math.max(5 * EPOCHS_IN_YEAR, remainingLockup) - remainingLockup
         );
-        additionalEpochs_ = additionalEpochs_ + remainingLockup > 5 * EPOCHS_IN_PERIOD
-            ? 10 * EPOCHS_IN_PERIOD - remainingLockup
+        additionalEpochs_ = additionalEpochs_ + remainingLockup > 5 * EPOCHS_IN_YEAR
+            ? 10 * EPOCHS_IN_YEAR - remainingLockup
             : additionalEpochs_;
 
         return (lockUpEpochs_, additionalAmount_, additionalEpochs_, remainingLockup);
@@ -657,28 +657,28 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
 
         uint8 remainingLockup = uint8(initialEpoch + lockUpEpochs - currentEpoch) - 1;
         // out of bounds
-        additionalEpochs = bound(_additionalEpochs, 10 * EPOCHS_IN_PERIOD + 1, type(uint256).max);
+        additionalEpochs = bound(_additionalEpochs, 10 * EPOCHS_IN_YEAR + 1, type(uint256).max);
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, additionalEpochs);
 
-        // under a period
-        additionalEpochs = bound(_additionalEpochs, 1, EPOCHS_IN_PERIOD - remainingLockup - 1);
+        // under a year
+        additionalEpochs = bound(_additionalEpochs, 1, EPOCHS_IN_YEAR - remainingLockup - 1);
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, additionalEpochs);
 
-        // over 5 & under 10 periods
+        // over 5 & under 10 years
         additionalEpochs = bound(
-            _additionalEpochs, 5 * EPOCHS_IN_PERIOD - remainingLockup + 1, 10 * EPOCHS_IN_PERIOD - remainingLockup - 1
+            _additionalEpochs, 5 * EPOCHS_IN_YEAR - remainingLockup + 1, 10 * EPOCHS_IN_YEAR - remainingLockup - 1
         );
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, additionalEpochs);
 
-        // over 10 periods
+        // over 10 years
         additionalEpochs = bound(
-            _additionalEpochs, 10 * EPOCHS_IN_PERIOD - remainingLockup + 1, 10 * EPOCHS_IN_PERIOD
+            _additionalEpochs, 10 * EPOCHS_IN_YEAR - remainingLockup + 1, 10 * EPOCHS_IN_YEAR
         );
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
         vm.prank(staker);
@@ -1067,8 +1067,8 @@ contract VoteEscrowedPWN_Stake_TransferStake_Test is VoteEscrowedPWN_Stake_Test 
     ) external {
         amount = uint104(_boundAmount(_amount));
         uint8 lockUpEpochs = _boundLockUpEpochs(_lockUpEpochs);
-        uint256 numberOfCliffs = uint256(lockUpEpochs) / uint256(EPOCHS_IN_PERIOD) + 1;
-        numberOfCliffs += lockUpEpochs % EPOCHS_IN_PERIOD == 0 ? 0 : 1;
+        uint256 numberOfCliffs = uint256(lockUpEpochs) / uint256(EPOCHS_IN_YEAR) + 1;
+        numberOfCliffs += lockUpEpochs % EPOCHS_IN_YEAR == 0 ? 0 : 1;
         remainingLockup = uint8(bound(_remainingLockup, 2, lockUpEpochs));
 
         initialEpoch = uint16(currentEpoch) - lockUpEpochs + remainingLockup;

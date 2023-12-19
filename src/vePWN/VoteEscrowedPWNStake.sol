@@ -72,10 +72,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
             revert Error.InvalidAmount();
         }
         // lock up for <1; 5> + {10} years
-        if (lockUpEpochs < EPOCHS_IN_PERIOD) {
+        if (lockUpEpochs < EPOCHS_IN_YEAR) {
             revert Error.InvalidLockUpPeriod();
         }
-        if (lockUpEpochs > 5 * EPOCHS_IN_PERIOD && lockUpEpochs != 10 * EPOCHS_IN_PERIOD) {
+        if (lockUpEpochs > 5 * EPOCHS_IN_YEAR && lockUpEpochs != 10 * EPOCHS_IN_YEAR) {
             revert Error.InvalidLockUpPeriod();
         }
 
@@ -223,7 +223,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
         if (additionalAmount % 100 > 0) {
             revert Error.InvalidAmount();
         }
-        if (additionalEpochs > 10 * EPOCHS_IN_PERIOD) {
+        if (additionalEpochs > 10 * EPOCHS_IN_YEAR) {
             revert Error.InvalidLockUpPeriod();
         }
 
@@ -233,10 +233,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
             oldFinalEpoch <= newInitialEpoch ? additionalEpochs : oldFinalEpoch + additionalEpochs - newInitialEpoch
         );
         // extended lockup must be in <1; 5> + {10} years
-        if (newRemainingLockup < EPOCHS_IN_PERIOD) {
+        if (newRemainingLockup < EPOCHS_IN_YEAR) {
             revert Error.InvalidLockUpPeriod();
         }
-        if (newRemainingLockup > 5 * EPOCHS_IN_PERIOD && newRemainingLockup != 10 * EPOCHS_IN_PERIOD) {
+        if (newRemainingLockup > 5 * EPOCHS_IN_YEAR && newRemainingLockup != 10 * EPOCHS_IN_YEAR) {
             revert Error.InvalidLockUpPeriod();
         }
 
@@ -397,11 +397,11 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
     }
 
     function _epochsToNextPowerChange(uint8 remainingLockup) internal pure returns (uint8) {
-        if (remainingLockup > 5 * EPOCHS_IN_PERIOD) {
-            return remainingLockup - (5 * EPOCHS_IN_PERIOD);
+        if (remainingLockup > 5 * EPOCHS_IN_YEAR) {
+            return remainingLockup - (5 * EPOCHS_IN_YEAR);
         } else {
-            uint8 nextPowerChangeEpochDelta = remainingLockup % EPOCHS_IN_PERIOD;
-            return nextPowerChangeEpochDelta == 0 ? EPOCHS_IN_PERIOD : nextPowerChangeEpochDelta;
+            uint8 nextPowerChangeEpochDelta = remainingLockup % EPOCHS_IN_YEAR;
+            return nextPowerChangeEpochDelta == 0 ? EPOCHS_IN_YEAR : nextPowerChangeEpochDelta;
         }
     }
 
@@ -436,21 +436,21 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase, IStakedPWNSupplyM
     }
 
     function _initialPower(int104 amount, uint8 remainingLockup) internal pure returns (int104) {
-        if (remainingLockup <= EPOCHS_IN_PERIOD) return amount;
-        else if (remainingLockup <= EPOCHS_IN_PERIOD * 2) return amount * 115 / 100;
-        else if (remainingLockup <= EPOCHS_IN_PERIOD * 3) return amount * 130 / 100;
-        else if (remainingLockup <= EPOCHS_IN_PERIOD * 4) return amount * 150 / 100;
-        else if (remainingLockup <= EPOCHS_IN_PERIOD * 5) return amount * 175 / 100;
+        if (remainingLockup <= EPOCHS_IN_YEAR) return amount;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 2) return amount * 115 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 3) return amount * 130 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 4) return amount * 150 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 5) return amount * 175 / 100;
         else return amount * 350 / 100;
     }
 
     function _decreasePower(int104 amount, uint8 remainingLockup) internal pure returns (int104) {
         if (remainingLockup == 0) return -amount; // Final power loss
-        else if (remainingLockup <= EPOCHS_IN_PERIOD) return -amount * 15 / 100;
-        else if (remainingLockup <= EPOCHS_IN_PERIOD * 2) return -amount * 15 / 100;
-        else if (remainingLockup <= EPOCHS_IN_PERIOD * 3) return -amount * 20 / 100;
-        else if (remainingLockup <= EPOCHS_IN_PERIOD * 4) return -amount * 25 / 100;
-        else if (remainingLockup <= EPOCHS_IN_PERIOD * 5) return -amount * 175 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR) return -amount * 15 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 2) return -amount * 15 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 3) return -amount * 20 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 4) return -amount * 25 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 5) return -amount * 175 / 100;
         else return 0;
     }
 

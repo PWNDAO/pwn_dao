@@ -14,7 +14,7 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
     |*  # GENERAL PROPERTIES                                    *|
     |*----------------------------------------------------------*/
 
-    uint8 public constant EPOCHS_IN_PERIOD = 13; // ~1 year
+    uint8 public constant EPOCHS_IN_YEAR = 13;
 
     PWN public pwnToken;
     StakedPWN public stakedPWN;
