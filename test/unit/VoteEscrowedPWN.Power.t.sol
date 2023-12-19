@@ -373,6 +373,31 @@ contract VoteEscrowedPWN_Power_CalculatePower_Test is VoteEscrowedPWN_Power_Test
         vePWN.calculateStakerPowerUpTo(staker, epoch);
     }
 
+    function testFuzz_calculatePower_shouldUseCallerAndEpochOneBeforeCurrent(address staker) external {
+        TestPowerChangeEpoch[] memory powerChanges = new TestPowerChangeEpoch[](3);
+        powerChanges[0] = TestPowerChangeEpoch(uint16(currentEpoch - 2), int104(1));
+        powerChanges[1] = TestPowerChangeEpoch(uint16(currentEpoch - 1), int104(2));
+        powerChanges[2] = TestPowerChangeEpoch(uint16(currentEpoch), int104(3));
+        _storePowerChanges(staker, powerChanges);
+
+        vm.prank(staker);
+        vePWN.calculatePower();
+
+        assertEq(vePWN.lastCalculatedStakerPowerEpoch(staker), currentEpoch - 1);
+    }
+
+    function testFuzz_calculateStakerPower_shouldUseEpochOneBeforeCurrent(address staker) external {
+        TestPowerChangeEpoch[] memory powerChanges = new TestPowerChangeEpoch[](3);
+        powerChanges[0] = TestPowerChangeEpoch(uint16(currentEpoch - 2), int104(1));
+        powerChanges[1] = TestPowerChangeEpoch(uint16(currentEpoch - 1), int104(2));
+        powerChanges[2] = TestPowerChangeEpoch(uint16(currentEpoch), int104(3));
+        _storePowerChanges(staker, powerChanges);
+
+        vePWN.calculateStakerPower(staker);
+
+        assertEq(vePWN.lastCalculatedStakerPowerEpoch(staker), currentEpoch - 1);
+    }
+
 }
 
 
@@ -473,6 +498,7 @@ contract VoteEscrowedPWN_Power_CalculateTotalPower_Test is VoteEscrowedPWN_Power
     event TotalPowerCalculated(uint256 indexed epoch);
 
     function testFuzz_shouldFail_whenEpochDoesNotEnded(uint256 epoch) external {
+        // no need to mock epochs, it's ok to compute with zero epochs
         epoch = bound(epoch, currentEpoch, type(uint256).max);
 
         vm.expectRevert(abi.encodeWithSelector(Error.EpochStillRunning.selector));
@@ -480,6 +506,7 @@ contract VoteEscrowedPWN_Power_CalculateTotalPower_Test is VoteEscrowedPWN_Power
     }
 
     function testFuzz_shouldFail_whenTotalPowerAlreadyCalculated(uint256 epoch, uint256 lcEpoch) external {
+        // no need to mock epochs, it's ok to compute with zero epochs
         uint256 lastCalculatedEpoch = bound(lcEpoch, 0, currentEpoch - 1);
         epoch = bound(epoch, 0, lastCalculatedEpoch);
         _mockLastCalculatedTotalPowerEpoch(lastCalculatedEpoch);
@@ -512,6 +539,7 @@ contract VoteEscrowedPWN_Power_CalculateTotalPower_Test is VoteEscrowedPWN_Power
     }
 
     function testFuzz_shouldStoreNewLastCalculatedTotalPower(uint256 epoch, uint256 lcEpoch) external {
+        // no need to mock epochs, it's ok to compute with zero epochs
         uint256 lastCalculatedEpoch = bound(lcEpoch, 0, currentEpoch - 2);
         epoch = bound(epoch, lastCalculatedEpoch + 1, currentEpoch - 1);
         _mockLastCalculatedTotalPowerEpoch(lastCalculatedEpoch);
@@ -524,6 +552,7 @@ contract VoteEscrowedPWN_Power_CalculateTotalPower_Test is VoteEscrowedPWN_Power
     }
 
     function testFuzz_shouldEmit_TotalPowerCalculated(uint256 epoch, uint256 lcEpoch) external {
+        // no need to mock epochs, it's ok to compute with zero epochs
         uint256 lastCalculatedEpoch = bound(lcEpoch, 0, currentEpoch - 2);
         epoch = bound(epoch, lastCalculatedEpoch + 1, currentEpoch - 1);
         _mockLastCalculatedTotalPowerEpoch(lastCalculatedEpoch);
@@ -532,6 +561,16 @@ contract VoteEscrowedPWN_Power_CalculateTotalPower_Test is VoteEscrowedPWN_Power
         emit TotalPowerCalculated(epoch);
 
         vePWN.calculateTotalPowerUpTo(epoch);
+    }
+
+    function test_calculateTotalPower_shouldUseEpochOneBeforeCurrent() external {
+        // no need to mock epochs, it's ok to compute with zero epochs
+
+        vePWN.calculateTotalPower();
+
+        bytes32 lastCalculatedEpochValue = vm.load(address(vePWN), LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT);
+        assertEq(uint256(lastCalculatedEpochValue), currentEpoch - 1);
+        assertEq(vePWN.lastCalculatedTotalPowerEpoch(), currentEpoch - 1);
     }
 
 }
