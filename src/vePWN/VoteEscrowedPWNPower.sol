@@ -47,25 +47,26 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
             return 0;
         }
 
+        int104 power;
         bytes32 stakerNamespace = _stakerPowerNamespace(staker);
         uint256 lcIndex = _lastCalculatedStakerEpochIndex[staker];
         uint16 lcEpoch = stakerPowerChangeEpochs[lcIndex];
         if (lcEpoch == _epoch) {
-            return SafeCast.toUint256(int256(stakerNamespace.getEpochPower(lcEpoch)));
+            power = stakerNamespace.getEpochPower(lcEpoch);
 
         } else if (lcEpoch > _epoch) {
             uint256 index = stakerPowerChangeEpochs.findNearestIndex(_epoch, 0, lcIndex);
-            return SafeCast.toUint256(int256(stakerNamespace.getEpochPower(stakerPowerChangeEpochs[index])));
+            power = stakerNamespace.getEpochPower(stakerPowerChangeEpochs[index]);
 
         } else {
             uint256 index = stakerPowerChangeEpochs.findNearestIndex(_epoch, lcIndex, stakerPowerChangeEpochs.length);
-            int104 power;
             for (uint256 i = lcIndex; i <= index;) {
                 power += stakerNamespace.getEpochPower(stakerPowerChangeEpochs[i]);
                 unchecked { ++i; }
             }
-            return SafeCast.toUint256(int256(power));
         }
+
+        return SafeCast.toUint256(int256(power));
     }
 
     function calculatePower() external {
