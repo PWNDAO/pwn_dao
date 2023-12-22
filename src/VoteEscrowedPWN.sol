@@ -14,14 +14,9 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower {
     // - stakes for past & current epochs are immutable
     // - sum of all stakers power == total power
     // - sum of all address power changes == 0
-    // - `lastCalculatedTotalPowerEpoch` <= current epoch
-    // - `_totalPowerAt` for epoch is up-to-date only if `lastCalculatedTotalPowerEpoch` >= epoch
+    // - total power for epoch is up-to-date only if `lastCalculatedTotalPowerEpoch` >= epoch
     // - calculated total power cannot be negative
-    // - `powerChangeEpochs`& `daoRevenuePortion` is sorted in ascending order without duplicates
     // - any `initialEpoch` cannot be equal to 0 & greater than current epoch + 1
-    // - `lastCalculatedStakerEpoch` is 0 if there where never any stakes
-    // - `lastCalculatedStakerEpoch.epoch` < current epoch (to have a low index when looking up `currect epoch - 1`)
-    // - address without stake has empty `powerChangeEpochs`
     // - stakes `remainingLockup` is always > 0
     // - every stake has exactly one `stPWN` token
 

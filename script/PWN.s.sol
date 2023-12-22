@@ -25,7 +25,7 @@ forge script script/PWN.s.sol:Deploy \
         PWNEpochClock epochClock = new PWNEpochClock(block.timestamp);
         PWN pwnToken = new PWN(dao);
         VoteEscrowedPWN vePWN = new VoteEscrowedPWN();
-        StakedPWN stPWN = new StakedPWN(dao, address(vePWN));
+        StakedPWN stPWN = new StakedPWN(dao, address(epochClock), address(vePWN));
 
         vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock), dao);
 

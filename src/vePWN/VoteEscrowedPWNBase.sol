@@ -108,4 +108,18 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC20Metadata,
 
     function totalPowerAt(uint256) virtual public view returns (uint256);
 
+
+    /*----------------------------------------------------------*|
+    |*  # SHARED INTERNAL                                       *|
+    |*----------------------------------------------------------*/
+
+    function _power(int104 amount, uint8 remainingLockup) internal pure returns (int104) {
+        if (remainingLockup <= EPOCHS_IN_YEAR) return amount;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 2) return amount * 115 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 3) return amount * 130 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 4) return amount * 150 / 100;
+        else if (remainingLockup <= EPOCHS_IN_YEAR * 5) return amount * 175 / 100;
+        else return amount * 350 / 100;
+    }
+
 }

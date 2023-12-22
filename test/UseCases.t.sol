@@ -36,7 +36,7 @@ contract UseCases is Base_Test {
         epochClock = new PWNEpochClock(block.timestamp);
         pwnToken = new PWN(dao);
         vePWN = new VoteEscrowedPWN();
-        stPWN = new StakedPWN(dao, address(vePWN));
+        stPWN = new StakedPWN(dao, address(epochClock), address(vePWN));
 
         vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock), dao);
 
@@ -128,23 +128,6 @@ contract UseCases is Base_Test {
     function testUseCase_transferStake_4Year() external { _transferAllStakes(EPOCHS_IN_YEAR * 4); }
     function testUseCase_transferStake_5Year() external { _transferAllStakes(EPOCHS_IN_YEAR * 5); }
     function testUseCase_transferStake_10Year() external { _transferAllStakes(EPOCHS_IN_YEAR * 10); }
-
-
-    function _computeEpochPower(uint256 y) private {
-        _createStake(EPOCHS_IN_YEAR * 10);
-        _warpEpochs(EPOCHS_IN_YEAR * 10 + 3);
-
-        uint256 gasLeft = gasleft();
-        vePWN.calculateStakerPowerUpTo(staker, EPOCHS_IN_YEAR * (10 - y) + 2);
-        uint256 gasUsed = gasLeft - gasleft();
-        console2.log("Compute power (year %s) gas used:", y, gasUsed);
-    }
-
-    function testUseCase_computePower_1Year() external { _computeEpochPower(1); }
-    function testUseCase_computePower_2Year() external { _computeEpochPower(2); }
-    function testUseCase_computePower_3Year() external { _computeEpochPower(3); }
-    function testUseCase_computePower_4Year() external { _computeEpochPower(4); }
-    function testUseCase_computePower_5Year() external { _computeEpochPower(5); }
 
 
     function _getEpochPower(uint256 epoch) private {
