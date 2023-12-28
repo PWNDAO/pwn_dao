@@ -130,19 +130,27 @@ contract UseCases is Base_Test {
     function testUseCase_transferStake_10Year() external { _transferAllStakes(EPOCHS_IN_YEAR * 10); }
 
 
-    function _getEpochPower(uint256 epoch) private {
-        _createStake(EPOCHS_IN_YEAR * 5);
+    function _getEpochPower(uint256 numberOfStakes) private {
+        for (uint256 i; i < numberOfStakes; ++i) {
+            _createStake(5 * EPOCHS_IN_YEAR);
+            _warpEpochs(1);
+        }
 
         uint256 gasLeft = gasleft();
-        vePWN.stakerPowerAt(staker, epoch);
+        vePWN.stakerPowerAt(staker, 30);
         uint256 gasUsed = gasLeft - gasleft();
-        console2.log("Get stakers power (epoch %s) gas used:", epoch, gasUsed);
+        console2.log("Get stakers power (stakes %s) gas used:", numberOfStakes, gasUsed);
     }
 
-    function testUseCase_getEpochPower_1Year() external { _getEpochPower(EPOCHS_IN_YEAR * 1); }
-    function testUseCase_getEpochPower_2Year() external { _getEpochPower(EPOCHS_IN_YEAR * 2); }
-    function testUseCase_getEpochPower_3Year() external { _getEpochPower(EPOCHS_IN_YEAR * 3); }
-    function testUseCase_getEpochPower_4Year() external { _getEpochPower(EPOCHS_IN_YEAR * 4); }
-    function testUseCase_getEpochPower_5Year() external { _getEpochPower(EPOCHS_IN_YEAR * 5); }
+    function testUseCase_getEpochPower_1Stake() external { _getEpochPower(1); }
+    function testUseCase_getEpochPower_2Stake() external { _getEpochPower(2); }
+    function testUseCase_getEpochPower_3Stake() external { _getEpochPower(3); }
+    function testUseCase_getEpochPower_4Stake() external { _getEpochPower(4); }
+    function testUseCase_getEpochPower_5Stake() external { _getEpochPower(5); }
+    function testUseCase_getEpochPower_6Stake() external { _getEpochPower(6); }
+    function testUseCase_getEpochPower_7Stake() external { _getEpochPower(7); }
+    function testUseCase_getEpochPower_8Stake() external { _getEpochPower(8); }
+    function testUseCase_getEpochPower_9Stake() external { _getEpochPower(9); }
+    function testUseCase_getEpochPower_10Stake() external { _getEpochPower(10); }
 
 }
