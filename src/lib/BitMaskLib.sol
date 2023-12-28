@@ -5,7 +5,7 @@ library BitMaskLib {
 
     function _rightShift(bytes32 from, uint256 rightOffset, uint256 typeSize) private pure returns (uint256) {
         require(rightOffset <= 256 - typeSize, "Invalid mask offset");
-        return uint256(from >> (rightOffset));
+        return uint256(from >> rightOffset);
     }
 
 
@@ -19,6 +19,10 @@ library BitMaskLib {
 
     function maskUint104(bytes32 from, uint256 rightOffset) internal pure returns (uint104) {
         return uint104(_rightShift(from, rightOffset, 104));
+    }
+
+    function maskUint240(bytes32 from, uint256 rightOffset) internal pure returns (uint240) {
+        return uint240(_rightShift(from, rightOffset, 240));
     }
 
 }

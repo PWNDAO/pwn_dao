@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
+import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
+
 import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
-import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 import { Base_Test } from "../Base.t.sol";
 
 abstract contract VoteEscrowedPWN_Test is Base_Test {

@@ -2,10 +2,10 @@
 pragma solidity 0.8.18;
 
 import { Error } from "src/lib/Error.sol";
+import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 import { StakedPWN } from "src/StakedPWN.sol";
 
 import { Base_Test } from "../Base.t.sol";
-import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 
 abstract contract StakedPWN_Test is Base_Test {
     using SlotComputingLib for bytes32;

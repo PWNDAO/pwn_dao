@@ -5,10 +5,10 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 import { IVotingContract } from "src/interfaces/IVotingContract.sol";
 import { Error } from "src/lib/Error.sol";
+import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 import { PWN } from "src/PWN.sol";
 
 import { Base_Test } from "../Base.t.sol";
-import { SlotComputingLib } from "../utils/SlotComputingLib.sol";
 
 abstract contract PWN_Test is Base_Test {
     using SlotComputingLib for bytes32;
