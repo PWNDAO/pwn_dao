@@ -45,7 +45,7 @@ abstract contract Integration_Test is Base_Test {
         vePWN = VoteEscrowedPWN(address(
             new TransparentUpgradeableProxy(address(vePWNImpl), daoTimelock, "")
         ));
-        stPWN = new StakedPWN(dao, address(vePWN));
+        stPWN = new StakedPWN(dao, address(epochClock), address(vePWN));
 
         vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock), dao);
 
@@ -53,7 +53,7 @@ abstract contract Integration_Test is Base_Test {
         stPWN.enableTransfers();
 
         // fund staker address
-        _fundStaker();
+        _fundStaker(staker, defaultFundAmount);
 
         // label addresses for debugging
         vm.label(address(pwnToken), "PWN Token");
@@ -64,10 +64,6 @@ abstract contract Integration_Test is Base_Test {
         vm.label(dao, "DAO");
     }
 
-
-    function _fundStaker() internal {
-        _fundStaker(staker, defaultFundAmount);
-    }
 
     function _fundStaker(address _staker, uint256 amount) internal {
         vm.startPrank(dao);
@@ -80,7 +76,7 @@ abstract contract Integration_Test is Base_Test {
         vm.warp(block.timestamp + epochs * epochClock.SECONDS_IN_EPOCH());
     }
 
-    function _powerFor(uint256 amount, uint256 lockUpEpochs) internal view returns (uint256) {
+    function _powerFor(uint256 amount, uint256 lockUpEpochs) internal pure returns (uint256) {
         if (lockUpEpochs == 0) return 0;
         else if (lockUpEpochs <= 1 * EPOCHS_IN_YEAR) return amount * 100 / 100;
         else if (lockUpEpochs <= 2 * EPOCHS_IN_YEAR) return amount * 115 / 100;
@@ -147,7 +143,7 @@ contract Integration_vePWN_Test is Integration_Test {
         (amount, lockUpEpochs) = _boundAmountAndLockUp(amount, lockUpEpochs);
         uint256 stakeId = _createStake(amount, lockUpEpochs);
 
-        _fundStaker();
+        _fundStaker(staker, defaultFundAmount);
         increaseAmount = bound(increaseAmount, 0, pwnToken.balanceOf(staker));
         increaseAmount = increaseAmount / 100 * 100; // get multiple of 100
         waitingEpochs = bound(waitingEpochs, 0, lockUpEpochs + 1);
@@ -206,7 +202,7 @@ contract Integration_vePWN_Test is Integration_Test {
         uint256 stakeId1 = _createStake(amount1, lockUpEpochs1);
         delayStakes = bound(delayStakes, 0, lockUpEpochs1 - EPOCHS_IN_YEAR);
         _warpEpochs(delayStakes);
-        _fundStaker();
+        _fundStaker(staker, defaultFundAmount);
         (amount2, lockUpEpochs2) = _boundAmountAndLockUp(amount2, lockUpEpochs2);
         lockUpEpochs2 = bound(lockUpEpochs2, EPOCHS_IN_YEAR, lockUpEpochs1 - delayStakes);
         if (lockUpEpochs2 < 10 * EPOCHS_IN_YEAR && lockUpEpochs2 > 5 * EPOCHS_IN_YEAR)

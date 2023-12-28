@@ -10,7 +10,10 @@ import { PWNEpochClock } from "./PWNEpochClock.sol";
 contract StakedPWN is Ownable2Step, ERC721 {
 
     // # INVARIANTS
-    // - TODO:
+    // - number of token ids in the last ownership change epoch is always equal to address balance
+    // - no address can have ownership change with epoch > current epoch + 1
+    // - mint will add id to the current epoch + 1
+    // - burn will remove id from the current epoch + 1
 
     /*----------------------------------------------------------*|
     |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
@@ -21,13 +24,13 @@ contract StakedPWN is Ownable2Step, ERC721 {
 
     bool public transfersEnabled;
 
-    struct OwnershipChange {
+    struct OwnedTokensInEpoch {
         uint16 epoch;
-        // ids are incremented by 1
+        // stake ids are incremented by 1
         // if 1000 new ids are added every second, it will take 8878 years to overflow
         uint48[] ids;
     }
-    mapping(address => OwnershipChange[]) internal _ownershipChanges;
+    mapping(address => OwnedTokensInEpoch[]) internal _ownedTokensInEpochs;
 
 
     /*----------------------------------------------------------*|
@@ -58,7 +61,7 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*----------------------------------------------------------*/
 
     function mint(address to, uint256 tokenId) external onlySupplyManager {
-        _safeMint(to, tokenId);
+        _mint(to, tokenId);
     }
 
     function burn(uint256 tokenId) external onlySupplyManager {
@@ -82,30 +85,30 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*  # TOKEN OWNERSHIP                                       *|
     |*----------------------------------------------------------*/
 
-    function ownershipChanges(address owner) external view returns (OwnershipChange[] memory) {
-        return _ownershipChanges[owner];
+    function ownedTokensInEpochs(address owner) external view returns (OwnedTokensInEpoch[] memory) {
+        return _ownedTokensInEpochs[owner];
     }
 
     function ownedTokenIdsAt(address owner, uint16 epoch) external view returns (uint256[] memory) {
-        OwnershipChange[] storage changes = _ownershipChanges[owner];
-        if (changes.length == 0) {
+        OwnedTokensInEpoch[] storage ownedTokenIds = _ownedTokensInEpochs[owner];
+        if (ownedTokenIds.length == 0) {
             return new uint256[](0);
         }
-        if (changes[0].epoch > epoch) {
+        if (ownedTokenIds[0].epoch > epoch) {
             return new uint256[](0);
         }
 
         // find ownership change epoch
-        uint256 changeIndex = changes.length - 1;
-        while (changes[changeIndex].epoch > epoch) {
+        uint256 changeIndex = ownedTokenIds.length - 1;
+        while (ownedTokenIds[changeIndex].epoch > epoch) {
             changeIndex--;
         }
 
         // collect ids as uint256
-        uint256 length = changes[changeIndex].ids.length;
+        uint256 length = ownedTokenIds[changeIndex].ids.length;
         uint256[] memory ids = new uint256[](length);
         for (uint256 i; i < length;) {
-            ids[i] = changes[changeIndex].ids[i];
+            ids[i] = ownedTokenIds[changeIndex].ids[i];
             unchecked { ++i; }
         }
 
@@ -127,60 +130,54 @@ contract StakedPWN is Ownable2Step, ERC721 {
 
         uint16 epoch = epochClock.currentEpoch() + 1;
         if (to != address(0)) {
-            _addIdToList(to, firstTokenId, epoch);
+            _addIdToOwner(to, firstTokenId, epoch);
         }
         if (from != address(0)) {
-            _removeIdFromList(from, firstTokenId, epoch);
+            _removeIdFromOwner(from, firstTokenId, epoch);
         }
     }
 
-    function _addIdToList(address owner, uint256 tokenId, uint16 epoch) internal {
-        OwnershipChange[] storage changes = _ownershipChanges[owner];
-        if (changes.length == 0) {
-            OwnershipChange storage change = changes.push();
-            change.epoch = epoch;
-            change.ids.push(uint48(tokenId));
-            return;
-        }
+    function _addIdToOwner(address owner, uint256 tokenId, uint16 epoch) internal {
+        OwnedTokensInEpoch[] storage ownedTokenIdsList = _ownedTokensInEpochs[owner];
+        OwnedTokensInEpoch storage ownedTokenIds;
 
-        OwnershipChange storage lastChange = changes[changes.length - 1];
-        if (lastChange.epoch == epoch) {
-            lastChange.ids.push(uint48(tokenId));
+        if (ownedTokenIdsList.length == 0) {
+            ownedTokenIds = ownedTokenIdsList.push();
+            ownedTokenIds.epoch = epoch;
         } else {
-            OwnershipChange storage change = changes.push();
-            change.epoch = epoch;
-            change.ids = lastChange.ids;
-            change.ids.push(uint48(tokenId));
-        }
-    }
-
-    function _removeIdFromList(address owner, uint256 tokenId, uint16 epoch) private {
-        OwnershipChange[] storage changes = _ownershipChanges[owner];
-        OwnershipChange storage lastChange = changes[changes.length - 1];
-        uint256 idIndex = _findIdInList(lastChange.ids, tokenId);
-
-        if (lastChange.epoch == epoch) {
-            lastChange.ids[idIndex] = lastChange.ids[lastChange.ids.length - 1];
-            lastChange.ids.pop();
-        } else {
-            OwnershipChange storage change = changes.push();
-            change.epoch = epoch;
-            for (uint256 i; i < lastChange.ids.length;) {
-                if (i == idIndex) {
-                    unchecked { ++i; }
-                    continue;
-                }
-                change.ids.push(lastChange.ids[i]);
-                unchecked { ++i; }
+            OwnedTokensInEpoch storage lastOwnedTokenIds = ownedTokenIdsList[ownedTokenIdsList.length - 1];
+            if (lastOwnedTokenIds.epoch == epoch) {
+                ownedTokenIds = lastOwnedTokenIds;
+            } else {
+                ownedTokenIds = ownedTokenIdsList.push();
+                ownedTokenIds.epoch = epoch;
+                ownedTokenIds.ids = lastOwnedTokenIds.ids;
             }
         }
+        ownedTokenIds.ids.push(uint48(tokenId));
     }
 
-    function _findIdInList(uint48[] storage ids, uint256 tokenId) internal view returns (uint256 index) {
+    function _removeIdFromOwner(address owner, uint256 tokenId, uint16 epoch) internal {
+        OwnedTokensInEpoch[] storage ownedTokenIdsList = _ownedTokensInEpochs[owner];
+        OwnedTokensInEpoch storage lastOwnedTokenIds = ownedTokenIdsList[ownedTokenIdsList.length - 1];
+
+        if (lastOwnedTokenIds.epoch == epoch) {
+            _removeIdFromList(lastOwnedTokenIds.ids, tokenId);
+        } else {
+            OwnedTokensInEpoch storage ownedTokenIds = ownedTokenIdsList.push();
+            ownedTokenIds.epoch = epoch;
+            ownedTokenIds.ids = lastOwnedTokenIds.ids;
+            _removeIdFromList(ownedTokenIds.ids, tokenId);
+        }
+    }
+
+    function _removeIdFromList(uint48[] storage ids, uint256 tokenId) private {
         uint256 length = ids.length;
         for (uint256 i; i < length;) {
             if (ids[i] == tokenId) {
-                return i;
+                ids[i] = ids[length - 1];
+                ids.pop();
+                return;
             }
             unchecked { ++i; }
         }
