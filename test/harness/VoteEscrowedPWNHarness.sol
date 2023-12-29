@@ -14,30 +14,15 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
         return _epochsToNextPowerChange(remainingLockup);
     }
 
-    function exposed_updateEpochPowerChange(address staker, uint16 epoch, uint256 lowEpochIndex, int104 power)
-        external
-        returns (uint256 epochIndex)
-    {
-        return _updateEpochPowerChange(staker, epoch, lowEpochIndex, power);
+    function exposed_power(int104 amount, uint8 remainingLockup) external pure returns (int104) {
+        return _power(amount, remainingLockup);
     }
 
-    function exposed_initialPower(int104 amount, uint8 remainingLockup) external pure returns (int104) {
-        return _initialPower(amount, remainingLockup);
-    }
-
-    function exposed_decreasePower(int104 amount, uint8 remainingLockup) external pure returns (int104) {
-        return _decreasePower(amount, remainingLockup);
+    function exposed_powerDecrease(int104 amount, uint8 remainingLockup) external pure returns (int104) {
+        return _powerDecrease(amount, remainingLockup);
     }
 
     // workaround
-
-    function workaround_getStakerEpochPower(address staker, uint256 epoch) external view returns (int104) {
-        return _stakerPowerNamespace(staker).getEpochPower(epoch);
-    }
-
-    function workaround_storeStakerEpochPower(address staker, uint256 epoch, int104 power) external {
-        _stakerPowerNamespace(staker).updateEpochPower(epoch, power);
-    }
 
     function workaround_getTotalEpochPower(uint256 epoch) external view returns (int104) {
         return _totalPowerNamespace().getEpochPower(epoch);
@@ -45,10 +30,6 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
 
     function workaround_storeTotalEpochPower(uint256 epoch, int104 power) external {
         _totalPowerNamespace().updateEpochPower(epoch, power);
-    }
-
-    function workaround_stakerPowerChangeEpochsLength(address staker) external view returns (uint256) {
-        return _powerChangeEpochs[staker].length;
     }
 
 

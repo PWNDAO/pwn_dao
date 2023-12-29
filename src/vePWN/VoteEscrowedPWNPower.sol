@@ -21,18 +21,24 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     |*  # STAKER POWER                                          *|
     |*----------------------------------------------------------*/
 
+    function stakerPowers(address staker, uint256[] calldata epochs) external view returns (uint256[] memory) {
+        uint256[] memory powers = new uint256[](epochs.length);
+        for (uint256 i; i < epochs.length;) {
+            powers[i] = stakerPowerAt({
+                staker: staker,
+                epoch: epochs[i]
+            });
+            unchecked { ++i; }
+        }
+        return powers;
+    }
+
     /// @notice Returns staker power for given epoch.
     /// @param staker Staker address.
     /// @param epoch Epoch number.
     /// @return Staker power.
     function stakerPowerAt(address staker, uint256 epoch) override virtual public view returns (uint256) {
         uint16 _epoch = SafeCast.toUint16(epoch);
-
-        // nobody can have any power before epoch 1
-        if (_epoch == 0) {
-            return 0;
-        }
-
         uint256[] memory stakeIds = stakedPWN.ownedTokenIdsAt(staker, _epoch);
         uint256 stakesLength = stakeIds.length;
         int104 power;
@@ -50,7 +56,6 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     }
 
     function _stakePowerAt(Stake memory stake, uint16 epoch) internal pure returns (int104) {
-        require(stake.initialEpoch <= epoch, "cannot be");
         if (stake.initialEpoch > epoch) {
             return 0; // not staked yet
         }
@@ -63,19 +68,19 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
         });
     }
 
-    function stakerPowers(address staker, uint256[] calldata epochs) external view returns (uint256[] memory) {
-        uint256[] memory powers = new uint256[](epochs.length);
-        for (uint256 i; i < epochs.length;) {
-            powers[i] = stakerPowerAt(staker, epochs[i]);
-            unchecked { ++i; }
-        }
-        return powers;
-    }
-
 
     /*----------------------------------------------------------*|
     |*  # TOTAL POWER                                           *|
     |*----------------------------------------------------------*/
+
+    function totalPowers(uint256[] calldata epochs) external view returns (uint256[] memory) {
+        uint256[] memory powers = new uint256[](epochs.length);
+        for (uint256 i; i < epochs.length;) {
+            powers[i] = totalPowerAt(epochs[i]);
+            unchecked { ++i; }
+        }
+        return powers;
+    }
 
     function totalPowerAt(uint256 epoch) override virtual public view returns (uint256) {
         if (lastCalculatedTotalPowerEpoch >= epoch) {
@@ -90,15 +95,6 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
         }
 
         return SafeCast.toUint256(int256(totalPower));
-    }
-
-    function totalPowers(uint256[] calldata epochs) external view returns (uint256[] memory) {
-        uint256[] memory powers = new uint256[](epochs.length);
-        for (uint256 i; i < epochs.length;) {
-            powers[i] = totalPowerAt(epochs[i]);
-            unchecked { ++i; }
-        }
-        return powers;
     }
 
     function calculateTotalPower() external {
