@@ -311,7 +311,8 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
     /// @dev Deletes a stake and burns stPWN token.
     function _deleteStake(uint256 stakeId) internal {
-        delete stakes[stakeId];
+        // need to persist stake data for historical power calculations
+        // only burn StakedPWN token
         stakedPWN.burn(stakeId);
     }
 

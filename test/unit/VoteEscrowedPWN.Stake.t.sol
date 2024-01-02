@@ -204,14 +204,14 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
         assertEq(stakeValue.maskUint104(16 + 8), splitAmount); // amount
     }
 
-    function test_shouldDeleteOriginalStake() external {
+    function test_shouldNotDeleteOriginalStake() external {
         vm.prank(staker);
         vePWN.splitStake(stakeId, amount / 4);
 
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId));
-        assertEq(stakeValue.maskUint16(0), 0); // initialEpoch
-        assertEq(stakeValue.maskUint8(16), 0); // remainingLockup
-        assertEq(stakeValue.maskUint104(16 + 8), 0); // amount
+        assertEq(stakeValue.maskUint16(0), initialEpoch); // initialEpoch
+        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // remainingLockup
+        assertEq(stakeValue.maskUint104(16 + 8), amount); // amount
     }
 
     function test_shouldEmit_StakeSplit() external {
@@ -434,7 +434,24 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         _assertTotalPowerChangesSumToZero(mergedPowerChanges[mergedPowerChanges.length - 1].epoch);
     }
 
-    function test_shouldDeleteOriginalStakes() external {
+    function test_shouldNotDeleteOriginalStakes() external {
+        _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount);
+        _mockStake(staker, stakeId2, initialEpoch, remainingLockup, amount);
+
+        vm.prank(staker);
+        vePWN.mergeStakes(stakeId1, stakeId2);
+
+        bytes32 stakeValue1 = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId1));
+        assertEq(stakeValue1.maskUint16(0), initialEpoch); // initialEpoch
+        assertEq(stakeValue1.maskUint8(16), remainingLockup); // remainingLockup
+        assertEq(stakeValue1.maskUint104(16 + 8), amount); // amount
+        bytes32 stakeValue2 = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId2));
+        assertEq(stakeValue2.maskUint16(0), initialEpoch); // initialEpoch
+        assertEq(stakeValue2.maskUint8(16), remainingLockup); // remainingLockup
+        assertEq(stakeValue2.maskUint104(16 + 8), amount); // amount
+    }
+
+    function test_shouldBurnOriginalStakedPWNTokens() external {
         _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount);
         _mockStake(staker, stakeId2, initialEpoch, remainingLockup, amount);
 
@@ -443,11 +460,6 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
 
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
-
-        bytes32 stakeValue1 = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId1));
-        assertEq(stakeValue1, bytes32(0));
-        bytes32 stakeValue2 = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId2));
-        assertEq(stakeValue2, bytes32(0));
     }
 
     function testFuzz_shouldCreateNewStake(uint256 _remainingLockup, uint256 _amount1, uint256 _amount2) external {
@@ -701,14 +713,16 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         assertEq(stakeValue.maskUint104(16 + 8), amount + additionalAmount); // amount
     }
 
-    function test_shouldDeleteOldStakeData() external {
+    function test_shouldNotDeleteStakeData() external {
         _mockStake(staker, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
 
         vm.prank(staker);
         vePWN.increaseStake(stakeId, additionalAmount, additionalEpochs);
 
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId));
-        assertEq(stakeValue, bytes32(0));
+        assertEq(stakeValue.maskUint16(0), initialEpoch); // initialEpoch
+        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // remainingLockup
+        assertEq(stakeValue.maskUint104(16 + 8), uint104(amount)); // amount
     }
 
     function test_shouldEmit_StakeIncreased() external {
@@ -834,14 +848,14 @@ contract VoteEscrowedPWN_Stake_WithdrawStake_Test is VoteEscrowedPWN_Stake_Test 
         vePWN.withdrawStake(runningStakeId);
     }
 
-    function test_shouldDeleteStakeData() external {
+    function test_shouldNotDeleteStakeData() external {
         vm.prank(staker);
         vePWN.withdrawStake(stakeId);
 
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId));
-        assertEq(stakeValue.maskUint16(0), 0); // initialEpoch
-        assertEq(stakeValue.maskUint8(16), 0); // remainingLockup
-        assertEq(stakeValue.maskUint104(16 + 8), 0); // amount
+        assertEq(stakeValue.maskUint16(0), initialEpoch); // initialEpoch
+        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // remainingLockup
+        assertEq(stakeValue.maskUint104(16 + 8), amount); // amount
     }
 
     function test_shouldEmit_StakeWithdrawn() external {
