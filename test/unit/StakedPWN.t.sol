@@ -407,9 +407,10 @@ contract StakedPWN_Transfer_Test is StakedPWN_Test {
         stakedPWN.transferFrom(from, to, tokenId);
     }
 
-    function testFuzz_shouldUpdateOwnedTokens_whenSameEpoch(
+    function testFuzz_shouldUpdateOwnedTokens_whenSameEpoch_whenDifferentSenderAndReceiver(
         address from, address to, uint256 seed, uint256 tokenId
     ) external checkAddress(from) checkAddress(to) {
+        vm.assume(from != to);
         uint256 length = bound(seed, 1, 10);
         for (uint256 i; i < length; ++i) {
             _mockToken(from, i + 1, currentEpoch + 1, i + 1);
@@ -432,9 +433,35 @@ contract StakedPWN_Transfer_Test is StakedPWN_Test {
         assertEq(toOwnedTokens[0], tokenId);
     }
 
-    function testFuzz_shouldUpdateOwnedTokens_whenNotSameEpoch(
+    function testFuzz_shouldUpdateOwnedTokens_whenSameEpoch_whenSameSenderAndReceiver(
+        address sender, uint256 seed, uint256 tokenId
+    ) external checkAddress(sender) {
+        uint256 length = bound(seed, 1, 10);
+        for (uint256 i; i < length; ++i) {
+            _mockToken(sender, i + 1, currentEpoch + 1, i + 1);
+        }
+        tokenId = bound(tokenId, 1, length);
+
+        vm.prank(sender);
+        stakedPWN.transferFrom(sender, sender, tokenId);
+
+        uint256[] memory fromOwnedTokens = stakedPWN.ownedTokenIdsAt(sender, currentEpoch + 1);
+        assertEq(fromOwnedTokens.length, length);
+        assertEq(fromOwnedTokens.length, stakedPWN.balanceOf(sender));
+        // check that all ids are included
+        for (uint256 i; i < length; ++i) {
+            uint256 j;
+            while (fromOwnedTokens[j] != i + 1) {
+                if (j >= length) { assert(false); }
+                ++j;
+            }
+        }
+    }
+
+    function testFuzz_shouldUpdateOwnedTokens_whenDifferentEpoch_whenDifferentSenderAndReceiver(
         address from, address to, uint256 seed, uint256 tokenId, uint256 epoch
     ) external checkAddress(from) checkAddress(to) {
+        vm.assume(from != to);
         uint16 _epoch = uint16(bound(epoch, 1, currentEpoch));
         uint256 length = bound(seed, 1, 10);
         for (uint256 i; i < length; ++i) {
@@ -465,6 +492,38 @@ contract StakedPWN_Transfer_Test is StakedPWN_Test {
 
         uint256[] memory toOriginalOwnedTokens = stakedPWN.ownedTokenIdsAt(to, _epoch);
         assertEq(toOriginalOwnedTokens.length, 0);
+    }
+
+    function testFuzz_shouldUpdateOwnedTokens_whenDifferentEpoch_whenSameSenderAndReceiver(
+        address sender, uint256 seed, uint256 tokenId, uint256 epoch
+    ) external checkAddress(sender) {
+        uint16 _epoch = uint16(bound(epoch, 1, currentEpoch));
+        uint256 length = bound(seed, 1, 10);
+        for (uint256 i; i < length; ++i) {
+            _mockToken(sender, i + 1, _epoch, i + 1);
+        }
+        tokenId = bound(tokenId, 1, length);
+
+        vm.prank(sender);
+        stakedPWN.transferFrom(sender, sender, tokenId);
+
+        uint256[] memory senderUpdatedOwnedTokens = stakedPWN.ownedTokenIdsAt(sender, currentEpoch + 1);
+        assertEq(senderUpdatedOwnedTokens.length, length);
+        assertEq(senderUpdatedOwnedTokens.length, stakedPWN.balanceOf(sender));
+        // check that all ids are included
+        for (uint256 i; i < length; ++i) {
+            uint256 j;
+            while (senderUpdatedOwnedTokens[j] != i + 1) {
+                if (j >= length) { assert(false); }
+                ++j;
+            }
+        }
+
+        uint256[] memory senderOriginalOwnedTokens = stakedPWN.ownedTokenIdsAt(sender, _epoch);
+        assertEq(senderOriginalOwnedTokens.length, length);
+        for (uint256 i; i < senderOriginalOwnedTokens.length; ++i) {
+            assertEq(senderOriginalOwnedTokens[i], i + 1);
+        }
     }
 
 }

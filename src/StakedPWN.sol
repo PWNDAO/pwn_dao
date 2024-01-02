@@ -129,11 +129,11 @@ contract StakedPWN is Ownable2Step, ERC721 {
         }
 
         uint16 epoch = epochClock.currentEpoch() + 1;
-        if (to != address(0)) {
-            _addIdToOwner(to, firstTokenId, epoch);
-        }
         if (from != address(0)) {
             _removeIdFromOwner(from, firstTokenId, epoch);
+        }
+        if (to != address(0)) {
+            _addIdToOwner(to, firstTokenId, epoch);
         }
     }
 
