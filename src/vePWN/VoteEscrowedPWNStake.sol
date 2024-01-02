@@ -234,15 +234,15 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint104 newAmount = oldAmount + uint104(additionalAmount); // safe cast
 
         { // avoid stack too deep
-            bool additionOnly = additionalEpochs == 0;
+            bool amountAdditionOnly = additionalEpochs == 0;
 
             // clear old power changes if adding epochs
-            if (!additionOnly && newRemainingLockup > additionalEpochs) {
+            if (!amountAdditionOnly && newRemainingLockup > additionalEpochs) {
                 _updateTotalPower(oldAmount, newInitialEpoch, newRemainingLockup - uint8(additionalEpochs), false);
             }
 
             // store new power changes
-            uint104 amount = additionOnly ? uint104(additionalAmount) : newAmount;
+            uint104 amount = amountAdditionOnly ? uint104(additionalAmount) : newAmount;
             _updateTotalPower(amount, newInitialEpoch, newRemainingLockup, true);
         }
 

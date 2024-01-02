@@ -53,23 +53,26 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
         int104 powerChange;
     }
 
-    function _createPowerChangesArray(
-        uint256 _lockUpEpochs, uint256 _amount
-    ) internal returns (TestPowerChangeEpoch[] memory) {
+    function _createPowerChangesArray(uint256 _lockUpEpochs, uint256 _amount)
+        internal
+        returns (TestPowerChangeEpoch[] memory)
+    {
         return _createPowerChangesArray(uint16(currentEpoch + 1), _lockUpEpochs, _amount);
     }
 
-    function _createPowerChangesArray(
-        uint16 _initialEpoch, uint256 _lockUpEpochs, uint256 _amount
-    ) internal returns (TestPowerChangeEpoch[] memory) {
+    function _createPowerChangesArray(uint16 _initialEpoch, uint256 _lockUpEpochs, uint256 _amount)
+        internal
+        returns (TestPowerChangeEpoch[] memory)
+    {
         return _createPowerChangesArray(_initialEpoch, type(uint16).max, _lockUpEpochs, _amount);
     }
 
     // solhint-disable-next-line var-name-mixedcase
     TestPowerChangeEpoch[] private helper_powerChanges;
-    function _createPowerChangesArray(
-        uint16 _initialEpoch, uint16 _finalEpoch, uint256 _lockUpEpochs, uint256 _amount
-    ) internal returns (TestPowerChangeEpoch[] memory) {
+    function _createPowerChangesArray(uint16 _initialEpoch, uint16 _finalEpoch, uint256 _lockUpEpochs, uint256 _amount)
+        internal
+        returns (TestPowerChangeEpoch[] memory)
+    {
         if (_initialEpoch >= _finalEpoch) {
             return new TestPowerChangeEpoch[](0);
         }
@@ -145,7 +148,7 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
 
     function _mockStake(
         address _staker, uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount
-    ) internal {
+    ) internal returns (TestPowerChangeEpoch[] memory powerChanges) {
         vm.mockCall(
             address(stakedPWN),
             abi.encodeWithSignature("ownerOf(uint256)", _stakeId),
@@ -158,13 +161,13 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
             abi.encodeWithSignature("ownedTokenIdsAt(address,uint16)", _staker, _initialEpoch),
             abi.encode(helper_ownedTokenIdsAt[_initialEpoch])
         );
+        powerChanges = _createPowerChangesArray(_initialEpoch, _remainingLockup, _amount);
+        _storeTotalPowerChanges(powerChanges);
     }
 
     function _storeStake(uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount) internal {
         bytes memory rawStakeData = abi.encodePacked(uint128(0), _amount, _remainingLockup, _initialEpoch);
-        vm.store(
-            address(vePWN), STAKES_SLOT.withMappingKey(_stakeId), abi.decode(rawStakeData, (bytes32))
-        );
+        vm.store(address(vePWN), STAKES_SLOT.withMappingKey(_stakeId), abi.decode(rawStakeData, (bytes32)));
     }
 
     // bound
