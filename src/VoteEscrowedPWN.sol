@@ -8,24 +8,10 @@ import { VoteEscrowedPWNBase } from "./vePWN/VoteEscrowedPWNBase.sol";
 import { VoteEscrowedPWNStake } from "./vePWN/VoteEscrowedPWNStake.sol";
 import { VoteEscrowedPWNPower } from "./vePWN/VoteEscrowedPWNPower.sol";
 
+/// @title VoteEscrowedPWN
+/// @notice VoteEscrowedPWN is a contract for voting with PWN tokens.
+/// @dev VoteEscrowedPWN is a contract for gaining voting power with PWN tokens.
 contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower {
-
-    // # INVARIANTS
-    // - stakes for past & current epochs are immutable
-    // - sum of all stakers power == total power
-    // - sum of all address power changes == 0
-    // - total power for epoch is up-to-date only if `lastCalculatedTotalPowerEpoch` >= epoch
-    // - calculated total power cannot be negative
-    // - any `initialEpoch` cannot be equal to 0 & greater than current epoch + 1
-    // - stakes `remainingLockup` is always > 0
-    // - every stake has exactly one `stPWN` token
-
-    // max stake ≈ 7e28 < max int104 (1e31)
-    //  - total initial supply with decimals (1e26)
-    //  - max multiplier with decimals (350)
-    //  - 350 max inflation claims (2)
-    // epoch number for the next 5.4k years < max uint16 (65535)
-    // max epoch lock up number 130 < max uint8 (255)
 
     /*----------------------------------------------------------*|
     |*  # CONSTRUCTOR                                           *|
@@ -36,6 +22,12 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower {
         // Is used as a proxy. Use initializer to setup initial properties.
     }
 
+    /// @notice Initializes the contract.
+    /// @dev Can be called only once.
+    /// @param _pwnToken The address of the PWN token.
+    /// @param _stakedPWN The address of the staked PWN contract.
+    /// @param _epochClock The address of the epoch clock contract.
+    /// @param _owner The address of the owner. Should be PWN DAO.
     function initialize(
         address _pwnToken,
         address _stakedPWN,
@@ -50,6 +42,7 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower {
 
     // The following functions are overrides required by Solidity.
 
+    /// @inheritdoc VoteEscrowedPWNBase
     function stakerPowerAt(address staker, uint256 epoch)
         public
         view
@@ -60,6 +53,7 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower {
         return super.stakerPowerAt(staker, epoch);
     }
 
+    /// @inheritdoc VoteEscrowedPWNBase
     function totalPowerAt(uint256 epoch)
         public
         view

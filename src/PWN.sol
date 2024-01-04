@@ -8,30 +8,37 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IVotingContract } from "./interfaces/IVotingContract.sol";
 import { Error } from "./lib/Error.sol";
 
+/// @title PWN token contract.
+/// @notice The token is the main governance token of the PWN DAO and is used
+/// as a reward for voting in proposals.
+/// @dev This contract is Ownable2Step, which means that the ownership transfer
+/// must be accepted by the new owner.
+/// The token is mintable and burnable by the owner.
 contract PWN is Ownable2Step, ERC20 {
-
-    // # INVARIANTS
-    // - owner can mint max `MINTABLE_TOTAL_SUPPLY` regardless of a burned amount
-    // - after reaching the `IMMUTABLE_PERIOD`, token can be inflated by `MAX_INFLATION_RATE`
-    // - voting reward per proposal can be assigned only once
-    // - voting reward can be claimed only once per proposal per voter
 
     /*----------------------------------------------------------*|
     |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
     |*----------------------------------------------------------*/
 
+    /// @notice The total supply of the token that can be minted by the owner.
     uint256 public constant MINTABLE_TOTAL_SUPPLY = 100_000_000e18;
-    uint256 public constant MAX_INFLATION_RATE = 20; // max inflation rate (2 decimals) after immutable period
+    /// @notice The maximum inflation rate (with 2 decimals) after the immutable period.
+    uint256 public constant MAX_INFLATION_RATE = 20; // 0.2%
+    /// @notice The denominator for the inflation rate.
     uint256 public constant INFLATION_DENOMINATOR = 10000; // 2 decimals
+    /// @notice The immutable period (in epochs) after which voting rewards can be set.
     uint256 public constant IMMUTABLE_PERIOD = 26; // ~2 years
 
-    /// Amount of tokens already minted by the owner
+    /// @notice Amount of tokens already minted by the owner.
     uint256 public mintedSupply;
 
+    /// The reward for voting in a proposal.
     struct VotingReward {
         uint256 reward;
         mapping(address voter => bool claimed) claimed;
     }
+    /// @notice The reward for voting in a proposal.
+    /// @dev The voters reward is proportional to the amount of votes the voter had in the snapshot epoch.
     mapping(address votingContract => mapping(uint256 proposalId => VotingReward reward)) public votingRewards;
 
 
@@ -39,9 +46,26 @@ contract PWN is Ownable2Step, ERC20 {
     |*  # EVENTS                                                *|
     |*----------------------------------------------------------*/
 
-    event VotingRewardAssigned(address indexed votingContract, uint256 indexed proposalId, uint256 reward);
+    /// @notice Emitted when the owner assigns a reward to a voting proposal.
+    /// @param votingContract The voting contract address.
+    /// @param proposalId The proposal id.
+    /// @param reward The reward amount.
+    event VotingRewardAssigned(
+        address indexed votingContract,
+        uint256 indexed proposalId,
+        uint256 reward
+    );
+
+    /// @notice Emitted when a voter claims his reward for voting in a proposal.
+    /// @param votingContract The voting contract address.
+    /// @param proposalId The proposal id.
+    /// @param voter The voter address.
+    /// @param reward The voters reward amount.
     event VotingRewardClaimed(
-        address indexed votingContract, uint256 indexed proposalId, address indexed voter, uint256 reward
+        address indexed votingContract,
+        uint256 indexed proposalId,
+        address indexed voter,
+        uint256 reward
     );
 
 
@@ -49,6 +73,9 @@ contract PWN is Ownable2Step, ERC20 {
     |*  # CONSTRUCTOR                                           *|
     |*----------------------------------------------------------*/
 
+    /// @notice PWN token constructor.
+    /// @dev The owner must be the PWN DAO.
+    /// @param _owner The owner address.
     constructor(address _owner) ERC20("PWN DAO", "PWN") {
         _transferOwnership(_owner);
     }
@@ -58,6 +85,10 @@ contract PWN is Ownable2Step, ERC20 {
     |*  # MANAGE SUPPLY                                         *|
     |*----------------------------------------------------------*/
 
+    /// @notice Mints new tokens.
+    /// @dev The owner can mint tokens only until the `MINTABLE_TOTAL_SUPPLY` is reached.
+    /// Newly minted tokens are automatically assigned to the caller.
+    /// @param amount The amount of tokens to mint.
     function mint(uint256 amount) external onlyOwner {
         if (mintedSupply + amount > MINTABLE_TOTAL_SUPPLY) {
             revert Error.MintableSupplyExceeded();
@@ -68,6 +99,10 @@ contract PWN is Ownable2Step, ERC20 {
         _mint(msg.sender, amount);
     }
 
+    /// @notice Burns tokens.
+    /// @dev Only the owner can burn tokens.
+    /// It doens't increase the number of tokens that can be minted by the owner.
+    /// @param amount The amount of tokens to burn.
     function burn(uint256 amount) external onlyOwner {
         _burn(msg.sender, amount);
     }
@@ -77,10 +112,15 @@ contract PWN is Ownable2Step, ERC20 {
     |*  # VOTING REWARDS                                        *|
     |*----------------------------------------------------------*/
 
-    // can be assigned only once
-    function assignVotingReward(
-        IVotingContract votingContract, uint256 proposalId, uint256 reward
-    ) external onlyOwner {
+    /// @notice Assigns a reward to a voting proposal.
+    /// @dev The reward can be assigned only by the owner after the immutable period.
+    /// @param votingContract The voting contract address.
+    /// @param proposalId The proposal id.
+    /// @param reward The reward amount that cannot be higher than the maximum inflation rate.
+    function assignVotingReward(IVotingContract votingContract, uint256 proposalId, uint256 reward)
+        external
+        onlyOwner
+    {
         if (address(votingContract) == address(0)) {
             revert Error.ZeroVotingContract();
         }
@@ -109,6 +149,11 @@ contract PWN is Ownable2Step, ERC20 {
         emit VotingRewardAssigned(address(votingContract), proposalId, reward);
     }
 
+    /// @notice Claims the reward for voting in a proposal.
+    /// @dev The reward can be claimed only if the proposal has been executed and the caller has voted.
+    /// It doesn't matter if the caller voted yes, no or abstained.
+    /// @param votingContract The voting contract address.
+    /// @param proposalId The proposal id.
     function claimVotingReward(IVotingContract votingContract, uint256 proposalId) external {
         address voter = msg.sender;
         if (address(votingContract) == address(0)) {

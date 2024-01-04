@@ -25,11 +25,11 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
     // workaround
 
     function workaround_getTotalEpochPower(uint256 epoch) external view returns (int104) {
-        return _totalPowerNamespace().getEpochPower(epoch);
+        return TOTAL_POWER_NAMESPACE.getEpochPower(epoch);
     }
 
     function workaround_storeTotalEpochPower(uint256 epoch, int104 power) external {
-        _totalPowerNamespace().updateEpochPower(epoch, power);
+        TOTAL_POWER_NAMESPACE.updateEpochPower(epoch, power);
     }
 
 
