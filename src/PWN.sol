@@ -23,7 +23,7 @@ contract PWN is Ownable2Step, ERC20 {
     uint256 public constant MINTABLE_TOTAL_SUPPLY = 100_000_000e18;
     uint256 public constant MAX_INFLATION_RATE = 20; // max inflation rate (2 decimals) after immutable period
     uint256 public constant INFLATION_DENOMINATOR = 10000; // 2 decimals
-    uint256 public constant IMMUTABLE_PERIOD = 65; // ~5 years in epochs
+    uint256 public constant IMMUTABLE_PERIOD = 26; // ~2 years
 
     /// Amount of tokens already minted by the owner
     uint256 public mintedSupply;

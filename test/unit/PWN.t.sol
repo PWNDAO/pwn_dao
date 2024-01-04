@@ -85,7 +85,7 @@ contract PWN_Constants_Test is PWN_Test {
         assertEq(pwnToken.decimals(), 18);
         assertEq(pwnToken.MINTABLE_TOTAL_SUPPLY(), 100_000_000e18);
         assertEq(pwnToken.MAX_INFLATION_RATE(), 20);
-        assertEq(pwnToken.IMMUTABLE_PERIOD(), 65);
+        assertEq(pwnToken.IMMUTABLE_PERIOD(), 26);
     }
 
 }
