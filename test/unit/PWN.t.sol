@@ -141,15 +141,6 @@ contract PWN_Mint_Test is PWN_Test {
 
 contract PWN_Burn_Test is PWN_Test {
 
-    function testFuzz_shouldFail_whenCallerNotOwner(address caller) external {
-        vm.assume(caller != owner);
-        deal(address(pwnToken), caller, 100 ether);
-
-        vm.expectRevert("Ownable: caller is not the owner");
-        vm.prank(caller);
-        pwnToken.burn(100 ether);
-    }
-
     function testFuzz_shouldBurnCallersTokens(uint256 originalAmount, uint256 burnAmount) external {
         originalAmount = bound(originalAmount, 1, type(uint256).max);
         burnAmount = bound(burnAmount, 0, originalAmount);

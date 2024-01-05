@@ -100,10 +100,9 @@ contract PWN is Ownable2Step, ERC20 {
     }
 
     /// @notice Burns tokens.
-    /// @dev Only the owner can burn tokens.
     /// It doens't increase the number of tokens that can be minted by the owner.
     /// @param amount The amount of tokens to burn.
-    function burn(uint256 amount) external onlyOwner {
+    function burn(uint256 amount) external {
         _burn(msg.sender, amount);
     }
 
