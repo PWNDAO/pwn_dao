@@ -37,7 +37,7 @@ abstract contract Integration_Test is Base_Test {
     /// - the staker address has 1,000 PWN tokens
     /// - the dao address owns the PWN contract
     /// - the dao is admin of the vePWN contract
-    function setUp() external {
+    function setUp() public virtual {
         // deploy contracts
         epochClock = new PWNEpochClock(block.timestamp);
         pwnToken = new PWN(dao);
@@ -111,10 +111,10 @@ abstract contract Integration_Test is Base_Test {
 
 
 /*----------------------------------------------------------*|
-|*  # VOTE ESCROWED PWN                                     *|
+|*  # VOTE ESCROWED PWN - STAKE                             *|
 |*----------------------------------------------------------*/
 
-contract Integration_vePWN_Test is Integration_Test {
+contract Integration_vePWN_Stake_Test is Integration_Test {
 
     /// forge-config: default.fuzz.runs = 512
     function testFuzz_createStake(uint256 amount, uint256 lockUpEpochs) external {
@@ -224,9 +224,9 @@ contract Integration_vePWN_Test is Integration_Test {
     }
 
     /// forge-config: default.fuzz.runs = 512
-    function testFuzz_splitStake(
-        uint256 amount, uint256 splitAmount, uint256 lockUpEpochs, uint256 delaySplit
-    ) external {
+    function testFuzz_splitStake(uint256 amount, uint256 splitAmount, uint256 lockUpEpochs, uint256 delaySplit)
+        external
+    {
         (amount, lockUpEpochs) = _boundAmountAndLockUp(amount, lockUpEpochs);
         uint256 stakeId = _createStake(amount, lockUpEpochs);
         vm.assume(amount > 100);
@@ -243,6 +243,84 @@ contract Integration_vePWN_Test is Integration_Test {
         assertEq(stPWN.ownerOf(newStakeId2), staker);
         assertEq(pwnToken.balanceOf(staker), defaultFundAmount - amount);
         assertEq(pwnToken.balanceOf(address(vePWN)), amount);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # VOTE ESCROWED PWN - POWER                             *|
+|*----------------------------------------------------------*/
+
+contract Integration_vePWN_Power_Test is Integration_Test {
+
+    uint256 public defaultLockUpEpochs = 30;
+    uint256 public stakeId;
+
+    function setUp() public override {
+        super.setUp();
+
+        stakeId = _createStake(defaultFundAmount, defaultLockUpEpochs);
+    }
+
+
+    function test_pastAndCurrentPowerIsImmutable_whenSplit() external {
+        _warpEpochs(defaultLockUpEpochs / 2);
+
+        vm.prank(staker);
+        vePWN.splitStake({ stakeId: stakeId, splitAmount: defaultFundAmount / 4 });
+
+        uint16 currentEpoch = epochClock.currentEpoch();
+        for (uint256 i; i < defaultLockUpEpochs / 2; ++i) {
+            uint256 remainingLockup = defaultLockUpEpochs + 1 - defaultLockUpEpochs / 2 + i;
+            uint256 power = _powerFor(defaultFundAmount, remainingLockup);
+            assertEq(vePWN.stakerPowerAt(staker, currentEpoch - i), power);
+        }
+    }
+
+    function test_pastAndCurrentPowerIsImmutable_whenMerge() external {
+        _fundStaker(staker, defaultFundAmount);
+        uint256 stakeId2 = _createStake(defaultFundAmount, defaultLockUpEpochs);
+
+        _warpEpochs(defaultLockUpEpochs / 2);
+
+        vm.prank(staker);
+        vePWN.mergeStakes({ stakeId1: stakeId, stakeId2: stakeId2 });
+
+        uint16 currentEpoch = epochClock.currentEpoch();
+        for (uint256 i; i < defaultLockUpEpochs / 2; ++i) {
+            uint256 remainingLockup = defaultLockUpEpochs + 1 - defaultLockUpEpochs / 2 + i;
+            uint256 power = _powerFor(2 * defaultFundAmount, remainingLockup);
+            assertEq(vePWN.stakerPowerAt(staker, currentEpoch - i), power);
+        }
+    }
+
+    function test_pastAndCurrentPowerIsImmutable_whenIncrease() external {
+        _warpEpochs(defaultLockUpEpochs / 2);
+
+        vm.prank(staker);
+        vePWN.increaseStake({ stakeId: stakeId, additionalAmount: 0, additionalEpochs: 20 });
+
+        uint16 currentEpoch = epochClock.currentEpoch();
+        for (uint256 i; i < defaultLockUpEpochs / 2; ++i) {
+            uint256 remainingLockup = defaultLockUpEpochs + 1 - defaultLockUpEpochs / 2 + i;
+            uint256 power = _powerFor(defaultFundAmount, remainingLockup);
+            assertEq(vePWN.stakerPowerAt(staker, currentEpoch - i), power);
+        }
+    }
+
+    function test_pastAndCurrentPowerIsImmutable_whenWithdraw() external {
+        _warpEpochs(defaultLockUpEpochs + 1);
+
+        vm.prank(staker);
+        vePWN.withdrawStake(stakeId);
+
+        uint16 currentEpoch = epochClock.currentEpoch();
+        for (uint256 i; i < defaultLockUpEpochs; ++i) {
+            uint256 remainingLockup = i;
+            uint256 power = _powerFor(defaultFundAmount, remainingLockup);
+            assertEq(vePWN.stakerPowerAt(staker, currentEpoch - remainingLockup), power);
+        }
     }
 
 }
