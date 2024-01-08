@@ -161,4 +161,14 @@ abstract contract VoteEscrowedPWNBase is VoteEscrowedPWNStorage, IERC20Metadata,
         else return 0;
     }
 
+    /// @dev Compute the next power change epoch delta
+    function _epochsToNextPowerChange(uint8 remainingLockup) internal pure returns (uint8) {
+        if (remainingLockup > 5 * EPOCHS_IN_YEAR) {
+            return remainingLockup - (5 * EPOCHS_IN_YEAR);
+        } else {
+            uint8 nextPowerChangeEpochDelta = remainingLockup % EPOCHS_IN_YEAR;
+            return nextPowerChangeEpochDelta == 0 ? EPOCHS_IN_YEAR : nextPowerChangeEpochDelta;
+        }
+    }
+
 }

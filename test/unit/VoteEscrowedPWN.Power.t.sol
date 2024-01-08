@@ -4,6 +4,7 @@ pragma solidity 0.8.18;
 import { BitMaskLib } from "src/lib/BitMaskLib.sol";
 import { Error } from "src/lib/Error.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
+import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
 
 import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
 
@@ -50,6 +51,70 @@ abstract contract VoteEscrowedPWN_Power_Test is VoteEscrowedPWN_Test {
 
     function _mockLastCalculatedTotalPowerEpoch(uint256 epoch) internal {
         vm.store(address(vePWN), LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT, bytes32(epoch));
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # STAKE POWERS                                          *|
+|*----------------------------------------------------------*/
+
+contract VoteEscrowedPWN_Power_StakePowers_Test is VoteEscrowedPWN_Power_Test {
+
+    function test_shouldFail_whenInvalidAmount() external {
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
+        vePWN.stakePowers({ initialEpoch: currentEpoch, amount: 0, lockUpEpochs: EPOCHS_IN_YEAR });
+
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
+        vePWN.stakePowers({ initialEpoch: currentEpoch, amount: 99, lockUpEpochs: EPOCHS_IN_YEAR });
+
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
+        vePWN.stakePowers({
+            initialEpoch: currentEpoch, amount: uint256(type(uint88).max) + 1, lockUpEpochs: EPOCHS_IN_YEAR
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
+        vePWN.stakePowers({ initialEpoch: currentEpoch, amount: 101, lockUpEpochs: EPOCHS_IN_YEAR });
+    }
+
+    function test_shouldFail_whenInvalidLockUpEpochs() external {
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
+        vePWN.stakePowers({ initialEpoch: currentEpoch, amount: 100, lockUpEpochs: 0 });
+
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
+        vePWN.stakePowers({ initialEpoch: currentEpoch, amount: 100, lockUpEpochs: 10 * EPOCHS_IN_YEAR + 1 });
+    }
+
+    function testFuzz_shouldReturnCorrectEpochPowers(uint256 initialEpoch, uint256 amount, uint256 lockUpEpochs)
+        external
+    {
+        uint16 _initialEpoch = uint16(bound(initialEpoch, 1, uint256(type(uint16).max - 10 * EPOCHS_IN_YEAR - 1)));
+        uint104 _amount = uint104(_boundAmount(amount));
+        uint8 _lockUpEpochs = _boundRemainingLockups(lockUpEpochs);
+        // create power changes
+        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(_initialEpoch, _lockUpEpochs, _amount);
+        // make power values from changes
+        VoteEscrowedPWN.EpochPower[] memory expectedPowers = new VoteEscrowedPWN.EpochPower[](powerChanges.length);
+        for (uint256 i; i < powerChanges.length; ++i) {
+            expectedPowers[i].epoch = powerChanges[i].epoch;
+            expectedPowers[i].power = i == 0
+                ? powerChanges[i].powerChange
+                : expectedPowers[i - 1].power + powerChanges[i].powerChange;
+        }
+
+        // call stakePowers
+        VoteEscrowedPWN.EpochPower[] memory powers = vePWN.stakePowers({
+            initialEpoch: _initialEpoch, amount: _amount, lockUpEpochs: _lockUpEpochs
+        });
+
+        // assert epoch powers
+        assertEq(powers.length, expectedPowers.length);
+        for (uint256 i; i < powers.length; ++i) {
+            assertEq(powers[i].epoch, expectedPowers[i].epoch);
+            assertEq(powers[i].power, expectedPowers[i].power);
+        }
+        assertEq(powers[powers.length - 1].power, 0);
     }
 
 }

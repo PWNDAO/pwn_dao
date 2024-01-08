@@ -12,6 +12,12 @@ import { EpochPowerLib } from "../lib/EpochPowerLib.sol";
 contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     using EpochPowerLib for bytes32;
 
+    struct EpochPower {
+        uint16 epoch;
+        int104 power;
+    }
+
+
     /*----------------------------------------------------------*|
     |*  # EVENTS                                                *|
     |*----------------------------------------------------------*/
@@ -19,6 +25,46 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     /// @notice Emitted when the total power for an epoch is calculated.
     /// @param epoch The epoch for which the total power was calculated.
     event TotalPowerCalculated(uint256 indexed epoch);
+
+
+    /*----------------------------------------------------------*|
+    |*  # STAKE POWER                                           *|
+    |*----------------------------------------------------------*/
+
+    function stakePowers(uint256 initialEpoch, uint256 amount, uint256 lockUpEpochs)
+        external
+        pure
+        returns (EpochPower[] memory powers)
+    {
+        if (amount < 100 || amount % 100 > 0 || amount > type(uint88).max) {
+            revert Error.InvalidAmount();
+        }
+        if (lockUpEpochs < 1 || lockUpEpochs > EPOCHS_IN_YEAR * 10) {
+            revert Error.InvalidLockUpPeriod();
+        }
+        // calculate how many epochs are needed
+        uint256 epochs;
+        if (lockUpEpochs > EPOCHS_IN_YEAR * 5) {
+            epochs = 7;
+        } else {
+            epochs = lockUpEpochs / EPOCHS_IN_YEAR + (lockUpEpochs % EPOCHS_IN_YEAR > 0 ? 2 : 1);
+        }
+
+        powers = new EpochPower[](epochs);
+        uint16 epoch = SafeCast.toUint16(initialEpoch);
+        uint8 remainingLockup = uint8(lockUpEpochs);
+        int104 _amount = SafeCast.toInt104(int256(uint256(amount)));
+        int104 power = _power(_amount, remainingLockup);
+        // calculate epoch powers
+        powers[0] = EpochPower({ epoch: epoch, power: power });
+        for (uint256 i = 1; i < epochs; ++i) {
+            uint8 epochsToNextPowerChange = _epochsToNextPowerChange(remainingLockup);
+            remainingLockup -= epochsToNextPowerChange;
+            epoch += epochsToNextPowerChange;
+            power += _powerDecrease(_amount, remainingLockup);
+            powers[i] = EpochPower({ epoch: epoch, power: power });
+        }
+    }
 
 
     /*----------------------------------------------------------*|
