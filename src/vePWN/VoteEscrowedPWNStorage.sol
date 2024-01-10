@@ -67,8 +67,8 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
     /// Represent any stored power as:
     /// - if (`lastCalculatedTotalPowerEpoch` < epoch) than power change
     /// - if (`lastCalculatedTotalPowerEpoch` >= epoch) than final power
-    // 0x920c353e14947c4dbbef6103c601d908b93371995902e76fd01b61e605e633fc
-    bytes32 public constant TOTAL_POWER_NAMESPACE = bytes32(uint256(keccak256("vePWN.TOTAL_POWER")) - 1);
+    // 0x920c353e14947c4dbbef6103c601d908b93371995902e76fd01b61e605e633fe
+    bytes32 public constant TOTAL_POWER_NAMESPACE = bytes32(uint256(keccak256("vePWN.TOTAL_POWER")) + 1);
 
     /// @notice The last epoch in which the total power was calculated.
     uint256 public lastCalculatedTotalPowerEpoch;
