@@ -164,8 +164,8 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             revert Error.InvalidAmount();
         }
 
-        // delete original stPWN token
-        stakedPWN.burn(stakeId);
+        // delete original stake
+        _deleteStake(stakeId);
 
         // create new stakes
         newStakeId1 = _createStake(
@@ -216,9 +216,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             _updateTotalPower(amount2, newInitialEpoch, newRemainingLockup, true);
         }
 
-        // delete old stPWN tokens
-        stakedPWN.burn(stakeId1);
-        stakedPWN.burn(stakeId2);
+        // delete old stakes
+        _deleteStake(stakeId1);
+        _deleteStake(stakeId2);
 
         // create new stake
         uint104 newAmount = stake1.amount + stake2.amount;
@@ -292,8 +292,8 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             _updateTotalPower(amount, newInitialEpoch, newRemainingLockup, true);
         }
 
-        // delete original stPWN token
-        stakedPWN.burn(stakeId);
+        // delete original stake
+        _deleteStake(stakeId);
 
         // create new stake
         newStakeId = _createStake(staker, newInitialEpoch, newAmount, newRemainingLockup);
@@ -325,8 +325,8 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             revert Error.WithrawalBeforeLockUpEnd();
         }
 
-        // delete stPWN token
-        stakedPWN.burn(stakeId);
+        // delete stake
+        _deleteStake(stakeId);
 
         // transfer pwn tokens to the staker
         pwnToken.transfer(staker, stake.amount);
@@ -352,6 +352,11 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         stake.remainingLockup = remainingLockup;
 
         stakedPWN.mint(staker, newStakeId);
+    }
+
+    /// @dev Burn stPWN token, but keepts the stake data for historical power calculations
+    function _deleteStake(uint256 stakeId) internal {
+        stakedPWN.burn(stakeId);
     }
 
     /// @dev Update total power changes for a given amount and lockup
