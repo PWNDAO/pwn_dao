@@ -4,15 +4,15 @@ pragma solidity 0.8.18;
 library Error {
 
     // PWN
+    error RewardAlreadyAssigned(uint256 reward);
     error MintableSupplyExceeded();
-    error SnapshotInImmutablePeriod();
-    error RewardTooHigh(uint256 maxReward);
-    error ZeroReward();
-    error RewardAlreadyAssigned(uint256 currentReward);
+    error ProposalSnapshotInImmutablePeriod();
     error ZeroVotingContract();
     error ProposalNotExecuted();
     error CallerHasNotVoted();
     error RewardAlreadyClaimed();
+    error RewardNotAssigned();
+    error InvalidVotingContract();
 
     // PWNEpochClock
     error InitialEpochTimestampInFuture(uint256 currentTimestamp);
