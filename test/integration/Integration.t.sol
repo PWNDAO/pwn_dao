@@ -7,7 +7,6 @@ import { TransparentUpgradeableProxy }
     from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
-import { IVotingContract } from "src/interfaces/IVotingContract.sol";
 import { PWN } from "src/PWN.sol";
 import { PWNEpochClock } from "src/PWNEpochClock.sol";
 import { StakedPWN } from "src/StakedPWN.sol";
