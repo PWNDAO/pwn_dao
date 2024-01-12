@@ -15,8 +15,8 @@ abstract contract PWN_Test is Base_Test {
 
     bytes32 public constant TOTAL_SUPPLY_SLOT = bytes32(uint256(4));
     bytes32 public constant OWNER_MINTED_AMOUNT_SLOT = bytes32(uint256(7));
-    bytes32 public constant REWARDS_SLOT = bytes32(uint256(8));
-    bytes32 public constant VALID_VOTING_CONTRACTS_SLOT = bytes32(uint256(9));
+    bytes32 public constant VOTING_REWARDS_SLOT = bytes32(uint256(8));
+    bytes32 public constant PROPOSAL_REWARDS_SLOT = bytes32(uint256(9));
 
     PWN public pwnToken;
 
@@ -27,6 +27,7 @@ abstract contract PWN_Test is Base_Test {
     uint256 public proposalId = 69;
     uint64 public snapshotEpoch = 420;
     uint256 public pastVotes = 100;
+    uint256 public votingReward = 20;
 
     IVotingContract.ProposalParameters public proposalParameters = IVotingContract.ProposalParameters({
         votingMode: IVotingContract.VotingMode.Standard,
@@ -68,7 +69,7 @@ abstract contract PWN_Test is Base_Test {
         pwnToken = new PWN(owner);
 
         vm.store(address(pwnToken), TOTAL_SUPPLY_SLOT, bytes32(uint256(100_000_000 ether)));
-        vm.store(address(pwnToken), VALID_VOTING_CONTRACTS_SLOT.withMappingKey(votingContract), bytes32(uint256(1)));
+        vm.store(address(pwnToken), VOTING_REWARDS_SLOT.withMappingKey(votingContract), bytes32(votingReward));
     }
 
 }
@@ -85,7 +86,7 @@ contract PWN_Constants_Test is PWN_Test {
         assertEq(pwnToken.symbol(), "PWN");
         assertEq(pwnToken.decimals(), 18);
         assertEq(pwnToken.MINTABLE_TOTAL_SUPPLY(), 100_000_000e18);
-        assertEq(pwnToken.VOTING_REWARD(), 20);
+        assertEq(pwnToken.MAX_VOTING_REWARD(), 100);
         assertEq(pwnToken.VOTING_REWARD_DENOMINATOR(), 10000);
         assertEq(pwnToken.IMMUTABLE_PERIOD(), 26);
     }
@@ -172,10 +173,10 @@ contract PWN_Burn_Test is PWN_Test {
 
 
 /*----------------------------------------------------------*|
-|*  # SET VOTING CONTRACT                                   *|
+|*  # SET VOTING REWARD                                     *|
 |*----------------------------------------------------------*/
 
-contract PWN_SetVotingContract_Test is PWN_Test {
+contract PWN_SetVotingReward_Test is PWN_Test {
     using SlotComputingLib for bytes32;
 
     function testFuzz_shouldFail_whenCallerNotOwner(address caller) external {
@@ -183,46 +184,54 @@ contract PWN_SetVotingContract_Test is PWN_Test {
 
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(caller);
-        pwnToken.setVotingContract(votingContract, true);
+        pwnToken.setVotingReward(votingContract, votingReward);
     }
 
     function test_shouldFail_whenVotingContractZeroAddress() external {
         vm.expectRevert(abi.encodeWithSelector(Error.ZeroVotingContract.selector));
         vm.prank(owner);
-        pwnToken.setVotingContract(address(0), true);
+        pwnToken.setVotingReward(address(0), votingReward);
     }
 
-    function testFuzz_shouldStoreVotingContractValidity(address _votingContract, bool isValid)
+    function test_shouldFail_whenVotingRewardBiggerThanMax(uint256 _votingReward) external {
+        votingReward = bound(_votingReward, pwnToken.MAX_VOTING_REWARD() + 1, type(uint256).max);
+
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidVotingReward.selector));
+        vm.prank(owner);
+        pwnToken.setVotingReward(votingContract, votingReward);
+    }
+
+    function testFuzz_shouldStoreVotingReward(address _votingContract, uint256 _votingReward)
         external
         checkAddress(_votingContract)
     {
-        vm.prank(owner);
-        pwnToken.setVotingContract(_votingContract, isValid);
+        votingReward = bound(_votingReward, 0, pwnToken.MAX_VOTING_REWARD());
 
-        bytes32 validVotingContractsValue = vm.load(
-            address(pwnToken), VALID_VOTING_CONTRACTS_SLOT.withMappingKey(_votingContract)
-        );
-        assertEq(uint256(validVotingContractsValue), isValid ? 1 : 0);
+        vm.prank(owner);
+        pwnToken.setVotingReward(_votingContract, votingReward);
+
+        bytes32 votingRewardValue = vm.load(address(pwnToken), VOTING_REWARDS_SLOT.withMappingKey(_votingContract));
+        assertEq(uint256(votingRewardValue), votingReward);
     }
 
 }
 
 
 /*----------------------------------------------------------*|
-|*  # ASSIGN VOTING REWARDS                                 *|
+|*  # ASSIGN PROPOSAL REWARD                                *|
 |*----------------------------------------------------------*/
 
-contract PWN_AssignVotingReward_Test is PWN_Test {
+contract PWN_AssignProposalReward_Test is PWN_Test {
     using SlotComputingLib for bytes32;
 
-    event VotingRewardAssigned(
+    event ProposalRewardAssigned(
         address indexed votingContract,
         uint256 indexed proposalId,
         uint256 reward
     );
 
-    function _reward() private view returns (uint256) {
-        return pwnToken.totalSupply() * pwnToken.VOTING_REWARD() / pwnToken.VOTING_REWARD_DENOMINATOR();
+    function _proposalReward(uint256 votingReward) private view returns (uint256) {
+        return pwnToken.totalSupply() * votingReward / pwnToken.VOTING_REWARD_DENOMINATOR();
     }
 
 
@@ -231,37 +240,34 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
 
         vm.expectRevert("Ownable: caller is not the owner");
         vm.prank(caller);
-        pwnToken.assignVotingReward(votingContract, proposalId);
+        pwnToken.assignProposalReward(votingContract, proposalId);
     }
 
     function test_shouldFail_whenZeroVotingContract() external {
         vm.expectRevert(abi.encodeWithSelector(Error.ZeroVotingContract.selector));
         vm.prank(owner);
-        pwnToken.assignVotingReward(address(0), proposalId);
+        pwnToken.assignProposalReward(address(0), proposalId);
     }
 
-    function testFuzz_shouldFail_whenVotingContractNotValid(address invalidVotingContract)
-        external
-        checkAddress(invalidVotingContract)
-    {
-        vm.assume(invalidVotingContract != votingContract);
+    function test_shouldFail_whenVotingRewardNotSetForVotingContract() external {
+        vm.store(address(pwnToken), VOTING_REWARDS_SLOT.withMappingKey(votingContract), bytes32(0));
 
-        vm.expectRevert(abi.encodeWithSelector(Error.InvalidVotingContract.selector));
+        vm.expectRevert(abi.encodeWithSelector(Error.VotingRewardNotSet.selector));
         vm.prank(owner);
-        pwnToken.assignVotingReward(invalidVotingContract, proposalId);
+        pwnToken.assignProposalReward(votingContract, proposalId);
     }
 
-    function test_shouldFail_whenRewardAlreadyAssigned() external {
-        uint256 reward = _reward();
+    function test_shouldFail_whenProposalRewardAlreadyAssigned() external {
+        uint256 reward = 1234;
         vm.store(
             address(pwnToken),
-            REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
+            PROPOSAL_REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
             bytes32(reward)
         );
 
-        vm.expectRevert(abi.encodeWithSelector(Error.RewardAlreadyAssigned.selector, reward));
+        vm.expectRevert(abi.encodeWithSelector(Error.ProposalRewardAlreadyAssigned.selector, reward));
         vm.prank(owner);
-        pwnToken.assignVotingReward(votingContract, proposalId);
+        pwnToken.assignProposalReward(votingContract, proposalId);
     }
 
     function test_shouldFail_whenProposalNotExecuted() external {
@@ -273,7 +279,7 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
 
         vm.expectRevert(abi.encodeWithSelector(Error.ProposalNotExecuted.selector));
         vm.prank(owner);
-        pwnToken.assignVotingReward(votingContract, proposalId);
+        pwnToken.assignProposalReward(votingContract, proposalId);
     }
 
     function testFuzz_shouldFail_whenImmutablePeriodNotReached(uint256 snapshotEpoch) external {
@@ -287,53 +293,57 @@ contract PWN_AssignVotingReward_Test is PWN_Test {
 
         vm.expectRevert(abi.encodeWithSelector(Error.ProposalSnapshotInImmutablePeriod.selector));
         vm.prank(owner);
-        pwnToken.assignVotingReward(votingContract, proposalId);
+        pwnToken.assignProposalReward(votingContract, proposalId);
     }
 
-    function testFuzz_shouldStoreAssignedReward(uint256 totalSupply) external {
+    function testFuzz_shouldStoreAssignedReward(uint256 totalSupply, uint256 _votingReward) external {
         totalSupply = bound(totalSupply, 100, type(uint104).max);
         vm.store(address(pwnToken), TOTAL_SUPPLY_SLOT, bytes32(totalSupply));
+        votingReward = bound(_votingReward, 1, pwnToken.MAX_VOTING_REWARD());
+        vm.store(address(pwnToken), VOTING_REWARDS_SLOT.withMappingKey(votingContract), bytes32(votingReward));
 
         vm.prank(owner);
-        pwnToken.assignVotingReward(votingContract, proposalId);
+        pwnToken.assignProposalReward(votingContract, proposalId);
 
         bytes32 rewardValue = vm.load(
-            address(pwnToken), REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId)
+            address(pwnToken), PROPOSAL_REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId)
         );
-        assertEq(uint256(rewardValue), _reward());
+        assertEq(uint256(rewardValue), _proposalReward(votingReward));
     }
 
     function test_shouldNotMintNewTokens() external {
         uint256 originalTotalSupply = pwnToken.totalSupply();
 
         vm.prank(owner);
-        pwnToken.assignVotingReward(votingContract, proposalId);
+        pwnToken.assignProposalReward(votingContract, proposalId);
 
         assertEq(originalTotalSupply, pwnToken.totalSupply());
     }
 
-    function testFuzz_shouldEmit_VotingRewardAssigned(uint256 totalSupply) external {
+    function testFuzz_shouldEmit_ProposalRewardAssigned(uint256 totalSupply, uint256 _votingReward) external {
         totalSupply = bound(totalSupply, 100, type(uint104).max);
+        votingReward = bound(_votingReward, 1, pwnToken.MAX_VOTING_REWARD());
         vm.store(address(pwnToken), TOTAL_SUPPLY_SLOT, bytes32(totalSupply));
+        vm.store(address(pwnToken), VOTING_REWARDS_SLOT.withMappingKey(votingContract), bytes32(votingReward));
 
         vm.expectEmit();
-        emit VotingRewardAssigned(votingContract, proposalId, _reward());
+        emit ProposalRewardAssigned(votingContract, proposalId, _proposalReward(votingReward));
 
         vm.prank(owner);
-        pwnToken.assignVotingReward(votingContract, proposalId);
+        pwnToken.assignProposalReward(votingContract, proposalId);
     }
 
 }
 
 
 /*----------------------------------------------------------*|
-|*  # CLAIM VOTING REWARDS                                  *|
+|*  # CLAIM PROPOSAL REWARD                                 *|
 |*----------------------------------------------------------*/
 
-contract PWN_ClaimVotingReward_Test is PWN_Test {
+contract PWN_ClaimProposalReward_Test is PWN_Test {
     using SlotComputingLib for bytes32;
 
-    event VotingRewardClaimed(
+    event ProposalRewardClaimed(
         address indexed votingContract,
         uint256 indexed proposalId,
         address indexed voter,
@@ -347,7 +357,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
 
         vm.store(
             address(pwnToken),
-            REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
+            PROPOSAL_REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
             bytes32(reward)
         );
     }
@@ -356,19 +366,19 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
     function test_shouldFail_whenZeroVotingContract() external {
         vm.expectRevert(abi.encodeWithSelector(Error.ZeroVotingContract.selector));
         vm.prank(voter);
-        pwnToken.claimVotingReward(address(0), proposalId);
+        pwnToken.claimProposalReward(address(0), proposalId);
     }
 
     function test_shouldFail_whenNoRewardAssigned() external {
         vm.store(
             address(pwnToken),
-            REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
+            PROPOSAL_REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
             bytes32(uint256(0))
         );
 
-        vm.expectRevert(abi.encodeWithSelector(Error.RewardNotAssigned.selector));
+        vm.expectRevert(abi.encodeWithSelector(Error.ProposalRewardNotAssigned.selector));
         vm.prank(voter);
-        pwnToken.claimVotingReward(votingContract, proposalId);
+        pwnToken.claimProposalReward(votingContract, proposalId);
     }
 
     function testFuzz_shouldFail_whenCallerHasNotVoted(address caller) external {
@@ -380,27 +390,27 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
 
         vm.expectRevert(abi.encodeWithSelector(Error.CallerHasNotVoted.selector));
         vm.prank(caller);
-        pwnToken.claimVotingReward(votingContract, proposalId);
+        pwnToken.claimProposalReward(votingContract, proposalId);
     }
 
     function test_shouldFail_whenVoterAlreadyClaimedReward() external {
-        bytes32 claimedSlot = REWARDS_SLOT
+        bytes32 claimedSlot = PROPOSAL_REWARDS_SLOT
             .withMappingKey(votingContract)
             .withMappingKey(proposalId)
             .withArrayIndex(1)
             .withMappingKey(voter);
         vm.store(address(pwnToken), claimedSlot, bytes32(uint256(1)));
 
-        vm.expectRevert(abi.encodeWithSelector(Error.RewardAlreadyClaimed.selector));
+        vm.expectRevert(abi.encodeWithSelector(Error.ProposalRewardAlreadyClaimed.selector));
         vm.prank(voter);
-        pwnToken.claimVotingReward(votingContract, proposalId);
+        pwnToken.claimProposalReward(votingContract, proposalId);
     }
 
     function test_shouldStoreThatVoterClaimedReward() external {
         vm.prank(voter);
-        pwnToken.claimVotingReward(votingContract, proposalId);
+        pwnToken.claimProposalReward(votingContract, proposalId);
 
-        bytes32 claimedSlot = REWARDS_SLOT
+        bytes32 claimedSlot = PROPOSAL_REWARDS_SLOT
             .withMappingKey(votingContract)
             .withMappingKey(proposalId)
             .withArrayIndex(1)
@@ -416,7 +426,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         );
 
         vm.prank(voter);
-        pwnToken.claimVotingReward(votingContract, proposalId);
+        pwnToken.claimProposalReward(votingContract, proposalId);
     }
 
     function testFuzz_shouldMintRewardToCaller(
@@ -440,7 +450,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         );
         vm.store(
             address(pwnToken),
-            REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
+            PROPOSAL_REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
             bytes32(reward)
         );
 
@@ -448,46 +458,11 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         uint256 originalBalance = pwnToken.balanceOf(voter);
 
         vm.prank(voter);
-        pwnToken.claimVotingReward(votingContract, proposalId);
+        pwnToken.claimProposalReward(votingContract, proposalId);
 
         uint256 voterReward = Math.mulDiv(reward, votersPower, totalPower);
         assertEq(originalTotalSupply + voterReward, pwnToken.totalSupply());
         assertEq(originalBalance + voterReward, pwnToken.balanceOf(voter));
-    }
-
-    function testFuzz_shouldAllowClaimForInvalidVotingContracts_whenAssignedReward(address invalidVotingContract)
-        external
-        checkAddress(invalidVotingContract)
-    {
-        vm.mockCall(
-            invalidVotingContract,
-            abi.encodeWithSignature("getVotingToken()"),
-            abi.encode(votingToken)
-        );
-        vm.mockCall(
-            invalidVotingContract,
-            abi.encodeWithSignature("getVoteOption(uint256,address)", proposalId, voter),
-            abi.encode(IVotingContract.VoteOption.Yes)
-        );
-        vm.mockCall(
-            invalidVotingContract,
-            abi.encodeWithSignature("getProposal(uint256)", proposalId),
-            abi.encode(false, true, proposalParameters, tally, actions, 0)
-        );
-        vm.mockCall(
-            invalidVotingContract,
-            abi.encodeWithSignature("getPastVotes(address,uint256)", voter, snapshotEpoch),
-            abi.encode(pastVotes)
-        );
-        vm.store(
-            address(pwnToken),
-            REWARDS_SLOT.withMappingKey(invalidVotingContract).withMappingKey(proposalId),
-            bytes32(reward)
-        );
-        vm.store(address(pwnToken), VALID_VOTING_CONTRACTS_SLOT.withMappingKey(invalidVotingContract), bytes32(0));
-
-        vm.prank(voter);
-        pwnToken.claimVotingReward(invalidVotingContract, proposalId);
     }
 
     function testFuzz_shouldEmit_VotingRewardClaimed(uint256 _reward, uint256 totalPower, uint256 votersPower)
@@ -498,7 +473,7 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         votersPower = bound(votersPower, 1, totalPower);
         vm.store(
             address(pwnToken),
-            REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
+            PROPOSAL_REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalId),
             bytes32(reward)
         );
         tally.no = 0;
@@ -517,10 +492,10 @@ contract PWN_ClaimVotingReward_Test is PWN_Test {
         uint256 voterReward = Math.mulDiv(reward, votersPower, totalPower);
 
         vm.expectEmit();
-        emit VotingRewardClaimed(votingContract, proposalId, voter, voterReward);
+        emit ProposalRewardClaimed(votingContract, proposalId, voter, voterReward);
 
         vm.prank(voter);
-        pwnToken.claimVotingReward(votingContract, proposalId);
+        pwnToken.claimProposalReward(votingContract, proposalId);
     }
 
 }

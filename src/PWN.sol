@@ -22,9 +22,8 @@ contract PWN is Ownable2Step, ERC20 {
 
     /// @notice The total supply of the token that can be minted by the owner.
     uint256 public constant MINTABLE_TOTAL_SUPPLY = 100_000_000e18; // 100M PWN tokens
-    /// @notice The numerator of the voting reward that is assigned to a proposal.
-    /// @dev The voting reward is calculated from the current total supply.
-    uint256 public constant VOTING_REWARD = 20; // 0.2%
+    /// @notice The maximum voting reward nominator that can be set to a voting contract.
+    uint256 public constant MAX_VOTING_REWARD = 100; // 1%
     /// @notice The denominator of the voting reward.
     uint256 public constant VOTING_REWARD_DENOMINATOR = 10000;
     /// @notice The immutable period (in epochs) after which voting rewards can be set.
@@ -33,29 +32,30 @@ contract PWN is Ownable2Step, ERC20 {
     /// @notice Amount of tokens already minted by the owner.
     uint256 public mintedSupply;
 
+    /// @notice Percentage of the total supply that can be assigned as a reward for voting in the voting contract.
+    /// @dev The reward cannot be set to more than `MAX_VOTING_REWARD` of the total supply.
+    /// The reward is divided by `VOTING_REWARD_DENOMINATOR` to get the actual percentage.
+    mapping(address votingContract => uint256 reward) public votingRewards;
+
     /// The reward for voting in a proposal.
-    struct VotingReward {
+    struct ProposalReward {
         uint256 reward;
         mapping(address voter => bool claimed) claimed;
     }
-    /// @notice The reward for voting in a proposal.
+    /// @notice Assigned reward for voting in a proposal.
     /// @dev The voters reward is proportional to the amount of votes the voter had in the snapshot epoch.
-    mapping(address votingContract => mapping(uint256 proposalId => VotingReward reward)) public votingRewards;
-
-    /// @notice The validity of a voting contract.
-    /// @dev The validity of a voting contract is used to check if the contract can be used to assign rewards.
-    mapping(address votingContract => bool isValid) public validVotingContracts;
+    mapping(address votingContract => mapping(uint256 proposalId => ProposalReward reward)) public proposalRewards;
 
 
     /*----------------------------------------------------------*|
     |*  # EVENTS                                                *|
     |*----------------------------------------------------------*/
 
-    /// @notice Emitted when the owner assigns a reward to a voting proposal.
+    /// @notice Emitted when the owner assigns a reward to a governance proposal.
     /// @param votingContract The voting contract address.
     /// @param proposalId The proposal id.
     /// @param reward The reward amount.
-    event VotingRewardAssigned(
+    event ProposalRewardAssigned(
         address indexed votingContract,
         uint256 indexed proposalId,
         uint256 reward
@@ -66,7 +66,7 @@ contract PWN is Ownable2Step, ERC20 {
     /// @param proposalId The proposal id.
     /// @param voter The voter address.
     /// @param voterReward The voters reward amount.
-    event VotingRewardClaimed(
+    event ProposalRewardClaimed(
         address indexed votingContract,
         uint256 indexed proposalId,
         address indexed voter,
@@ -105,7 +105,7 @@ contract PWN is Ownable2Step, ERC20 {
     }
 
     /// @notice Burns tokens.
-    /// It doens't increase the number of tokens that can be minted by the owner.
+    /// It doesn't increase the number of tokens that can be minted by the owner.
     /// @param amount The amount of tokens to burn.
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
@@ -116,33 +116,38 @@ contract PWN is Ownable2Step, ERC20 {
     |*  # VOTING REWARDS                                        *|
     |*----------------------------------------------------------*/
 
-    /// @notice Sets the validity of a voting contract.
-    /// @dev The validity of a voting contract is used to check if the contract can be used to assign rewards.
+    /// @notice Sets the reward for voting in a proposal of a voting contract.
+    /// @dev The reward can be set only by the owner and cannot exceed `MAX_VOTING_REWARD`.
+    /// The reward is calculated from the current total supply at the moment of assigning the reward.
     /// @param votingContract The voting contract address.
-    /// @param isValid The validity of the voting contract.
-    function setVotingContract(address votingContract, bool isValid) external onlyOwner {
+    /// @param votingReward The voting reward nominator. Passing 0 disables the reward.
+    function setVotingReward(address votingContract, uint256 votingReward) external onlyOwner {
         if (votingContract == address(0)) {
             revert Error.ZeroVotingContract();
         }
-        validVotingContracts[votingContract] = isValid;
+        if (votingReward > MAX_VOTING_REWARD) {
+            revert Error.InvalidVotingReward();
+        }
+        votingRewards[votingContract] = votingReward;
     }
 
-    /// @notice Assigns a reward to a voting proposal.
+    /// @notice Assigns a reward to a governance proposal.
     /// @dev The reward can be assigned only by the owner after the immutable period for an executed proposal.
-    /// The reward is calculated as 0.2% of the current total supply.
+    /// The reward is calculated from the current total supply.
     /// @param votingContract The voting contract address.
     /// @param proposalId The proposal id.
-    function assignVotingReward(address votingContract, uint256 proposalId) external onlyOwner {
+    function assignProposalReward(address votingContract, uint256 proposalId) external onlyOwner {
         if (votingContract == address(0)) {
             revert Error.ZeroVotingContract();
         }
-        if (!validVotingContracts[votingContract]) {
-            revert Error.InvalidVotingContract();
+        uint256 votingReward = votingRewards[votingContract];
+        if (votingReward == 0) {
+            revert Error.VotingRewardNotSet();
         }
         // check that the reward has not been assigned yet
-        VotingReward storage votingReward = votingRewards[votingContract][proposalId];
-        if (votingReward.reward != 0) {
-            revert Error.RewardAlreadyAssigned(votingReward.reward);
+        ProposalReward storage proposalReward = proposalRewards[votingContract][proposalId];
+        if (proposalReward.reward != 0) {
+            revert Error.ProposalRewardAlreadyAssigned(proposalReward.reward);
         }
         ( // get proposal data
             , bool executed, IVotingContract.ProposalParameters memory proposalParameters,,,
@@ -157,26 +162,26 @@ contract PWN is Ownable2Step, ERC20 {
         }
 
         // assign the reward
-        uint256 reward = Math.mulDiv(totalSupply(), VOTING_REWARD, VOTING_REWARD_DENOMINATOR);
-        votingReward.reward = reward;
+        uint256 reward = Math.mulDiv(totalSupply(), votingReward, VOTING_REWARD_DENOMINATOR);
+        proposalReward.reward = reward;
 
-        emit VotingRewardAssigned(votingContract, proposalId, reward);
+        emit ProposalRewardAssigned(votingContract, proposalId, reward);
     }
 
     /// @notice Claims the reward for voting in a proposal.
-    /// @dev The reward can be claimed only if the proposal has been executed and the caller has voted.
+    /// @dev The reward can be claimed only if the caller has voted.
     /// It doesn't matter if the caller voted yes, no or abstained.
     /// @param votingContract The voting contract address.
     /// @param proposalId The proposal id.
-    function claimVotingReward(address votingContract, uint256 proposalId) external {
+    function claimProposalReward(address votingContract, uint256 proposalId) external {
         if (votingContract == address(0)) {
             revert Error.ZeroVotingContract();
         }
         // check that the reward has been assigned
-        VotingReward storage votingReward = votingRewards[votingContract][proposalId];
-        uint256 assignedReward = votingReward.reward;
+        ProposalReward storage proposalReward = proposalRewards[votingContract][proposalId];
+        uint256 assignedReward = proposalReward.reward;
         if (assignedReward == 0) {
-            revert Error.RewardNotAssigned();
+            revert Error.ProposalRewardNotAssigned();
         }
         ( // get proposal data
             ,, IVotingContract.ProposalParameters memory proposalParameters, IVotingContract.Tally memory tally,,
@@ -187,11 +192,11 @@ contract PWN is Ownable2Step, ERC20 {
             revert Error.CallerHasNotVoted();
         }
         // check that the reward has not been claimed yet
-        if (votingReward.claimed[voter]) {
-            revert Error.RewardAlreadyClaimed();
+        if (proposalReward.claimed[voter]) {
+            revert Error.ProposalRewardAlreadyClaimed();
         }
         // store that the reward has been claimed
-        votingReward.claimed[voter] = true;
+        proposalReward.claimed[voter] = true;
 
         // voter is rewarded proportionally to the amount of votes he had in the snapshot epoch
         // it doesn't matter if he voted yes, no or abstained
@@ -203,7 +208,7 @@ contract PWN is Ownable2Step, ERC20 {
         // mint the reward to the voter
         _mint(voter, voterReward);
 
-        emit VotingRewardClaimed(votingContract, proposalId, voter, voterReward);
+        emit ProposalRewardClaimed(votingContract, proposalId, voter, voterReward);
     }
 
 }
