@@ -62,7 +62,7 @@ contract VoteEscrowedPWN_Stake_CreateStake_Test is VoteEscrowedPWN_Stake_Test {
 
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId));
         assertEq(stakeValue.maskUint16(0), currentEpoch + 1); // initialEpoch
-        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // remainingLockup
+        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // lockUpEpochs
         assertEq(stakeValue.maskUint104(16 + 8), amount); // amount
     }
 
@@ -195,12 +195,12 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
 
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(newStakeId1));
         assertEq(stakeValue.maskUint16(0), initialEpoch); // initialEpoch
-        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // remainingLockup
+        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // lockUpEpochs
         assertEq(stakeValue.maskUint104(16 + 8), amount - splitAmount); // amount
 
         stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(newStakeId2));
         assertEq(stakeValue.maskUint16(0), initialEpoch); // initialEpoch
-        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // remainingLockup
+        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // lockUpEpochs
         assertEq(stakeValue.maskUint104(16 + 8), splitAmount); // amount
     }
 
@@ -210,7 +210,7 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
 
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId));
         assertEq(stakeValue.maskUint16(0), initialEpoch); // initialEpoch
-        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // remainingLockup
+        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // lockUpEpochs
         assertEq(stakeValue.maskUint104(16 + 8), amount); // amount
     }
 
@@ -263,14 +263,14 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
     uint256 public stakeId2 = 422;
     uint16 public initialEpoch = uint16(currentEpoch) - 20;
     uint104 public amount = 1 ether;
-    uint8 public remainingLockup = 30;
+    uint8 public lockUpEpochs = 30;
 
     event StakeMerged(
         uint256 indexed stakeId1,
         uint256 indexed stakeId2,
         address indexed staker,
         uint256 amount,
-        uint256 remainingLockup,
+        uint256 lockUpEpochs,
         uint256 newStakeId
     );
 
@@ -303,7 +303,7 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
 
 
     function test_shouldFail_whenCallerNotFirstStakeOwner() external {
-        _mockStake(makeAddr("notOwner"), stakeId1, initialEpoch, remainingLockup, amount);
+        _mockStake(makeAddr("notOwner"), stakeId1, initialEpoch, lockUpEpochs, amount);
 
         vm.expectRevert(abi.encodeWithSelector(Error.NotStakeOwner.selector));
         vm.prank(staker);
@@ -311,29 +311,29 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
     }
 
     function test_shouldFail_whenCallerNotSecondStakeOwner() external {
-        _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount);
-        _mockStake(makeAddr("notOwner"), stakeId2, initialEpoch, remainingLockup, amount);
+        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount);
+        _mockStake(makeAddr("notOwner"), stakeId2, initialEpoch, lockUpEpochs, amount);
 
         vm.expectRevert(abi.encodeWithSelector(Error.NotStakeOwner.selector));
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
     }
 
-    function testFuzz_shouldFail_whenFirstRemainingLockupSmallerThanSecond(uint256 seed) external {
-        uint8 remainingLockup1 = uint8(bound(seed, 1, 10 * EPOCHS_IN_YEAR - 1));
-        uint8 remainingLockup2 = uint8(bound(seed, remainingLockup1 + 1, 10 * EPOCHS_IN_YEAR));
-        _mockStake(staker, stakeId1, initialEpoch, remainingLockup1, amount);
-        _mockStake(staker, stakeId2, initialEpoch, remainingLockup2, amount);
+    function testFuzz_shouldFail_whenFirstLockUpSmallerThanSecond(uint256 seed) external {
+        uint8 lockUpEpochs1 = uint8(bound(seed, 1, 10 * EPOCHS_IN_YEAR - 1));
+        uint8 lockUpEpochs2 = uint8(bound(seed, lockUpEpochs1 + 1, 10 * EPOCHS_IN_YEAR));
+        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs1, amount);
+        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs2, amount);
 
         vm.expectRevert(abi.encodeWithSelector(Error.LockUpPeriodMismatch.selector));
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
     }
 
-    function testFuzz_shouldFail_whenBothStakesLockupEnded(uint8 _remainingLockup) external {
-        remainingLockup = uint8(bound(_remainingLockup, 1, 21));
-        _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount);
-        _mockStake(staker, stakeId2, initialEpoch, remainingLockup, amount);
+    function testFuzz_shouldFail_whenBothStakesLockupEnded(uint8 _lockUpEpochs) external {
+        lockUpEpochs = uint8(bound(_lockUpEpochs, 1, 21));
+        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount);
+        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount);
 
         vm.expectRevert(abi.encodeWithSelector(Error.LockUpPeriodMismatch.selector));
         vm.prank(staker);
@@ -435,25 +435,25 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
     }
 
     function test_shouldNotDeleteOriginalStakes() external {
-        _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount);
-        _mockStake(staker, stakeId2, initialEpoch, remainingLockup, amount);
+        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount);
+        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount);
 
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
 
         bytes32 stakeValue1 = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId1));
         assertEq(stakeValue1.maskUint16(0), initialEpoch); // initialEpoch
-        assertEq(stakeValue1.maskUint8(16), remainingLockup); // remainingLockup
+        assertEq(stakeValue1.maskUint8(16), lockUpEpochs); // lockUpEpochs
         assertEq(stakeValue1.maskUint104(16 + 8), amount); // amount
         bytes32 stakeValue2 = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId2));
         assertEq(stakeValue2.maskUint16(0), initialEpoch); // initialEpoch
-        assertEq(stakeValue2.maskUint8(16), remainingLockup); // remainingLockup
+        assertEq(stakeValue2.maskUint8(16), lockUpEpochs); // lockUpEpochs
         assertEq(stakeValue2.maskUint104(16 + 8), amount); // amount
     }
 
     function test_shouldBurnOriginalStakedPWNTokens() external {
-        _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount);
-        _mockStake(staker, stakeId2, initialEpoch, remainingLockup, amount);
+        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount);
+        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount);
 
         vm.expectCall(stakedPWN, abi.encodeWithSignature("burn(uint256)", stakeId1));
         vm.expectCall(stakedPWN, abi.encodeWithSignature("burn(uint256)", stakeId2));
@@ -462,14 +462,14 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         vePWN.mergeStakes(stakeId1, stakeId2);
     }
 
-    function testFuzz_shouldCreateNewStake(uint256 _remainingLockup, uint256 _amount1, uint256 _amount2) external {
-        remainingLockup = uint8(bound(
-            _remainingLockup, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_YEAR
+    function testFuzz_shouldCreateNewStake(uint256 _lockUpEpochs, uint256 _amount1, uint256 _amount2) external {
+        lockUpEpochs = uint8(bound(
+            _lockUpEpochs, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_YEAR
         ));
         uint104 amount1 = uint104(_boundAmount(_amount1));
         uint104 amount2 = uint104(_boundAmount(_amount2));
-        _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount1);
-        _mockStake(staker, stakeId2, initialEpoch, remainingLockup, amount2);
+        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount1);
+        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount2);
 
         uint256 newStakeId = vePWN.lastStakeId() + 1;
         vm.expectCall(
@@ -479,25 +479,25 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
 
-        uint8 newRemainingLockup = remainingLockup - uint8(currentEpoch + 1 - initialEpoch);
+        uint8 newLockUpEpochs = lockUpEpochs - uint8(currentEpoch + 1 - initialEpoch);
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(newStakeId));
         assertEq(stakeValue.maskUint16(0), currentEpoch + 1, "initialEpoch mismatch"); // initialEpoch
-        assertEq(stakeValue.maskUint8(16), newRemainingLockup, "remainingLockup mismatch"); // remainingLockup
+        assertEq(stakeValue.maskUint8(16), newLockUpEpochs, "lockUpEpochs mismatch"); // lockUpEpochs
         assertEq(stakeValue.maskUint104(16 + 8), amount1 + amount2, "amount mismatch"); // amount
     }
 
-    function testFuzz_shouldEmit_StakeMerged(uint256 _remainingLockup, uint256 _amount1, uint256 _amount2) external {
-        remainingLockup = uint8(bound(
-            _remainingLockup, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_YEAR
+    function testFuzz_shouldEmit_StakeMerged(uint256 _lockUpEpochs, uint256 _amount1, uint256 _amount2) external {
+        lockUpEpochs = uint8(bound(
+            _lockUpEpochs, uint16(currentEpoch) + 2 - initialEpoch, 10 * EPOCHS_IN_YEAR
         ));
-        uint8 newRemainingLockup = remainingLockup - uint8(currentEpoch + 1 - initialEpoch);
+        uint8 newLockUpEpochs = lockUpEpochs - uint8(currentEpoch + 1 - initialEpoch);
         uint104 amount1 = uint104(_boundAmount(_amount1));
         uint104 amount2 = uint104(_boundAmount(_amount2));
-        _mockStake(staker, stakeId1, initialEpoch, remainingLockup, amount1);
-        _mockStake(staker, stakeId2, initialEpoch, remainingLockup, amount2);
+        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount1);
+        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount2);
 
         vm.expectEmit();
-        emit StakeMerged(stakeId1, stakeId2, staker, amount1 + amount2, newRemainingLockup, vePWN.lastStakeId() + 1);
+        emit StakeMerged(stakeId1, stakeId2, staker, amount1 + amount2, newLockUpEpochs, vePWN.lastStakeId() + 1);
 
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
@@ -709,7 +709,7 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
 
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(vePWN.lastStakeId()));
         assertEq(stakeValue.maskUint16(0), newInitialEpoch); // initialEpoch
-        assertEq(stakeValue.maskUint8(16), remainingLockup); // remainingLockup
+        assertEq(stakeValue.maskUint8(16), remainingLockup); // lockUpEpochs
         assertEq(stakeValue.maskUint104(16 + 8), amount + additionalAmount); // amount
     }
 
@@ -721,7 +721,7 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
 
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId));
         assertEq(stakeValue.maskUint16(0), initialEpoch); // initialEpoch
-        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // remainingLockup
+        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // lockUpEpochs
         assertEq(stakeValue.maskUint104(16 + 8), uint104(amount)); // amount
     }
 
@@ -854,7 +854,7 @@ contract VoteEscrowedPWN_Stake_WithdrawStake_Test is VoteEscrowedPWN_Stake_Test 
 
         bytes32 stakeValue = vm.load(address(vePWN), STAKES_SLOT.withMappingKey(stakeId));
         assertEq(stakeValue.maskUint16(0), initialEpoch); // initialEpoch
-        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // remainingLockup
+        assertEq(stakeValue.maskUint8(16), lockUpEpochs); // lockUpEpochs
         assertEq(stakeValue.maskUint104(16 + 8), amount); // amount
     }
 

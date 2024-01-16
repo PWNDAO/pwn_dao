@@ -147,26 +147,26 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
     }
 
     function _mockStake(
-        address _staker, uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount
+        address _staker, uint256 _stakeId, uint16 _initialEpoch, uint8 _lockUpEpochs, uint104 _amount
     ) internal returns (TestPowerChangeEpoch[] memory powerChanges) {
         vm.mockCall(
             address(stakedPWN),
             abi.encodeWithSignature("ownerOf(uint256)", _stakeId),
             abi.encode(_staker)
         );
-        _storeStake(_stakeId, _initialEpoch, _remainingLockup, _amount);
+        _storeStake(_stakeId, _initialEpoch, _lockUpEpochs, _amount);
         helper_ownedTokenIdsAt[_initialEpoch].push(_stakeId);
         vm.mockCall(
             address(stakedPWN),
             abi.encodeWithSignature("ownedTokenIdsAt(address,uint16)", _staker, _initialEpoch),
             abi.encode(helper_ownedTokenIdsAt[_initialEpoch])
         );
-        powerChanges = _createPowerChangesArray(_initialEpoch, _remainingLockup, _amount);
+        powerChanges = _createPowerChangesArray(_initialEpoch, _lockUpEpochs, _amount);
         _storeTotalPowerChanges(powerChanges);
     }
 
-    function _storeStake(uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount) internal {
-        bytes memory rawStakeData = abi.encodePacked(uint128(0), _amount, _remainingLockup, _initialEpoch);
+    function _storeStake(uint256 _stakeId, uint16 _initialEpoch, uint8 _lockUpEpochs, uint104 _amount) internal {
+        bytes memory rawStakeData = abi.encodePacked(uint128(0), _amount, _lockUpEpochs, _initialEpoch);
         vm.store(address(vePWN), STAKES_SLOT.withMappingKey(_stakeId), abi.decode(rawStakeData, (bytes32)));
     }
 
@@ -205,13 +205,13 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
 contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWN_Test {
 
     function testFuzzHelper_storeStake(
-        uint256 _stakeId, uint16 _initialEpoch, uint8 _remainingLockup, uint104 _amount
+        uint256 _stakeId, uint16 _initialEpoch, uint8 _lockUpEpochs, uint104 _amount
     ) external {
-        _storeStake(_stakeId, _initialEpoch, _remainingLockup, _amount);
+        _storeStake(_stakeId, _initialEpoch, _lockUpEpochs, _amount);
 
-        (uint16 initialEpoch, uint8 remainingLockup, uint104 amount) = vePWN.stakes(_stakeId);
+        (uint16 initialEpoch, uint8 lockUpEpochs, uint104 amount) = vePWN.stakes(_stakeId);
         assertEq(_initialEpoch, initialEpoch);
-        assertEq(_remainingLockup, remainingLockup);
+        assertEq(_lockUpEpochs, lockUpEpochs);
         assertEq(_amount, amount);
     }
 
@@ -260,11 +260,9 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
 
     // powerChangeMultipliers
 
-    function testFuzz_powerChangeMultipliers_initialPower(
-        uint256 amount, uint8 remainingLockup
-    ) external {
+    function testFuzz_powerChangeMultipliers_initialPower(uint256 amount, uint8 lockUpEpochs) external {
         amount = _boundAmount(amount);
-        remainingLockup = uint8(bound(remainingLockup, 1, 130));
+        lockUpEpochs = uint8(bound(lockUpEpochs, 1, 130));
 
         int104[] memory yearMultiplier = new int104[](6);
         yearMultiplier[0] = 100;
@@ -274,21 +272,21 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
         yearMultiplier[4] = 175;
         yearMultiplier[5] = 350;
 
-        int104 power = vePWN.exposed_power(int104(uint104(amount)), remainingLockup);
+        int104 power = vePWN.exposed_power(int104(uint104(amount)), lockUpEpochs);
 
         int104 multiplier;
-        if (remainingLockup > EPOCHS_IN_YEAR * 5)
+        if (lockUpEpochs > EPOCHS_IN_YEAR * 5)
             multiplier = yearMultiplier[5];
         else
             multiplier = yearMultiplier[
-                remainingLockup / EPOCHS_IN_YEAR - (remainingLockup % EPOCHS_IN_YEAR == 0 ? 1 : 0)
+                lockUpEpochs / EPOCHS_IN_YEAR - (lockUpEpochs % EPOCHS_IN_YEAR == 0 ? 1 : 0)
             ];
         assertEq(power, int104(uint104(amount)) * multiplier / 100);
     }
 
-    function testFuzz_powerChangeMultipliers_decreasePower(uint256 amount, uint8 remainingLockup) external {
+    function testFuzz_powerChangeMultipliers_decreasePower(uint256 amount, uint8 lockUpEpochs) external {
         amount = _boundAmount(amount);
-        remainingLockup = uint8(bound(remainingLockup, 1, 130));
+        lockUpEpochs = uint8(bound(lockUpEpochs, 1, 130));
 
         int104[] memory yearMultiplier = new int104[](6);
         yearMultiplier[0] = 15;
@@ -298,16 +296,16 @@ contract VoteEscrowedPWN_Exposed_Test is VoteEscrowedPWN_Test {
         yearMultiplier[4] = 175;
         yearMultiplier[5] = 0;
 
-        int104 power = vePWN.exposed_powerDecrease(int104(uint104(amount)), remainingLockup);
+        int104 power = vePWN.exposed_powerDecrease(int104(uint104(amount)), lockUpEpochs);
 
         int104 multiplier;
-        if (remainingLockup > EPOCHS_IN_YEAR * 5)
+        if (lockUpEpochs > EPOCHS_IN_YEAR * 5)
             multiplier = yearMultiplier[5];
-        else if (remainingLockup == 0)
+        else if (lockUpEpochs == 0)
             multiplier = 100;
         else
             multiplier = yearMultiplier[
-                remainingLockup / EPOCHS_IN_YEAR - (remainingLockup % EPOCHS_IN_YEAR == 0 ? 1 : 0)
+                lockUpEpochs / EPOCHS_IN_YEAR - (lockUpEpochs % EPOCHS_IN_YEAR == 0 ? 1 : 0)
             ];
         assertEq(power, -int104(uint104(amount)) * multiplier / 100);
     }

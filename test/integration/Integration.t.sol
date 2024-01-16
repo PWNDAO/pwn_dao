@@ -271,8 +271,8 @@ contract Integration_vePWN_Power_Test is Integration_Test {
 
         uint16 currentEpoch = epochClock.currentEpoch();
         for (uint256 i; i < defaultLockUpEpochs / 2; ++i) {
-            uint256 remainingLockup = defaultLockUpEpochs + 1 - defaultLockUpEpochs / 2 + i;
-            uint256 power = _powerFor(defaultFundAmount, remainingLockup);
+            uint256 lockUpEpochs = defaultLockUpEpochs + 1 - defaultLockUpEpochs / 2 + i;
+            uint256 power = _powerFor(defaultFundAmount, lockUpEpochs);
             assertEq(vePWN.stakerPowerAt(staker, currentEpoch - i), power);
         }
     }
@@ -288,8 +288,8 @@ contract Integration_vePWN_Power_Test is Integration_Test {
 
         uint16 currentEpoch = epochClock.currentEpoch();
         for (uint256 i; i < defaultLockUpEpochs / 2; ++i) {
-            uint256 remainingLockup = defaultLockUpEpochs + 1 - defaultLockUpEpochs / 2 + i;
-            uint256 power = _powerFor(2 * defaultFundAmount, remainingLockup);
+            uint256 lockUpEpochs = defaultLockUpEpochs + 1 - defaultLockUpEpochs / 2 + i;
+            uint256 power = _powerFor(2 * defaultFundAmount, lockUpEpochs);
             assertEq(vePWN.stakerPowerAt(staker, currentEpoch - i), power);
         }
     }
@@ -302,8 +302,8 @@ contract Integration_vePWN_Power_Test is Integration_Test {
 
         uint16 currentEpoch = epochClock.currentEpoch();
         for (uint256 i; i < defaultLockUpEpochs / 2; ++i) {
-            uint256 remainingLockup = defaultLockUpEpochs + 1 - defaultLockUpEpochs / 2 + i;
-            uint256 power = _powerFor(defaultFundAmount, remainingLockup);
+            uint256 lockUpEpochs = defaultLockUpEpochs + 1 - defaultLockUpEpochs / 2 + i;
+            uint256 power = _powerFor(defaultFundAmount, lockUpEpochs);
             assertEq(vePWN.stakerPowerAt(staker, currentEpoch - i), power);
         }
     }
@@ -316,9 +316,9 @@ contract Integration_vePWN_Power_Test is Integration_Test {
 
         uint16 currentEpoch = epochClock.currentEpoch();
         for (uint256 i; i < defaultLockUpEpochs; ++i) {
-            uint256 remainingLockup = i;
-            uint256 power = _powerFor(defaultFundAmount, remainingLockup);
-            assertEq(vePWN.stakerPowerAt(staker, currentEpoch - remainingLockup), power);
+            uint256 lockUpEpochs = i;
+            uint256 power = _powerFor(defaultFundAmount, lockUpEpochs);
+            assertEq(vePWN.stakerPowerAt(staker, currentEpoch - lockUpEpochs), power);
         }
     }
 

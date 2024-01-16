@@ -102,17 +102,17 @@ abstract contract VoteEscrowedPWNStakeMetadata is VoteEscrowedPWNBase, IStakedPW
         attributes.stakedAmount.decimals = 18;
         attributes.stakedAmount.pwnTokenAddress = address(pwnToken);
         attributes.stakedAmountFormatted = attributes.stakedAmount.amount / 1e18;
-        attributes.lockUpDuration = uint256(stake.remainingLockup) * 28;
+        attributes.lockUpDuration = uint256(stake.lockUpEpochs) * 28;
 
         // power changes
         uint256 count = 7;
-        if (stake.remainingLockup <= 65) {
-            count = stake.remainingLockup / EPOCHS_IN_YEAR;
-            count += stake.remainingLockup % EPOCHS_IN_YEAR > 0 ? 2 : 1;
+        if (stake.lockUpEpochs <= 65) {
+            count = stake.lockUpEpochs / EPOCHS_IN_YEAR;
+            count += stake.lockUpEpochs % EPOCHS_IN_YEAR > 0 ? 2 : 1;
         }
         attributes.powerChanges = new PowerChange[](count);
         uint16 epoch = stake.initialEpoch;
-        uint8 remainingLockup = stake.remainingLockup;
+        uint8 remainingLockup = stake.lockUpEpochs;
         uint256 currentPowerChangeIndex; // find current power change index
         uint256 secondsInEpoch = epochClock.SECONDS_IN_EPOCH();
         uint256 initialEpochTimestamp = epochClock.INITIAL_EPOCH_TIMESTAMP();
@@ -145,12 +145,12 @@ abstract contract VoteEscrowedPWNStakeMetadata is VoteEscrowedPWNBase, IStakedPW
         }
     }
 
-    function _makeMultiplier(uint8 remainingLockup) internal pure returns (string memory) {
-        if (remainingLockup <= EPOCHS_IN_YEAR) return '"1.0x"';
-        else if (remainingLockup <= EPOCHS_IN_YEAR * 2) return '"1.15x"';
-        else if (remainingLockup <= EPOCHS_IN_YEAR * 3) return '"1.3x"';
-        else if (remainingLockup <= EPOCHS_IN_YEAR * 4) return '"1.5x"';
-        else if (remainingLockup <= EPOCHS_IN_YEAR * 5) return '"1.75x"';
+    function _makeMultiplier(uint8 lockUpEpochs) internal pure returns (string memory) {
+        if (lockUpEpochs <= EPOCHS_IN_YEAR) return '"1.0x"';
+        else if (lockUpEpochs <= EPOCHS_IN_YEAR * 2) return '"1.15x"';
+        else if (lockUpEpochs <= EPOCHS_IN_YEAR * 3) return '"1.3x"';
+        else if (lockUpEpochs <= EPOCHS_IN_YEAR * 4) return '"1.5x"';
+        else if (lockUpEpochs <= EPOCHS_IN_YEAR * 5) return '"1.75x"';
         else return '"3.5x"';
     }
 

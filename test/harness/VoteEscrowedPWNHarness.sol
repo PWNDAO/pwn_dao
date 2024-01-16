@@ -14,8 +14,8 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
         return _epochsToNextPowerChange(remainingLockup);
     }
 
-    function exposed_power(int104 amount, uint8 remainingLockup) external pure returns (int104) {
-        return _power(amount, remainingLockup);
+    function exposed_power(int104 amount, uint8 lockUpEpochs) external pure returns (int104) {
+        return _power(amount, lockUpEpochs);
     }
 
     function exposed_powerDecrease(int104 amount, uint8 remainingLockup) external pure returns (int104) {
@@ -42,8 +42,8 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
         return _computeAttributes(stakeId);
     }
 
-    function exposed_makeMultiplier(uint8 remainingLockup) external pure returns (string memory) {
-        return _makeMultiplier(remainingLockup);
+    function exposed_makeMultiplier(uint8 lockUpEpochs) external pure returns (string memory) {
+        return _makeMultiplier(lockUpEpochs);
     }
 
     function exposed_makeStakedAmount(StakedAmount memory stakedAmount) external pure returns (string memory) {

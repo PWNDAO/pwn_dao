@@ -49,14 +49,14 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @param stakeId2 The id of the second stake to merge.
     /// @param staker The staker address.
     /// @param amount The amount of PWN tokens in the new stake.
-    /// @param remainingLockup The number of epochs the stake is locked up for.
+    /// @param lockUpEpochs The number of epochs the stake is locked up for.
     /// @param newStakeId The id of the new stake.
     event StakeMerged(
         uint256 indexed stakeId1,
         uint256 indexed stakeId2,
         address indexed staker,
         uint256 amount,
-        uint256 remainingLockup,
+        uint256 lockUpEpochs,
         uint256 newStakeId
     );
 
@@ -145,7 +145,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         Stake storage originalStake = stakes[stakeId];
         uint16 originalInitialEpoch = originalStake.initialEpoch;
         uint104 originalAmount = originalStake.amount;
-        uint8 originalRemainingLockup = originalStake.remainingLockup;
+        uint8 originalLockUpEpochs = originalStake.lockUpEpochs;
 
         // original stake must be owned by the caller
         if (stakedPWN.ownerOf(stakeId) != staker) {
@@ -169,9 +169,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
         // create new stakes
         newStakeId1 = _createStake(
-            staker, originalInitialEpoch, originalAmount - uint104(splitAmount), originalRemainingLockup
+            staker, originalInitialEpoch, originalAmount - uint104(splitAmount), originalLockUpEpochs
         );
-        newStakeId2 = _createStake(staker, originalInitialEpoch, uint104(splitAmount), originalRemainingLockup);
+        newStakeId2 = _createStake(staker, originalInitialEpoch, uint104(splitAmount), originalLockUpEpochs);
 
         // emit event
         emit StakeSplit(stakeId, staker, originalAmount - uint104(splitAmount), splitAmount, newStakeId1, newStakeId2);
@@ -187,8 +187,8 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         address staker = msg.sender;
         Stake storage stake1 = stakes[stakeId1];
         Stake storage stake2 = stakes[stakeId2];
-        uint16 finalEpoch1 = stake1.initialEpoch + stake1.remainingLockup;
-        uint16 finalEpoch2 = stake2.initialEpoch + stake2.remainingLockup;
+        uint16 finalEpoch1 = stake1.initialEpoch + stake1.lockUpEpochs;
+        uint16 finalEpoch2 = stake2.initialEpoch + stake2.lockUpEpochs;
         uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
 
         // both stakes must be owned by the caller
@@ -204,7 +204,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             revert Error.LockUpPeriodMismatch();
         }
 
-        uint8 newRemainingLockup = uint8(finalEpoch1 - newInitialEpoch); // safe cast
+        uint8 newLockUpEpochs = uint8(finalEpoch1 - newInitialEpoch); // safe cast
         // only need to update second stake power changes if has different final epoch
         if (finalEpoch1 != finalEpoch2) {
             uint104 amount2 = stake2.amount;
@@ -213,7 +213,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
                 _updateTotalPower(amount2, newInitialEpoch, uint8(finalEpoch2 - newInitialEpoch), false);
             }
             // store new update power changes
-            _updateTotalPower(amount2, newInitialEpoch, newRemainingLockup, true);
+            _updateTotalPower(amount2, newInitialEpoch, newLockUpEpochs, true);
         }
 
         // delete old stakes
@@ -222,16 +222,16 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
         // create new stake
         uint104 newAmount = stake1.amount + stake2.amount;
-        newStakeId = _createStake(staker, newInitialEpoch, newAmount, newRemainingLockup);
+        newStakeId = _createStake(staker, newInitialEpoch, newAmount, newLockUpEpochs);
 
         // emit event
-        emit StakeMerged(stakeId1, stakeId2, staker, newAmount, newRemainingLockup, newStakeId);
+        emit StakeMerged(stakeId1, stakeId2, staker, newAmount, newLockUpEpochs, newStakeId);
     }
 
     /// @notice Increases a stake for a caller.
     /// @dev Creates new stake and burns old stPWN token.
     /// If the stakes lockup ended, `additionalEpochs` will be added from the next epoch.
-    /// The sum of current `remainingLockup` and `additionalEpochs` must be in <13;65> + {130}.
+    /// The sum of `lockUpEpochs` and `additionalEpochs` must be in <13;65> + {130}.
     /// Expecting PWN token approval for the contract if `additionalAmount` > 0.
     /// @param stakeId Id of the stake to increase.
     /// @param additionalAmount Amount of PWN tokens to increase the stake by.
@@ -264,15 +264,15 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
 
         uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
-        uint16 oldFinalEpoch = stake.initialEpoch + stake.remainingLockup;
-        uint8 newRemainingLockup = SafeCast.toUint8(
+        uint16 oldFinalEpoch = stake.initialEpoch + stake.lockUpEpochs;
+        uint8 newLockUpEpochs = SafeCast.toUint8(
             oldFinalEpoch <= newInitialEpoch ? additionalEpochs : oldFinalEpoch + additionalEpochs - newInitialEpoch
         );
         // extended lockup must be in <1; 5> + {10} years
-        if (newRemainingLockup < EPOCHS_IN_YEAR) {
+        if (newLockUpEpochs < EPOCHS_IN_YEAR) {
             revert Error.InvalidLockUpPeriod();
         }
-        if (newRemainingLockup > 5 * EPOCHS_IN_YEAR && newRemainingLockup != 10 * EPOCHS_IN_YEAR) {
+        if (newLockUpEpochs > 5 * EPOCHS_IN_YEAR && newLockUpEpochs != 10 * EPOCHS_IN_YEAR) {
             revert Error.InvalidLockUpPeriod();
         }
 
@@ -283,20 +283,20 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             bool amountAdditionOnly = additionalEpochs == 0;
 
             // clear old power changes if adding epochs
-            if (!amountAdditionOnly && newRemainingLockup > additionalEpochs) {
-                _updateTotalPower(oldAmount, newInitialEpoch, newRemainingLockup - uint8(additionalEpochs), false);
+            if (!amountAdditionOnly && newLockUpEpochs > additionalEpochs) {
+                _updateTotalPower(oldAmount, newInitialEpoch, newLockUpEpochs - uint8(additionalEpochs), false);
             }
 
             // store new power changes
             uint104 amount = amountAdditionOnly ? uint104(additionalAmount) : newAmount;
-            _updateTotalPower(amount, newInitialEpoch, newRemainingLockup, true);
+            _updateTotalPower(amount, newInitialEpoch, newLockUpEpochs, true);
         }
 
         // delete original stake
         _deleteStake(stakeId);
 
         // create new stake
-        newStakeId = _createStake(staker, newInitialEpoch, newAmount, newRemainingLockup);
+        newStakeId = _createStake(staker, newInitialEpoch, newAmount, newLockUpEpochs);
 
         // transfer additional PWN tokens
         if (additionalAmount > 0) {
@@ -305,7 +305,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
         // emit event
         emit StakeIncreased(
-            stakeId, staker, additionalAmount, newAmount, additionalEpochs, newRemainingLockup, newStakeId
+            stakeId, staker, additionalAmount, newAmount, additionalEpochs, newLockUpEpochs, newStakeId
         );
     }
 
@@ -321,7 +321,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             revert Error.NotStakeOwner();
         }
         // stake must be unlocked
-        if (stake.initialEpoch + stake.remainingLockup > epochClock.currentEpoch()) {
+        if (stake.initialEpoch + stake.lockUpEpochs > epochClock.currentEpoch()) {
             revert Error.WithrawalBeforeLockUpEnd();
         }
 
@@ -341,7 +341,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     |*----------------------------------------------------------*/
 
     /// @dev Store stake data, mint stPWN token and return new stake id
-    function _createStake(address staker, uint16 initialEpoch, uint104 amount, uint8 remainingLockup)
+    function _createStake(address staker, uint16 initialEpoch, uint104 amount, uint8 lockUpEpochs)
         internal
         returns (uint256 newStakeId)
     {
@@ -349,7 +349,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         Stake storage stake = stakes[newStakeId];
         stake.initialEpoch = initialEpoch;
         stake.amount = amount;
-        stake.remainingLockup = remainingLockup;
+        stake.lockUpEpochs = lockUpEpochs;
 
         stakedPWN.mint(staker, newStakeId);
     }

@@ -44,7 +44,7 @@ contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
         uint16 initialEpoch;
         // The number of epochs the stake is locked for.
         // max uint8 (255) > max epoch lock up number 130
-        uint8 remainingLockup;
+        uint8 lockUpEpochs;
         // Amount of PWN tokens staked.
         // max uint104 (2e31) > max stake ≈ 7e28
         // - total initial supply with decimals (1e26)

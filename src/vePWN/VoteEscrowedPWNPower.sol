@@ -110,12 +110,12 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
         if (stake.initialEpoch > epoch) {
             return 0; // not staked yet
         }
-        if (stake.initialEpoch + stake.remainingLockup <= epoch) {
+        if (stake.initialEpoch + stake.lockUpEpochs <= epoch) {
             return 0; // lockup expired
         }
         return _power({
             amount: SafeCast.toInt104(int256(uint256(stake.amount))),
-            remainingLockup: stake.remainingLockup - uint8(epoch - stake.initialEpoch)
+            lockUpEpochs: stake.lockUpEpochs - uint8(epoch - stake.initialEpoch)
         });
     }
 
