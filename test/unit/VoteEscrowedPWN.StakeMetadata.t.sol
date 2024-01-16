@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
+// solhint-disable quotes
+// solhint-disable max-line-length
 
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 

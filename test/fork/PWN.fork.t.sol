@@ -19,6 +19,7 @@ interface IAragonDAOLike {
         bytes data;
     }
 
+    // solhint-disable-next-line foundry-test-functions
     function execute(
         bytes32 callId,
         Action[] memory actions,

@@ -31,6 +31,7 @@ library BitMaskLib {
 
 
     function _rightShift(bytes32 from, uint256 rightOffset, uint256 typeSize) private pure returns (uint256) {
+        // solhint-disable-next-line custom-errors
         require(rightOffset <= 256 - typeSize, "Invalid mask offset");
         return uint256(from >> rightOffset);
     }

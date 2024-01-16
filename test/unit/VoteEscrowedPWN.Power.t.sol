@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { BitMaskLib } from "src/lib/BitMaskLib.sol";
 import { Error } from "src/lib/Error.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";

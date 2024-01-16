@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
+// solhint-disable quotes
 
 import { Base64 } from "openzeppelin-contracts/contracts/utils/Base64.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
@@ -65,21 +66,29 @@ abstract contract VoteEscrowedPWNStakeMetadata is VoteEscrowedPWNBase, IStakedPW
     }
 
     function _makeExternalUrl(uint256 stakeId) internal view returns (string memory) {
-        return string.concat('"https://app.pwn.xyz/#/asset/', block.chainid.toString(), '/', address(this).toHexString(), '/', stakeId.toString(), '"');
+        return string.concat(
+            '"https://app.pwn.xyz/#/asset/', block.chainid.toString(), '/',
+            address(this).toHexString(), '/',
+            stakeId.toString(), '"'
+        );
     }
 
     function _makeApiUriWith(uint256 stakeId, string memory path) internal view returns (string memory) {
         return string.concat(
-            '"https://api-dao.pwn.xyz/stpwn/', block.chainid.toString(), '/', address(this).toHexString(), '/', stakeId.toString(), '/', path, '"'
+            '"https://api-dao.pwn.xyz/stpwn/', block.chainid.toString(), '/',
+            address(this).toHexString(), '/',
+            stakeId.toString(), '/', path, '"'
         );
     }
 
     function _makeDescription() internal pure returns (string memory) {
+        // solhint-disable-next-line max-line-length
         return '"This NFT is a representation of a PWN DAO stake. Stake ownership grants its owner power in the PWN DAO. The power is determined by the amount of PWN tokens staked and the remaining lockup period. The power decreases over time until the lockup is over."';
     }
 
     function _makeAttributes(uint256 stakeId) internal view returns (string memory) {
         MetadataAttributes memory attributes = _computeAttributes(stakeId);
+        // solhint-disable max-line-length
         return string.concat(
             '[{"trait_type":"Staked $PWN formatted","display_type":"number","value":', attributes.stakedAmountFormatted.toString(), '},',
             '{"trait_type":"Staked $PWN","display_type":"object","value":', _makeStakedAmount(attributes.stakedAmount), '},',
@@ -91,6 +100,7 @@ abstract contract VoteEscrowedPWNStakeMetadata is VoteEscrowedPWNBase, IStakedPW
             '{"trait_type":"Power Changes","display_type":"object","value":', _makePowerChanges(attributes.powerChanges) ,'},',
             '{"trait_type":"Owner","display_type":"string","value":"', attributes.stakeOwner.toHexString(), '"}]'
         );
+        // solhint-enable max-line-length
     }
 
     function _computeAttributes(uint256 stakeId) internal view returns (MetadataAttributes memory attributes) {

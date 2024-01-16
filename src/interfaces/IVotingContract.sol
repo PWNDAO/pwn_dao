@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
+// solhint-disable max-line-length
 
 import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 

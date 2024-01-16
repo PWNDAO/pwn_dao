@@ -74,7 +74,7 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
     bool public mockStakerPowerAt = true;
     function stakerPowerAt(address staker, uint256 epoch) virtual public view override returns (uint256) {
         if (mockStakerPowerAt) {
-            require(expectedStakerPowerAtInput.staker == staker, "vePWNHarness:stakerPowerAt:staker");
+            require(expectedStakerPowerAtInput.staker == staker, "vePWNHarness:stakerPowerAt:stake");
             require(expectedStakerPowerAtInput.epoch == epoch, "vePWNHarness:stakerPowerAt:epoch");
             return stakerPowerAtReturn;
         } else {

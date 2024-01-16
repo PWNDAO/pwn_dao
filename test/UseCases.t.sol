@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
+// solhint-disable no-console
 
-import { IVotingContract } from "src/interfaces/IVotingContract.sol";
 import { PWN } from "src/PWN.sol";
 import { PWNEpochClock } from "src/PWNEpochClock.sol";
 import { StakedPWN } from "src/StakedPWN.sol";
 import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
 
-import "./Base.t.sol";
+import { Base_Test, console2 } from "./Base.t.sol";
 
 contract UseCases is Base_Test {
 
@@ -103,7 +103,7 @@ contract UseCases is Base_Test {
     function testUseCase_createStake_10Year() external { _createAllStakes(EPOCHS_IN_YEAR * 10); }
 
 
-    address to = makeAddr("to");
+    address public to = makeAddr("to");
     /// Create 10 stakes with the given lockup period one epoch apart and transfer each one to the `to` address
     function _transferAllStakes(uint256 lockUpEpochs) private {
         uint256 tokenId;

@@ -1,6 +1,7 @@
 {
     "extends": "solhint:recommended",
     "rules": {
+        "custom-errors": "off",
         "foundry-test-functions": ["error", ["setUp"]],
         "func-name-mixedcase": "off",
         "contract-name-camelcase": "off",
