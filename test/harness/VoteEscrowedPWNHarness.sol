@@ -22,6 +22,38 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
         return _powerDecrease(amount, remainingLockup);
     }
 
+    function exposed_makeName(uint256 stakeId) external pure returns (string memory) {
+        return _makeName(stakeId);
+    }
+
+    function exposed_makeExternalUrl(uint256 stakeId) external view returns (string memory) {
+        return _makeExternalUrl(stakeId);
+    }
+
+    function exposed_makeApiUriWith(uint256 stakeId, string memory path) external view returns (string memory) {
+        return _makeApiUriWith(stakeId, path);
+    }
+
+    function exposed_makeDescription() external pure returns (string memory) {
+        return _makeDescription();
+    }
+
+    function exposed_computeAttributes(uint256 stakeId) external view returns (MetadataAttributes memory) {
+        return _computeAttributes(stakeId);
+    }
+
+    function exposed_makeMultiplier(uint8 remainingLockup) external pure returns (string memory) {
+        return _makeMultiplier(remainingLockup);
+    }
+
+    function exposed_makeStakedAmount(StakedAmount memory stakedAmount) external pure returns (string memory) {
+        return _makeStakedAmount(stakedAmount);
+    }
+
+    function exposed_makePowerChanges(PowerChange[] memory powerChanges) external pure returns (string memory) {
+        return _makePowerChanges(powerChanges);
+    }
+
     // workaround
 
     function workaround_getTotalEpochPower(uint256 epoch) external view returns (int104) {

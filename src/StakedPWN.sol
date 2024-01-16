@@ -4,6 +4,7 @@ pragma solidity 0.8.18;
 import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import { ERC721 } from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 
+import { IStakedPWNSupplyManager } from "./interfaces/IStakedPWNSupplyManager.sol";
 import { Error } from "./lib/Error.sol";
 import { PWNEpochClock } from "./PWNEpochClock.sol";
 
@@ -19,7 +20,7 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*----------------------------------------------------------*/
 
     /// @notice The address of the supply manager contract.
-    address public immutable supplyManager;
+    IStakedPWNSupplyManager public immutable supplyManager;
     /// @notice The address of the epoch clock contract.
     PWNEpochClock public immutable epochClock;
 
@@ -60,7 +61,7 @@ contract StakedPWN is Ownable2Step, ERC721 {
     /// @param _supplyManager The address of the supply manager contract.
     constructor(address _owner, address _epochClock, address _supplyManager) ERC721("Staked PWN", "stPWN") {
         epochClock = PWNEpochClock(_epochClock);
-        supplyManager = _supplyManager;
+        supplyManager = IStakedPWNSupplyManager(_supplyManager);
         _transferOwnership(_owner);
     }
 
@@ -138,6 +139,18 @@ contract StakedPWN is Ownable2Step, ERC721 {
         }
 
         return ids;
+    }
+
+
+    /*----------------------------------------------------------*|
+    |*  # METADATA                                              *|
+    |*----------------------------------------------------------*/
+
+    /// @notice Returns the URI of the token metadata.
+    /// @param tokenId The token id.
+    /// @return The URI of the token metadata.
+    function tokenURI(uint256 tokenId) public view virtual override returns (string memory) {
+        return supplyManager.stakeMetadata(tokenId);
     }
 
 

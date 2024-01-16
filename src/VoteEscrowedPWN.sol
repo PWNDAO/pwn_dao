@@ -6,12 +6,13 @@ import { PWNEpochClock } from "./PWNEpochClock.sol";
 import { StakedPWN } from "./StakedPWN.sol";
 import { VoteEscrowedPWNBase } from "./vePWN/VoteEscrowedPWNBase.sol";
 import { VoteEscrowedPWNStake } from "./vePWN/VoteEscrowedPWNStake.sol";
+import { VoteEscrowedPWNStakeMetadata } from "./vePWN/VoteEscrowedPWNStakeMetadata.sol";
 import { VoteEscrowedPWNPower } from "./vePWN/VoteEscrowedPWNPower.sol";
 
 /// @title VoteEscrowedPWN
 /// @notice VoteEscrowedPWN is a contract for voting with PWN tokens.
 /// @dev VoteEscrowedPWN is a contract for gaining voting power with PWN tokens.
-contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNPower {
+contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNStakeMetadata, VoteEscrowedPWNPower {
 
     /*----------------------------------------------------------*|
     |*  # CONSTRUCTOR                                           *|

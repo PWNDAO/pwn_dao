@@ -384,6 +384,26 @@ contract StakedPWN_OwnedTokenIdsAt_Test is StakedPWN_Test {
 
 
 /*----------------------------------------------------------*|
+|*  # METADATA                                              *|
+|*----------------------------------------------------------*/
+
+contract StakedPWN_Metadata_Test is StakedPWN_Test {
+
+    function testFuzz_shouldReturnMetadataURI(uint256 tokenId, string memory metadata) external {
+        vm.mockCall(
+            supplyManager,
+            abi.encodeWithSignature("stakeMetadata(uint256)", tokenId),
+            abi.encode(metadata)
+        );
+        vm.expectCall(supplyManager, abi.encodeWithSignature("stakeMetadata(uint256)", tokenId));
+
+        assertEq(stakedPWN.tokenURI(tokenId), metadata);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
 |*  # TRANSFER                                              *|
 |*----------------------------------------------------------*/
 
