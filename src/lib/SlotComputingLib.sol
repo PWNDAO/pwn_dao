@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-pragma solidity 0.8.18;
+pragma solidity ^0.8.0;
 
 /// @notice Utility library for computing storage slots.
 /// @dev The library is used to compute storage slots for mappings and arrays.
