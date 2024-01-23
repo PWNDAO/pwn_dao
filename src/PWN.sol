@@ -5,6 +5,7 @@ import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2St
 import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
+import { IProposalReward } from "./interfaces/IProposalReward.sol";
 import { IVotingContract } from "./interfaces/IVotingContract.sol";
 import { Error } from "./lib/Error.sol";
 
@@ -14,7 +15,7 @@ import { Error } from "./lib/Error.sol";
 /// @dev This contract is Ownable2Step, which means that the ownership transfer
 /// must be accepted by the new owner.
 /// The token is mintable and burnable by the owner.
-contract PWN is Ownable2Step, ERC20 {
+contract PWN is Ownable2Step, ERC20, IProposalReward {
 
     /*----------------------------------------------------------*|
     |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
