@@ -13,7 +13,7 @@ import { IPWNEpochClock } from "src/interfaces/IPWNEpochClock.sol";
 import { BitMaskLib } from "src/lib/BitMaskLib.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 
-import { Base_Test, console2 } from "../Base.t.sol";
+import { Base_Test } from "../Base.t.sol";
 
 abstract contract PWNOptimisticGovernancePlugin_Test is Base_Test {
     using SlotComputingLib for bytes32;
