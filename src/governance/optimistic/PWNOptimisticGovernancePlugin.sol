@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.17;
 
 import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
@@ -16,7 +16,7 @@ import { IPWNOptimisticGovernance } from "./IPWNOptimisticGovernance.sol";
 import { IPWNEpochClock } from "../../interfaces/IPWNEpochClock.sol";
 
 /// @title PWNOptimisticGovernancePlugin
-/// @notice The implementation of optimistic governance plugins.
+/// @notice The implementation of optimistic governance plugin.
 /// @dev This contract implements the `IPWNOptimisticGovernance` interface.
 contract PWNOptimisticGovernancePlugin is
     IPWNOptimisticGovernance,
@@ -39,12 +39,6 @@ contract PWNOptimisticGovernancePlugin is
     bytes32 public constant UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID =
         keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION");
 
-    /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
-    bytes4 public constant OPTIMISTIC_GOVERNANCE_INTERFACE_ID =
-        this.initialize.selector ^
-        this.getProposal.selector ^
-        this.updateOptimisticGovernanceSettings.selector;
-
     /// @notice The epoch clock contract.
     IPWNEpochClock private epochClock;
 
@@ -59,20 +53,8 @@ contract PWNOptimisticGovernancePlugin is
         uint64 minDuration;
     }
 
-    /// @notice The struct storing the governance settings.
+    /// @notice The struct storing the optimistic governance settings.
     OptimisticGovernanceSettings private governanceSettings;
-
-    /// @notice A container for the proposal parameters at the time of proposal creation.
-    /// @param startDate The start date of the proposal vote.
-    /// @param endDate The end date of the proposal vote.
-    /// @param snapshotEpoch The epoch at which the voting power is checkpointed.
-    /// @param minVetoVotingPower The minimum voting power needed to defeat the proposal.
-    struct ProposalParameters {
-        uint64 startDate;
-        uint64 endDate;
-        uint64 snapshotEpoch;
-        uint256 minVetoVotingPower;
-    }
 
     /// @notice A container for proposal-related information.
     /// @param executed Whether the proposal is executed or not.
@@ -83,7 +65,7 @@ contract PWNOptimisticGovernancePlugin is
     /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
     struct Proposal {
         bool executed;
-        ProposalParameters parameters;
+        IPWNOptimisticGovernance.ProposalParameters parameters;
         uint256 vetoTally;
         mapping(address => bool) vetoVoters;
         IDAO.Action[] actions;
@@ -98,7 +80,7 @@ contract PWNOptimisticGovernancePlugin is
     |*  # EVENTS & ERRORS                                       *|
     |*----------------------------------------------------------*/
 
-    /// @notice Emitted when the vetoing settings are updated.
+    /// @notice Emitted when the optimistic governance settings are updated.
     /// @param minVetoRatio The support threshold value.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     event OptimisticGovernanceSettingsUpdated(
@@ -228,40 +210,16 @@ contract PWNOptimisticGovernancePlugin is
     }
 
     /// @inheritdoc IPWNOptimisticGovernance
-    function veto(uint256 _proposalId) public virtual {
+    function veto(uint256 _proposalId) public {
         address _voter = _msgSender();
 
-        // Not using `canVeto` function here to save gas on `getPastVotes` call.
-
-        Proposal storage proposal_ = proposals[_proposalId];
-
-        // The proposal vote hasn't started or has already ended.
-        if (!_isProposalOpen(proposal_)) {
-            revert ProposalVetoingForbidden({
-                proposalId: _proposalId,
-                account: _voter
-            });
-        }
-
-        // The voter already vetoed.
-        if (proposal_.vetoVoters[_voter]) {
-            revert ProposalVetoingForbidden({
-                proposalId: _proposalId,
-                account: _voter
-            });
-        }
-
-        // This could re-enter, though we can assume the governance token is not malicious
-        uint256 votingPower = votingToken.getPastVotes(_voter, proposal_.parameters.snapshotEpoch);
-        // The voter has no voting power.
-        if (votingPower == 0) {
-            revert ProposalVetoingForbidden({
-                proposalId: _proposalId,
-                account: _voter
-            });
+        (bool canVeto_, uint256 votingPower) = _canVeto(_proposalId, _voter);
+        if (!canVeto_) {
+            revert ProposalVetoingForbidden({ proposalId: _proposalId, account: _voter });
         }
 
         // Write the updated tally.
+        Proposal storage proposal_ = proposals[_proposalId];
         proposal_.vetoTally += votingPower;
         proposal_.vetoVoters[_voter] = true;
 
@@ -273,7 +231,7 @@ contract PWNOptimisticGovernancePlugin is
     }
 
     /// @inheritdoc IPWNOptimisticGovernance
-    function execute(uint256 _proposalId) public virtual {
+    function execute(uint256 _proposalId) public {
         if (!canExecute(_proposalId)) {
             revert ProposalExecutionForbidden(_proposalId);
         }
@@ -290,40 +248,17 @@ contract PWNOptimisticGovernancePlugin is
 
 
     /*----------------------------------------------------------*|
-    |*  # SETTINGS                                              *|
+    |*  # PROPOSAL                                              *|
     |*----------------------------------------------------------*/
 
-    /// @notice Updates the governance settings.
-    /// @param _governanceSettings The new governance settings.
-    function updateOptimisticGovernanceSettings(OptimisticGovernanceSettings calldata _governanceSettings)
-        public
-        virtual
-        auth(UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID)
-    {
-        _updateOptimisticGovernanceSettings(_governanceSettings);
-    }
-
-
-    /*----------------------------------------------------------*|
-    |*  # GETTERS                                               *|
-    |*----------------------------------------------------------*/
-
-    /// @notice Returns all information for a proposal vote by its ID.
-    /// @param _proposalId The ID of the proposal.
-    /// @return open Whether the proposal is open or not.
-    /// @return executed Whether the proposal is executed or not.
-    /// @return parameters The parameters of the proposal vote.
-    /// @return vetoTally The current voting power used to veto the proposal.
-    /// @return actions The actions to be executed in the associated DAO after the proposal has passed.
-    /// @return allowFailureMap The bit map representations of which actions are allowed to revert so tx still succeeds.
+    /// @inheritdoc IPWNOptimisticGovernance
     function getProposal(uint256 _proposalId)
         public
         view
-        virtual
         returns (
             bool open,
             bool executed,
-            ProposalParameters memory parameters,
+            IPWNOptimisticGovernance.ProposalParameters memory parameters,
             uint256 vetoTally,
             IDAO.Action[] memory actions,
             uint256 allowFailureMap
@@ -340,19 +275,8 @@ contract PWNOptimisticGovernancePlugin is
     }
 
     /// @inheritdoc IPWNOptimisticGovernance
-    function getVotingToken() public view returns (IVotesUpgradeable) {
-        return votingToken;
-    }
-
-    /// @inheritdoc IPWNOptimisticGovernance
-    function totalVotingPower(uint256 _epoch) public view returns (uint256) {
-        return votingToken.getPastTotalSupply(_epoch);
-    }
-
-    /// @inheritdoc IMembership
-    function isMember(address _account) external view returns (bool) {
-        // A member must have at least one voting power.
-        return votingToken.getVotes(_account) > 0;
+    function canVeto(uint256 _proposalId, address _voter) public view returns (bool canVeto_) {
+        (canVeto_, ) = _canVeto(_proposalId, _voter);
     }
 
     /// @inheritdoc IPWNOptimisticGovernance
@@ -361,29 +285,14 @@ contract PWNOptimisticGovernancePlugin is
     }
 
     /// @inheritdoc IPWNOptimisticGovernance
-    function canVeto(uint256 _proposalId, address _voter) public view virtual returns (bool) {
+    function isMinVetoRatioReached(uint256 _proposalId) public view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        // The proposal vote hasn't started or has already ended.
-        if (!_isProposalOpen(proposal_)) {
-            return false;
-        }
-
-        // The voter already vetoed.
-        if (proposal_.vetoVoters[_voter]) {
-            return false;
-        }
-
-        // The voter has no voting power.
-        if (votingToken.getPastVotes(_voter, proposal_.parameters.snapshotEpoch) == 0) {
-            return false;
-        }
-
-        return true;
+        return proposal_.vetoTally >= proposal_.parameters.minVetoVotingPower;
     }
 
     /// @inheritdoc IPWNOptimisticGovernance
-    function canExecute(uint256 _proposalId) public view virtual returns (bool) {
+    function canExecute(uint256 _proposalId) public view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
         // Verify that the vote has not been executed already.
@@ -402,22 +311,60 @@ contract PWNOptimisticGovernancePlugin is
         return true;
     }
 
-    /// @inheritdoc IPWNOptimisticGovernance
-    function isMinVetoRatioReached(uint256 _proposalId) public view virtual returns (bool) {
-        Proposal storage proposal_ = proposals[_proposalId];
 
-        return proposal_.vetoTally >= proposal_.parameters.minVetoVotingPower;
+    /*----------------------------------------------------------*|
+    |*  # SETTINGS                                              *|
+    |*----------------------------------------------------------*/
+
+    /// @notice Updates the optimistic governance settings.
+    /// @param _governanceSettings The new governance settings.
+    function updateOptimisticGovernanceSettings(OptimisticGovernanceSettings calldata _governanceSettings)
+        public
+        auth(UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID)
+    {
+        _updateOptimisticGovernanceSettings(_governanceSettings);
     }
 
     /// @inheritdoc IPWNOptimisticGovernance
-    function minVetoRatio() public view virtual returns (uint32) {
+    function minVetoRatio() public view returns (uint32) {
         return governanceSettings.minVetoRatio;
     }
 
     /// @inheritdoc IPWNOptimisticGovernance
-    function minDuration() public view virtual returns (uint64) {
+    function minDuration() public view returns (uint64) {
         return governanceSettings.minDuration;
     }
+
+
+    /*----------------------------------------------------------*|
+    |*  # VOTING TOKEN                                          *|
+    |*----------------------------------------------------------*/
+
+    /// @inheritdoc IPWNOptimisticGovernance
+    function getVotingToken() public view returns (IVotesUpgradeable) {
+        return votingToken;
+    }
+
+    /// @inheritdoc IPWNOptimisticGovernance
+    function totalVotingPower(uint256 _epoch) public view returns (uint256) {
+        return votingToken.getPastTotalSupply(_epoch);
+    }
+
+
+    /*----------------------------------------------------------*|
+    |*  # MEMBERSHIP                                            *|
+    |*----------------------------------------------------------*/
+
+    /// @inheritdoc IMembership
+    function isMember(address _account) external view returns (bool) {
+        // A member must have at least one voting power.
+        return votingToken.getVotes(_account) > 0;
+    }
+
+
+    /*----------------------------------------------------------*|
+    |*  # SUPPORTED INTERFACE                                   *|
+    |*----------------------------------------------------------*/
 
     /// @notice Checks if this or the parent contract supports an interface by its ID.
     /// @param _interfaceId The ID of the interface.
@@ -425,12 +372,10 @@ contract PWNOptimisticGovernancePlugin is
     function supportsInterface(bytes4 _interfaceId)
         public
         view
-        virtual
         override(ERC165Upgradeable, PluginUUPSUpgradeable, ProposalUpgradeable)
         returns (bool)
     {
         return
-            _interfaceId == OPTIMISTIC_GOVERNANCE_INTERFACE_ID ||
             _interfaceId == type(IPWNOptimisticGovernance).interfaceId ||
             _interfaceId == type(IMembership).interfaceId ||
             super.supportsInterface(_interfaceId);
@@ -476,10 +421,32 @@ contract PWNOptimisticGovernancePlugin is
         });
     }
 
+    function _canVeto(uint256 _proposalId, address _voter) internal view returns (bool, uint256) {
+        Proposal storage proposal_ = proposals[_proposalId];
+
+        // The proposal vote hasn't started or has already ended.
+        if (!_isProposalOpen(proposal_)) {
+            return (false, 0);
+        }
+
+        // The voter already vetoed.
+        if (proposal_.vetoVoters[_voter]) {
+            return (false, 0);
+        }
+
+        // The voter has no voting power.
+        uint256 votingPower = votingToken.getPastVotes(_voter, proposal_.parameters.snapshotEpoch);
+        if (votingPower == 0) {
+            return (false, 0);
+        }
+
+        return (true, votingPower);
+    }
+
     /// @notice Internal function to check if a proposal vote is open.
     /// @param proposal_ The proposal struct.
     /// @return True if the proposal vote is open, false otherwise.
-    function _isProposalOpen(Proposal storage proposal_) internal view virtual returns (bool) {
+    function _isProposalOpen(Proposal storage proposal_) internal view returns (bool) {
         uint64 currentTime = block.timestamp.toUint64();
 
         return
@@ -491,7 +458,7 @@ contract PWNOptimisticGovernancePlugin is
     /// @notice Internal function to check if a proposal already ended.
     /// @param proposal_ The proposal struct.
     /// @return True if the end date of the proposal is already in the past, false otherwise.
-    function _isProposalEnded(Proposal storage proposal_) internal view virtual returns (bool) {
+    function _isProposalEnded(Proposal storage proposal_) internal view returns (bool) {
         uint64 currentTime = block.timestamp.toUint64();
 
         return currentTime >= proposal_.parameters.endDate;
@@ -505,7 +472,6 @@ contract PWNOptimisticGovernancePlugin is
     function _validateProposalDates(uint64 _start, uint64 _end)
         internal
         view
-        virtual
         returns (uint64 startDate, uint64 endDate)
     {
         uint64 currentTimestamp = block.timestamp.toUint64();

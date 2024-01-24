@@ -8,6 +8,7 @@ import { DaoUnauthorized } from "@aragon/osx/core/utils/auth.sol";
 import { createERC1967Proxy } from "@aragon/osx/utils/Proxy.sol";
 import { RATIO_BASE, RatioOutOfBounds, _applyRatioCeiled } from "@aragon/osx/plugins/utils/Ratio.sol";
 
+import { IPWNOptimisticGovernance } from "src/governance/optimistic/IPWNOptimisticGovernance.sol";
 import { PWNOptimisticGovernancePlugin } from "src/governance/optimistic/PWNOptimisticGovernancePlugin.sol";
 import { IPWNEpochClock } from "src/interfaces/IPWNEpochClock.sol";
 import { BitMaskLib } from "src/lib/BitMaskLib.sol";
@@ -812,7 +813,7 @@ contract PWNOptimisticGovernancePlugin_GetProposal_Test is PWNOptimisticGovernan
 
         (
             , bool executed,
-            PWNOptimisticGovernancePlugin.ProposalParameters memory parameters,
+            IPWNOptimisticGovernance.ProposalParameters memory parameters,
             uint256 vetoTally,
             IDAO.Action[] memory actions_,
             uint256 allowFailureMap
