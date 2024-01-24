@@ -1,15 +1,11 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.17;
 
-import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
-
-import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 import { DAO } from "@aragon/osx/core/dao/DAO.sol";
 import { PermissionLib } from "@aragon/osx/core/permission/PermissionLib.sol";
 import { PluginSetup, IPluginSetup } from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 
 import { PWNOptimisticGovernancePlugin } from "./PWNOptimisticGovernancePlugin.sol";
-import { IPWNEpochClock } from "../../interfaces/IPWNEpochClock.sol";
 
 /// @title PWNOptimisticGovernancePluginSetup
 /// @notice The setup contract of the `PWNOptimisticGovernancePlugin` plugin.
@@ -21,7 +17,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
     /// @notice Thrown when trying to prepare an installation with no proposers.
     error NoProposers();
 
-    /// @notice The contract constructor deploying the plugin implementation contract and receiving the governance token base contracts to clone from.
+    /// @notice The contract constructor deploying the plugin implementation contract to clone from.
     constructor() {
         optimisticGovernancePluginBase = new PWNOptimisticGovernancePlugin();
     }
@@ -44,24 +40,17 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             revert NoProposers();
         }
 
-        // Prepare helpers.
-        // todo: Q: Why is this needed?
-        address[] memory helpers = new address[](1);
-        helpers[0] = votingToken;
-
         // Prepare and deploy plugin proxy.
         plugin = createERC1967Proxy(
             address(optimisticGovernancePluginBase),
-            abi.encodeCall(
-                PWNOptimisticGovernancePlugin.initialize,
-                (IDAO(_dao), governanceSettings, IPWNEpochClock(epochClock), IVotesUpgradeable(votingToken))
+            abi.encodeWithSelector(
+                PWNOptimisticGovernancePlugin.initialize.selector, _dao, governanceSettings, epochClock, votingToken
             )
         );
 
         // Prepare permissions
-        PermissionLib.MultiTargetPermission[] memory permissions = new PermissionLib.MultiTargetPermission[](
-            3 + proposers.length
-        );
+        PermissionLib.MultiTargetPermission[] memory permissions
+            = new PermissionLib.MultiTargetPermission[](3 + proposers.length);
 
         // Request the permissions to be granted
 
@@ -88,12 +77,12 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             operation: PermissionLib.Operation.Grant,
             where: _dao,
             who: plugin,
-            condition: PermissionLib.NO_CONDITION, // todo: add condition
+            condition: PermissionLib.NO_CONDITION,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
         // Proposers can create proposals
-        for (uint256 i; i < proposers.length; ) {
+        for (uint256 i; i < proposers.length;) {
             permissions[3 + i] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Grant,
                 where: plugin,
@@ -107,7 +96,6 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             }
         }
 
-        preparedSetupData.helpers = helpers;
         preparedSetupData.permissions = permissions;
     }
 
@@ -140,7 +128,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             operation: PermissionLib.Operation.Revoke,
             where: _dao,
             who: _payload.plugin,
-            condition: PermissionLib.NO_CONDITION, // todo: add condition
+            condition: PermissionLib.NO_CONDITION,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
