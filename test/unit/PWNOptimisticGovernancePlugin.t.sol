@@ -83,6 +83,7 @@ abstract contract PWNOptimisticGovernancePlugin_Test is Base_Test {
         vm.label(epochClock, "Epoch Clock");
         vm.label(votingToken, "Voting Token");
         vm.label(proposer, "Proposer");
+        vm.label(voter, "Voter");
     }
 
     function _mockProposal(
@@ -133,6 +134,7 @@ contract PWNOptimisticGovernancePlugin_Initialize_Test is PWNOptimisticGovernanc
     using BitMaskLib for bytes32;
 
     event MembershipContractAnnounced(address indexed definingContract);
+    event OptimisticGovernanceSettingsUpdated(uint32 minVetoRatio, uint64 minDuration);
 
 
     function testFuzz_shouldStoreProperties(
@@ -167,13 +169,32 @@ contract PWNOptimisticGovernancePlugin_Initialize_Test is PWNOptimisticGovernanc
 
     function testFuzz_shouldEmit_MembershipContractAnnounced(address _votingToken) external {
         vm.expectEmit();
-        emit MembershipContractAnnounced(_votingToken);
+        emit MembershipContractAnnounced({ definingContract: _votingToken });
 
         createERC1967Proxy(
             pluginImpl,
-            abi.encodeCall(
-                PWNOptimisticGovernancePlugin.initialize,
-                (IDAO(dao), settings, IPWNEpochClock(epochClock), IVotesUpgradeable(_votingToken))
+            abi.encodeWithSelector(
+                PWNOptimisticGovernancePlugin.initialize.selector, dao, settings, epochClock, _votingToken
+            )
+        );
+    }
+
+    function testFuzz_shouldEmit_OptimisticGovernanceSettingsUpdated(uint32 _minVetoRatio, uint64 _minDuration)
+        external
+    {
+        settings.minVetoRatio = uint32(bound(_minVetoRatio, 1, RATIO_BASE));
+        settings.minDuration = uint64(bound(_minDuration, 4 days, 365 days));
+
+        vm.expectEmit();
+        emit OptimisticGovernanceSettingsUpdated({
+            minVetoRatio: settings.minVetoRatio,
+            minDuration: settings.minDuration
+        });
+
+        createERC1967Proxy(
+            pluginImpl,
+            abi.encodeWithSelector(
+                PWNOptimisticGovernancePlugin.initialize.selector, dao, settings, epochClock, votingToken
             )
         );
     }
@@ -413,8 +434,6 @@ contract PWNOptimisticGovernancePlugin_Veto_Test is PWNOptimisticGovernancePlugi
         proposalId = plugin.createProposal({
             _metadata: "", _actions: actions, _allowFailureMap: 0, _startDate: 0, _endDate: 0
         });
-
-        vm.label(voter, "Voter");
     }
 
 
@@ -611,7 +630,7 @@ contract PWNOptimisticGovernancePlugin_Execute_Test is PWNOptimisticGovernancePl
         plugin.execute({ _proposalId: proposalId });
     }
 
-    function testFuzz_shouldBeAbleToExecute(address caller) external checkAddress(caller) {
+    function testFuzz_shouldBeAbleToExecuteByAnyAddress(address caller) external checkAddress(caller) {
         _skipWaitingPeriod();
 
         vm.prank(caller);

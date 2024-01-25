@@ -510,6 +510,40 @@ contract PWNTokenGovernancePlugin is
     |*  # INTERNALS                                             *|
     |*----------------------------------------------------------*/
 
+    function _canVote(uint256 _proposalId, address _account, VoteOption _voteOption)
+        internal
+        view
+        returns (bool, uint256)
+    {
+        Proposal storage proposal_ = proposals[_proposalId];
+
+        // The proposal vote hasn't started or has already ended.
+        if (!_isProposalOpen(proposal_)) {
+            return (false, 0);
+        }
+
+        // The voter votes `None` which is not allowed.
+        if (_voteOption == VoteOption.None) {
+            return (false, 0);
+        }
+
+        // The voter has no voting power.
+        uint256 votingPower = votingToken.getPastVotes(_account, proposal_.parameters.snapshotEpoch);
+        if (votingPower == 0) {
+            return (false, 0);
+        }
+
+        // The voter has already voted but vote replacment is not allowed.
+        if (
+            proposal_.voters[_account] != VoteOption.None &&
+            proposal_.parameters.votingMode != VotingMode.VoteReplacement
+        ) {
+            return (false, 0);
+        }
+
+        return (true, votingPower);
+    }
+
     function _vote(
         uint256 _proposalId,
         VoteOption _voteOption,
@@ -553,53 +587,6 @@ contract PWNTokenGovernancePlugin is
         }
     }
 
-    /// @notice Internal function to execute a vote. It assumes the queried proposal exists.
-    /// @param _proposalId The ID of the proposal.
-    function _execute(uint256 _proposalId) internal {
-        proposals[_proposalId].executed = true;
-
-        _executeProposal(
-            dao(),
-            _proposalId,
-            proposals[_proposalId].actions,
-            proposals[_proposalId].allowFailureMap
-        );
-    }
-
-    function _canVote(uint256 _proposalId, address _account, VoteOption _voteOption)
-        internal
-        view
-        returns (bool, uint256)
-    {
-        Proposal storage proposal_ = proposals[_proposalId];
-
-        // The proposal vote hasn't started or has already ended.
-        if (!_isProposalOpen(proposal_)) {
-            return (false, 0);
-        }
-
-        // The voter votes `None` which is not allowed.
-        if (_voteOption == VoteOption.None) {
-            return (false, 0);
-        }
-
-        // The voter has no voting power.
-        uint256 votingPower = votingToken.getPastVotes(_account, proposal_.parameters.snapshotEpoch);
-        if (votingPower == 0) {
-            return (false, 0);
-        }
-
-        // The voter has already voted but vote replacment is not allowed.
-        if (
-            proposal_.voters[_account] != VoteOption.None &&
-            proposal_.parameters.votingMode != VotingMode.VoteReplacement
-        ) {
-            return (false, 0);
-        }
-
-        return (true, votingPower);
-    }
-
     /// @notice Internal function to check if a proposal can be executed. It assumes the queried proposal exists.
     /// @param _proposalId The ID of the proposal.
     /// @return True if the proposal can be executed, false otherwise.
@@ -631,6 +618,19 @@ contract PWNTokenGovernancePlugin is
         }
 
         return true;
+    }
+
+    /// @notice Internal function to execute a vote. It assumes the queried proposal exists.
+    /// @param _proposalId The ID of the proposal.
+    function _execute(uint256 _proposalId) internal {
+        proposals[_proposalId].executed = true;
+
+        _executeProposal(
+            dao(),
+            _proposalId,
+            proposals[_proposalId].actions,
+            proposals[_proposalId].allowFailureMap
+        );
     }
 
     /// @notice Internal function to check if a proposal vote is still open.
