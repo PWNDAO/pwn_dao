@@ -3,15 +3,15 @@ pragma solidity 0.8.18;
 
 import "forge-std/Script.sol";
 
-import { PWN } from "../src/PWN.sol";
-import { PWNEpochClock } from "../src/PWNEpochClock.sol";
-import { StakedPWN } from "../src/StakedPWN.sol";
-import { VoteEscrowedPWN } from "../src/VoteEscrowedPWN.sol";
+import { PWN } from "src/PWN.sol";
+import { PWNEpochClock } from "src/PWNEpochClock.sol";
+import { StakedPWN } from "src/StakedPWN.sol";
+import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
 
 contract Deploy is Script {
 
 /*
-forge script script/PWN.s.sol:Deploy \
+forge script script/PWN.token.s.sol:Deploy \
 --sig "deploy(address)" $DAO \
 --rpc-url $RPC_URL \
 --private-key $PRIVATE_KEY \
