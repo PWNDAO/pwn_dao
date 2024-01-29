@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
-import { IVotingContract } from "src/interfaces/IVotingContract.sol";
+import { IPWNTokenGovernance, IDAO } from "src/governance/token/IPWNTokenGovernance.sol";
 import { Error } from "src/lib/Error.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 import { PWN } from "src/PWN.sol";
@@ -29,35 +29,35 @@ abstract contract PWN_Test is Base_Test {
     uint256 public pastVotes = 100;
     uint256 public votingReward = 20;
 
-    IVotingContract.ProposalParameters public proposalParameters = IVotingContract.ProposalParameters({
-        votingMode: IVotingContract.VotingMode.Standard,
+    IPWNTokenGovernance.ProposalParameters public proposalParameters = IPWNTokenGovernance.ProposalParameters({
+        votingMode: IPWNTokenGovernance.VotingMode.Standard,
         supportThreshold: 0,
         startDate: 0,
         endDate: 0,
         snapshotEpoch: snapshotEpoch,
         minVotingPower: 0
     });
-    IVotingContract.Tally public tally = IVotingContract.Tally({
+    IPWNTokenGovernance.Tally public tally = IPWNTokenGovernance.Tally({
         abstain: 100,
         yes: 200,
         no: 0
     });
-    IVotingContract.Action[] public actions;
+    IDAO.Action[] public actions;
 
     function setUp() virtual public {
         vm.mockCall(
             votingContract,
-            abi.encodeWithSignature("getVotingToken()"),
+            abi.encodeCall(IPWNTokenGovernance.getVotingToken, ()),
             abi.encode(votingToken)
         );
         vm.mockCall(
             votingContract,
-            abi.encodeWithSignature("getVoteOption(uint256,address)", proposalId, voter),
-            abi.encode(IVotingContract.VoteOption.Yes)
+            abi.encodeCall(IPWNTokenGovernance.getVoteOption, (proposalId, voter)),
+            abi.encode(IPWNTokenGovernance.VoteOption.Yes)
         );
         vm.mockCall(
             votingContract,
-            abi.encodeWithSignature("getProposal(uint256)", proposalId),
+            abi.encodeCall(IPWNTokenGovernance.getProposal, (proposalId)),
             abi.encode(false, true, proposalParameters, tally, actions, 0)
         );
         vm.mockCall(
@@ -401,7 +401,7 @@ contract PWN_ClaimProposalReward_Test is PWN_Test {
         vm.mockCall(
             votingContract,
             abi.encodeWithSignature("getVoteOption(uint256,address)", proposalId, caller),
-            abi.encode(IVotingContract.VoteOption.None)
+            abi.encode(IPWNTokenGovernance.VoteOption.None)
         );
 
         vm.expectRevert(abi.encodeWithSelector(Error.CallerHasNotVoted.selector));

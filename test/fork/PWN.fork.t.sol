@@ -4,28 +4,13 @@ pragma solidity 0.8.18;
 import { TransparentUpgradeableProxy }
     from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-import { IVotingContract } from "src/interfaces/IVotingContract.sol";
+import { IPWNTokenGovernance, IDAO } from "src/governance/token/IPWNTokenGovernance.sol";
 import { PWN } from "src/PWN.sol";
 import { PWNEpochClock } from "src/PWNEpochClock.sol";
 import { StakedPWN } from "src/StakedPWN.sol";
 import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
 
 import { Base_Test } from "../Base.t.sol";
-
-interface IAragonDAOLike {
-    struct Action {
-        address to;
-        uint256 value;
-        bytes data;
-    }
-
-    // solhint-disable-next-line foundry-test-functions
-    function execute(
-        bytes32 callId,
-        Action[] memory actions,
-        uint256 allowFailureMap
-    ) external returns (bytes[] memory, uint256);
-}
 
 contract PWN_ForkTest is Base_Test {
 
@@ -71,7 +56,7 @@ contract PWN_ForkTest is Base_Test {
 
     function testFork_shouldAssignProposalRewardAndClaimProposalReward() external {
         uint256 proposalId = 3;
-        IAragonDAOLike _dao = IAragonDAOLike(dao);
+        IDAO _dao = IDAO(dao);
 
         vm.startPrank(voter);
         pwnToken.approve(address(vePWN), 100e18);
@@ -81,8 +66,8 @@ contract PWN_ForkTest is Base_Test {
         // get over immutable period => epoch 28
         vm.warp(block.timestamp + epochClock.SECONDS_IN_EPOCH() * 27);
 
-        IVotingContract.ProposalParameters memory proposalParameters = IVotingContract.ProposalParameters({
-            votingMode: IVotingContract.VotingMode.Standard,
+        IPWNTokenGovernance.ProposalParameters memory proposalParameters = IPWNTokenGovernance.ProposalParameters({
+            votingMode: IPWNTokenGovernance.VotingMode.Standard,
             supportThreshold: 0,
             startDate: 0,
             endDate: 0,
@@ -90,13 +75,13 @@ contract PWN_ForkTest is Base_Test {
             minVotingPower: 0
         });
         // not important for assigning reward
-        IVotingContract.Tally memory proposalTally = IVotingContract.Tally({
+        IPWNTokenGovernance.Tally memory proposalTally = IPWNTokenGovernance.Tally({
             abstain: 0,
             yes: 350e18,
             no: 0
         });
         // not important for assigning reward
-        IVotingContract.Action[] memory proposalActions = new IVotingContract.Action[](0);
+        IDAO.Action[] memory proposalActions = new IDAO.Action[](0);
 
         // mock voting contract
         // todo: use deployed voting contract
@@ -113,16 +98,16 @@ contract PWN_ForkTest is Base_Test {
         vm.mockCall(
             votingContract,
             abi.encodeWithSignature("getVoteOption(uint256,address)", proposalId, voter),
-            abi.encode(IVotingContract.VoteOption.Yes)
+            abi.encode(IPWNTokenGovernance.VoteOption.Yes)
         );
 
-        IAragonDAOLike.Action[] memory actions = new IAragonDAOLike.Action[](2);
-        actions[0] = IAragonDAOLike.Action({ // set voting reward to 1%
+        IDAO.Action[] memory actions = new IDAO.Action[](2);
+        actions[0] = IDAO.Action({ // set voting reward to 1%
             to: address(pwnToken),
             value: 0,
             data: abi.encodeWithSelector(pwnToken.setVotingReward.selector, votingContract, 100) // 1%
         });
-        actions[1] = IAragonDAOLike.Action({ // assign proposal reward
+        actions[1] = IDAO.Action({ // assign proposal reward
             to: address(pwnToken),
             value: 0,
             data: abi.encodeWithSelector(pwnToken.assignProposalReward.selector, votingContract, proposalId)
@@ -131,9 +116,9 @@ contract PWN_ForkTest is Base_Test {
         // execute the proposal
         vm.prank(governancePlugin);
         _dao.execute({
-            callId: bytes32(proposalId),
-            actions: actions,
-            allowFailureMap: 0
+            _callId: bytes32(proposalId),
+            _actions: actions,
+            _allowFailureMap: 0
         });
 
         uint256 originalBalance = pwnToken.balanceOf(voter);

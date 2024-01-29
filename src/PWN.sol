@@ -5,8 +5,8 @@ import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2St
 import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
+import { IPWNTokenGovernance } from "./governance/token/IPWNTokenGovernance.sol";
 import { IProposalReward } from "./interfaces/IProposalReward.sol";
-import { IVotingContract } from "./interfaces/IVotingContract.sol";
 import { Error } from "./lib/Error.sol";
 
 /// @title PWN token contract.
@@ -158,8 +158,8 @@ contract PWN is Ownable2Step, ERC20, IProposalReward {
             revert Error.ProposalRewardAlreadyAssigned(proposalReward.reward);
         }
         ( // get proposal data
-            , bool executed, IVotingContract.ProposalParameters memory proposalParameters,,,
-        ) = IVotingContract(votingContract).getProposal(proposalId);
+            , bool executed, IPWNTokenGovernance.ProposalParameters memory proposalParameters,,,
+        ) = IPWNTokenGovernance(votingContract).getProposal(proposalId);
         // check that the proposal has been executed
         if (!executed) {
             revert Error.ProposalNotExecuted();
@@ -192,11 +192,12 @@ contract PWN is Ownable2Step, ERC20, IProposalReward {
             revert Error.ProposalRewardNotAssigned();
         }
         ( // get proposal data
-            ,, IVotingContract.ProposalParameters memory proposalParameters, IVotingContract.Tally memory tally,,
-        ) = IVotingContract(votingContract).getProposal(proposalId);
+            ,, IPWNTokenGovernance.ProposalParameters memory proposalParameters,
+            IPWNTokenGovernance.Tally memory tally,,
+        ) = IPWNTokenGovernance(votingContract).getProposal(proposalId);
         // check that the caller has voted
         address voter = msg.sender;
-        if (IVotingContract(votingContract).getVoteOption(proposalId, voter) == IVotingContract.VoteOption.None) {
+        if (IPWNTokenGovernance(votingContract).getVoteOption(proposalId, voter) == IPWNTokenGovernance.VoteOption.None) {
             revert Error.CallerHasNotVoted();
         }
         // check that the reward has not been claimed yet
@@ -208,7 +209,7 @@ contract PWN is Ownable2Step, ERC20, IProposalReward {
 
         // voter is rewarded proportionally to the amount of votes he had in the snapshot epoch
         // it doesn't matter if he voted yes, no or abstained
-        uint256 voterVotes = IVotingContract(votingContract).getVotingToken()
+        uint256 voterVotes = IPWNTokenGovernance(votingContract).getVotingToken()
             .getPastVotes(voter, proposalParameters.snapshotEpoch);
         uint256 totalVotes = tally.abstain + tally.yes + tally.no;
         uint256 voterReward = Math.mulDiv(assignedReward, voterVotes, totalVotes);
