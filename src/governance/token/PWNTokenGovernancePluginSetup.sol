@@ -13,7 +13,6 @@ import { PermissionLib } from "@aragon/osx/core/permission/PermissionLib.sol";
 import { PluginSetup , IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 
 import { PWNTokenGovernancePlugin } from "./PWNTokenGovernancePlugin.sol";
-import { IPWNEpochClock } from "../../interfaces/IPWNEpochClock.sol";
 
 /// @title PWNTokenGovernancePluginSetup
 /// @notice The setup contract of the `PWNTokenGovernancePlugin` plugin.
@@ -22,8 +21,17 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
     using Clones for address;
     using ERC165Checker for address;
 
+    /*----------------------------------------------------------*|
+    |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
+    |*----------------------------------------------------------*/
+
     /// @notice The address of the `PWNTokenGovernancePlugin` base contract.
     PWNTokenGovernancePlugin private immutable tokenGovernancePluginBase;
+
+
+    /*----------------------------------------------------------*|
+    |*  # ERRORS                                                *|
+    |*----------------------------------------------------------*/
 
     /// @notice Thrown if token address is passed which is not a token.
     /// @param token The token address
@@ -37,10 +45,20 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
     /// @param length The array length of passed helpers.
     error WrongHelpersArrayLength(uint256 length);
 
+
+    /*----------------------------------------------------------*|
+    |*  # CONSTRUCTOR                                           *|
+    |*----------------------------------------------------------*/
+
     /// @notice The contract constructor deploying the plugin implementation contract to clone from.
     constructor() {
         tokenGovernancePluginBase = new PWNTokenGovernancePlugin();
     }
+
+
+    /*----------------------------------------------------------*|
+    |*  # PREPARE INSTALL & UNINSTALL                           *|
+    |*----------------------------------------------------------*/
 
     /// @inheritdoc IPluginSetup
     function prepareInstallation(address _dao, bytes calldata _installParameters)
@@ -130,10 +148,20 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
         });
     }
 
+
+    /*----------------------------------------------------------*|
+    |*  # GETTERS                                               *|
+    |*----------------------------------------------------------*/
+
     /// @inheritdoc IPluginSetup
     function implementation() external view virtual override returns (address) {
         return address(tokenGovernancePluginBase);
     }
+
+
+    /*----------------------------------------------------------*|
+    |*  # EN/DECODE INSTALL PARAMS                              *|
+    |*----------------------------------------------------------*/
 
     /// @notice Encodes the given installation parameters into a byte array
     function encodeInstallationParams(
