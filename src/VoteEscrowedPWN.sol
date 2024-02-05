@@ -28,17 +28,14 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNStakeMetadata, 
     /// @param _pwnToken The address of the PWN token.
     /// @param _stakedPWN The address of the staked PWN contract.
     /// @param _epochClock The address of the epoch clock contract.
-    /// @param _owner The address of the owner. Should be PWN DAO.
     function initialize(
         address _pwnToken,
         address _stakedPWN,
-        address _epochClock,
-        address _owner
+        address _epochClock
     ) external initializer {
         pwnToken = PWN(_pwnToken);
         stakedPWN = StakedPWN(_stakedPWN);
         epochClock = PWNEpochClock(_epochClock);
-        _transferOwnership(_owner);
     }
 
     // The following functions are overrides required by Solidity.

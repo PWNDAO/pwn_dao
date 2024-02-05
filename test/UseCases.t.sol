@@ -38,7 +38,7 @@ contract UseCases is Base_Test {
         vePWN = new VoteEscrowedPWN();
         stPWN = new StakedPWN(dao, address(epochClock), address(vePWN));
 
-        vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock), dao);
+        vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock));
 
         vm.prank(dao);
         stPWN.enableTransfers();

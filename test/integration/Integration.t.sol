@@ -24,7 +24,6 @@ abstract contract Integration_Test is Base_Test {
     address public dao = makeAddr("dao");
     address public staker = makeAddr("staker");
     address public votingContract = makeAddr("votingContract");
-    address public daoTimelock = makeAddr("daoTimelock"); // vePWN admin
 
     uint256 public defaultFundAmount = 1000 ether;
 
@@ -40,11 +39,11 @@ abstract contract Integration_Test is Base_Test {
         pwnToken = new PWN(dao);
         VoteEscrowedPWN vePWNImpl = new VoteEscrowedPWN();
         vePWN = VoteEscrowedPWN(address(
-            new TransparentUpgradeableProxy(address(vePWNImpl), daoTimelock, "")
+            new TransparentUpgradeableProxy(address(vePWNImpl), dao, "")
         ));
         stPWN = new StakedPWN(dao, address(epochClock), address(vePWN));
 
-        vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock), dao);
+        vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock));
 
         vm.prank(dao);
         stPWN.enableTransfers();

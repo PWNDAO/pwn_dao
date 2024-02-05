@@ -157,7 +157,7 @@ contract VoteEscrowedPWN_StakeMetadata_ComputeAttributes_Test is VoteEscrowedPWN
     using Strings for address;
     using Strings for uint256;
 
-    function testFuzz_shouldComputeOwner(address _owner) external checkAddress(owner) {
+    function testFuzz_shouldComputeOwner(address _owner) external checkAddress(_owner) {
         vm.mockCall(stakedPWN, abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(_owner));
 
         VoteEscrowedPWN.MetadataAttributes memory attributes = vePWN.exposed_computeAttributes(stakeId);

@@ -33,11 +33,15 @@ contract PWN_ForkTest is Base_Test {
         pwnToken = new PWN(dao);
         VoteEscrowedPWN vePWNImpl = new VoteEscrowedPWN();
         vePWN = VoteEscrowedPWN(address(
-            new TransparentUpgradeableProxy(address(vePWNImpl), makeAddr("protocolTimelock"), "")
+            new TransparentUpgradeableProxy({
+                _logic: address(vePWNImpl),
+                admin_: dao,
+                _data: ""
+            })
         ));
         stPWN = new StakedPWN(dao, address(epochClock), address(vePWN));
 
-        vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock), dao);
+        vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock));
 
         vm.startPrank(dao);
         pwnToken.mint(pwnToken.MINTABLE_TOTAL_SUPPLY());
