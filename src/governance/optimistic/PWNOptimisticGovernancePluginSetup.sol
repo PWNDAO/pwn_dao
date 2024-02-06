@@ -11,16 +11,35 @@ import { PWNOptimisticGovernancePlugin } from "./PWNOptimisticGovernancePlugin.s
 /// @notice The setup contract of the `PWNOptimisticGovernancePlugin` plugin.
 contract PWNOptimisticGovernancePluginSetup is PluginSetup {
 
+    /*----------------------------------------------------------*|
+    |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
+    |*----------------------------------------------------------*/
+
     /// @notice The address of the `PWNOptimisticGovernancePlugin` base contract.
     PWNOptimisticGovernancePlugin private immutable optimisticGovernancePluginBase;
 
+
+    /*----------------------------------------------------------*|
+    |*  # ERRORS                                                *|
+    |*----------------------------------------------------------*/
+
     /// @notice Thrown when trying to prepare an installation with no proposers.
     error NoProposers();
+
+
+    /*----------------------------------------------------------*|
+    |*  # CONSTRUCTOR                                           *|
+    |*----------------------------------------------------------*/
 
     /// @notice The contract constructor deploying the plugin implementation contract to clone from.
     constructor() {
         optimisticGovernancePluginBase = new PWNOptimisticGovernancePlugin();
     }
+
+
+    /*----------------------------------------------------------*|
+    |*  # PREPARE INSTALL & UNINSTALL                           *|
+    |*----------------------------------------------------------*/
 
     /// @inheritdoc IPluginSetup
     function prepareInstallation(address _dao, bytes calldata _installParameters)
@@ -143,10 +162,20 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
         // Note: It no longer matters if proposers can still create proposals
     }
 
+
+    /*----------------------------------------------------------*|
+    |*  # GETTERS                                               *|
+    |*----------------------------------------------------------*/
+
     /// @inheritdoc IPluginSetup
     function implementation() external view virtual override returns (address) {
         return address(optimisticGovernancePluginBase);
     }
+
+
+    /*----------------------------------------------------------*|
+    |*  # EN/DECODE INSTALL PARAMS                              *|
+    |*----------------------------------------------------------*/
 
     /// @notice Encodes the given installation parameters into a byte array
     function encodeInstallationParams(
