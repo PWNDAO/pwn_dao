@@ -158,8 +158,23 @@ contract PWNOptimisticGovernancePluginSetup_PrepareInstallation_Test is PWNOptim
             = pluginSetup.prepareInstallation(dao, installParameters);
 
         for (uint256 i; i < proposers.length; ++i) {
-            PermissionLib.MultiTargetPermission memory permission = preparedSetupData.permissions[3 + i];
+            PermissionLib.MultiTargetPermission memory permission = preparedSetupData.permissions[3 + (i * 2)];
             bytes32 permissionId = PWNOptimisticGovernancePlugin(plugin).PROPOSER_PERMISSION_ID();
+            assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.Grant));
+            assertEq(permission.where, plugin);
+            assertEq(permission.who, proposers[i]);
+            assertEq(permission.condition, PermissionLib.NO_CONDITION);
+            assertEq(permission.permissionId, permissionId);
+        }
+    }
+
+    function test_shouldGrantPermission_CANCELLER_PERMISSION_ID_wherePlugin_whoProposers() external {
+        (address plugin, IPluginSetup.PreparedSetupData memory preparedSetupData)
+            = pluginSetup.prepareInstallation(dao, installParameters);
+
+        for (uint256 i; i < proposers.length; ++i) {
+            PermissionLib.MultiTargetPermission memory permission = preparedSetupData.permissions[3 + (i * 2) + 1];
+            bytes32 permissionId = PWNOptimisticGovernancePlugin(plugin).CANCELLER_PERMISSION_ID();
             assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.Grant));
             assertEq(permission.where, plugin);
             assertEq(permission.who, proposers[i]);

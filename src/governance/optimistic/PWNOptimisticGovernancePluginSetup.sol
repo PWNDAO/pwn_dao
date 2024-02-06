@@ -50,7 +50,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
 
         // Prepare permissions
         PermissionLib.MultiTargetPermission[] memory permissions
-            = new PermissionLib.MultiTargetPermission[](3 + proposers.length);
+            = new PermissionLib.MultiTargetPermission[](3 + (2 * proposers.length));
 
         // Request the permissions to be granted
 
@@ -83,12 +83,20 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
 
         // Proposers can create proposals
         for (uint256 i; i < proposers.length;) {
-            permissions[3 + i] = PermissionLib.MultiTargetPermission({
+            permissions[3 + (i * 2)] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Grant,
                 where: plugin,
                 who: proposers[i],
                 condition: PermissionLib.NO_CONDITION,
                 permissionId: optimisticGovernancePluginBase.PROPOSER_PERMISSION_ID()
+            });
+
+            permissions[3 + (i * 2) + 1] = PermissionLib.MultiTargetPermission({
+                operation: PermissionLib.Operation.Grant,
+                where: plugin,
+                who: proposers[i],
+                condition: PermissionLib.NO_CONDITION,
+                permissionId: optimisticGovernancePluginBase.CANCELLER_PERMISSION_ID()
             });
 
             unchecked {
