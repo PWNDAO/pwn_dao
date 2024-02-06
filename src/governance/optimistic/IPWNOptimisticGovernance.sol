@@ -33,6 +33,10 @@ interface IPWNOptimisticGovernance {
     /// @param _proposalId The ID of the proposal to be executed.
     function execute(uint256 _proposalId) external;
 
+    /// @notice Cancels a proposal.
+    /// @param _proposalId The ID of the proposal to be cancelled.
+    function cancelProposal(uint256 _proposalId) external;
+
     // # PROPOSAL
 
     /// @notice A container for the proposal parameters at the time of proposal creation.
@@ -51,6 +55,7 @@ interface IPWNOptimisticGovernance {
     /// @param _proposalId The ID of the proposal.
     /// @return open Whether the proposal is open or not.
     /// @return executed Whether the proposal is executed or not.
+    /// @return cancelled Whether the proposal is cancelled or not.
     /// @return parameters The parameters of the proposal vote.
     /// @return vetoTally The current voting power used to veto the proposal.
     /// @return actions The actions to be executed in the associated DAO after the proposal has passed.
@@ -61,6 +66,7 @@ interface IPWNOptimisticGovernance {
         returns (
             bool open,
             bool executed,
+            bool cancelled,
             ProposalParameters memory parameters,
             uint256 vetoTally,
             IDAO.Action[] memory actions,
@@ -93,6 +99,11 @@ interface IPWNOptimisticGovernance {
     /// @param _proposalId The ID of the proposal to be checked.
     /// @return True if the proposal can be executed, false otherwise.
     function canExecute(uint256 _proposalId) external view returns (bool);
+
+    /// @notice Checks if a proposal can be cancelled.
+    /// @param _proposalId The ID of the proposal to be checked.
+    /// @return True if the proposal can be cancelled, false otherwise.
+    function canCancel(uint256 _proposalId) external view returns (bool);
 
     // # SETTINGS
 

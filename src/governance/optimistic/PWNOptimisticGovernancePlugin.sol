@@ -35,6 +35,9 @@ contract PWNOptimisticGovernancePlugin is
     /// @notice The ID of the permission required to create a proposal.
     bytes32 public constant PROPOSER_PERMISSION_ID = keccak256("PROPOSER_PERMISSION");
 
+    // The ID of the permission required to cancel a proposal.
+    bytes32 public constant CANCELLER_PERMISSION_ID = keccak256("CANCELLER_PERMISSION");
+
     /// @notice The ID of the permission required to call the `updateOptimisticGovernanceSettings` function.
     bytes32 public constant UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID =
         keccak256("UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION");
@@ -58,6 +61,7 @@ contract PWNOptimisticGovernancePlugin is
 
     /// @notice A container for proposal-related information.
     /// @param executed Whether the proposal is executed or not.
+    /// @param cancelled Whether the proposal is cancelled or not.
     /// @param parameters The proposal parameters at the time of the proposal creation.
     /// @param vetoTally The amount of voting power used to veto the proposal.
     /// @param vetoVoters The voters who have vetoed.
@@ -65,6 +69,7 @@ contract PWNOptimisticGovernancePlugin is
     /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
     struct Proposal {
         bool executed;
+        bool cancelled;
         IPWNOptimisticGovernance.ProposalParameters parameters;
         uint256 vetoTally;
         mapping(address => bool) vetoVoters;
@@ -98,6 +103,10 @@ contract PWNOptimisticGovernancePlugin is
         uint256 votingPower
     );
 
+    /// @notice Emitted when a proposal is cancelled.
+    /// @param proposalId The ID of the proposal.
+    event ProposalCancelled(uint256 indexed proposalId);
+
     /// @notice Thrown if a date is out of bounds.
     /// @param limit The limit value.
     /// @param actual The actual value.
@@ -120,6 +129,10 @@ contract PWNOptimisticGovernancePlugin is
     /// @notice Thrown if the proposal execution is forbidden.
     /// @param proposalId The ID of the proposal.
     error ProposalExecutionForbidden(uint256 proposalId);
+
+    /// @notice Thrown if the proposal cancelation is forbidden.
+    /// @param proposalId The ID of the proposal.
+    error ProposalCancellationForbidden(uint256 proposalId);
 
     /// @notice Thrown if the voting power is zero
     error NoVotingPower();
@@ -246,6 +259,17 @@ contract PWNOptimisticGovernancePlugin is
         );
     }
 
+    /// @inheritdoc IPWNOptimisticGovernance
+    function cancelProposal(uint256 _proposalId) external auth(CANCELLER_PERMISSION_ID) {
+        if (!canCancel(_proposalId)) {
+            revert ProposalCancellationForbidden(_proposalId);
+        }
+
+        proposals[_proposalId].cancelled = true;
+
+        emit ProposalCancelled(_proposalId);
+    }
+
 
     /*----------------------------------------------------------*|
     |*  # PROPOSAL                                              *|
@@ -258,6 +282,7 @@ contract PWNOptimisticGovernancePlugin is
         returns (
             bool open,
             bool executed,
+            bool cancelled,
             IPWNOptimisticGovernance.ProposalParameters memory parameters,
             uint256 vetoTally,
             IDAO.Action[] memory actions,
@@ -268,6 +293,7 @@ contract PWNOptimisticGovernancePlugin is
 
         open = _isProposalOpen(proposal_);
         executed = proposal_.executed;
+        cancelled = proposal_.cancelled;
         parameters = proposal_.parameters;
         vetoTally = proposal_.vetoTally;
         actions = proposal_.actions;
@@ -295,12 +321,36 @@ contract PWNOptimisticGovernancePlugin is
     function canExecute(uint256 _proposalId) public view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        // Verify that the vote has not been executed already.
+        // Verify that the proposal has not been executed already
         if (proposal_.executed) {
+            return false;
+        }
+        // Check that the proposal has not been cancelled
+        else if (proposal_.cancelled) {
             return false;
         }
         // Check that the proposal vetoing time frame already expired
         else if (!_isProposalEnded(proposal_)) {
+            return false;
+        }
+        // Check that not enough voters have vetoed the proposal
+        else if (isMinVetoRatioReached(_proposalId)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// @inheritdoc IPWNOptimisticGovernance
+    function canCancel(uint256 _proposalId) public view returns (bool) {
+        Proposal storage proposal_ = proposals[_proposalId];
+
+        // Verify that the proposal has not been executed already
+        if (proposal_.executed) {
+            return false;
+        }
+        // Check that the proposal has not been cancelled
+        else if (proposal_.cancelled) {
             return false;
         }
         // Check that not enough voters have vetoed the proposal
@@ -452,7 +502,8 @@ contract PWNOptimisticGovernancePlugin is
         return
             proposal_.parameters.startDate <= currentTime &&
             currentTime < proposal_.parameters.endDate &&
-            !proposal_.executed;
+            !proposal_.executed &&
+            !proposal_.cancelled;
     }
 
     /// @notice Internal function to check if a proposal already ended.

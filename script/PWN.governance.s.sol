@@ -177,7 +177,9 @@ forge script script/PWN.governance.s.sol:Deploy \
 
 
     // used for Tenderly simulations
-    function _consoleEncodeApplyInstallationExecuteCall(PluginSetupProcessor.ApplyInstallationParams memory installationParams) private {
+    function _consoleEncodeApplyInstallationExecuteCall(
+        PluginSetupProcessor.ApplyInstallationParams memory installationParams
+    ) private pure {
         IDAO.Action[] memory actions = new IDAO.Action[](3);
         actions[0] = IDAO.Action({
             to: DAO,

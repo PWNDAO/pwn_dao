@@ -30,6 +30,7 @@ abstract contract PWNOptimisticGovernancePlugin_Test is Base_Test {
     address public epochClock = makeAddr("epochClock");
     address public votingToken = makeAddr("votingToken");
     address public proposer = makeAddr("proposer");
+    address public canceller = makeAddr("canceller");
     address public voter = makeAddr("voter");
 
     uint64 public snapshotEpoch = 1;
@@ -67,6 +68,16 @@ abstract contract PWNOptimisticGovernancePlugin_Test is Base_Test {
             ),
             abi.encode(true)
         );
+        // nobody but the canceller has `CANCELLER_PERMISSION_ID` permission
+        vm.mockCall(dao, abi.encodeWithSelector(IDAO.hasPermission.selector), abi.encode(false));
+        vm.mockCall(
+            dao,
+            abi.encodeWithSelector(
+                IDAO.hasPermission.selector,
+                address(plugin), canceller, plugin.CANCELLER_PERMISSION_ID()
+            ),
+            abi.encode(true)
+        );
         // mock epoch clock
         vm.mockCall(
             epochClock, abi.encodeWithSelector(IPWNEpochClock.currentEpoch.selector), abi.encode(snapshotEpoch)
@@ -83,12 +94,14 @@ abstract contract PWNOptimisticGovernancePlugin_Test is Base_Test {
         vm.label(epochClock, "Epoch Clock");
         vm.label(votingToken, "Voting Token");
         vm.label(proposer, "Proposer");
+        vm.label(canceller, "Canceller");
         vm.label(voter, "Voter");
     }
 
     function _mockProposal(
         uint256 _proposalId,
         bool _executed,
+        bool _cancelled,
         uint64 _startDate,
         uint64 _endDate,
         uint64 _snapshotEpoch,
@@ -99,7 +112,10 @@ abstract contract PWNOptimisticGovernancePlugin_Test is Base_Test {
         uint256 _allowFailureMap
     ) internal {
         bytes32 proposalSlot = PROPOSALS_SLOT.withMappingKey(_proposalId);
-        vm.store(address(plugin), proposalSlot.withArrayIndex(0), bytes32(uint256(_executed ? 1 : 0))); // executed
+        bytes32 flagsData = abi.decode(
+            abi.encodePacked(uint240(0), uint8(_cancelled ? 1 : 0), uint8(_executed ? 1 : 0)), (bytes32)
+        );
+        vm.store(address(plugin), proposalSlot.withArrayIndex(0), flagsData);
         bytes32 parametersData = abi.decode(
             abi.encodePacked(uint64(0), _snapshotEpoch, _endDate, _startDate), (bytes32)
         );
@@ -650,6 +666,111 @@ contract PWNOptimisticGovernancePlugin_Execute_Test is PWNOptimisticGovernancePl
 
 
 /*----------------------------------------------------------*|
+|*  # CANCEL PROPOSAL                                       *|
+|*----------------------------------------------------------*/
+
+contract PWNOptimisticGovernancePlugin_CancelProposal_Test is PWNOptimisticGovernancePlugin_Test {
+    using SlotComputingLib for bytes32;
+    using BitMaskLib for bytes32;
+
+    uint256 public proposalId;
+
+    event ProposalCancelled(uint256 indexed proposalId);
+
+    function setUp() override public {
+        super.setUp();
+
+        actions.push( // dummy action
+            IDAO.Action({
+                to: makeAddr("action1.addr"),
+                value: 10,
+                data: "data1"
+            })
+        );
+
+        vm.prank(proposer);
+        proposalId = plugin.createProposal({
+            _metadata: "", _actions: actions, _allowFailureMap: 0, _startDate: 0, _endDate: 0
+        });
+    }
+
+
+    function testFuzz_shouldFail_whenCallerWithoutPermission(address caller) external checkAddress(caller) {
+        vm.assume(caller != canceller);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector, dao, address(plugin), caller, plugin.CANCELLER_PERMISSION_ID()
+            )
+        );
+        vm.prank(caller);
+        plugin.cancelProposal({ _proposalId: proposalId });
+    }
+
+    function test_shouldFail_whenExecuted() external {
+        vm.store(
+            address(plugin),
+            PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(0),
+            bytes32(uint256(1)) // executed & !cancelled
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(PWNOptimisticGovernancePlugin.ProposalCancellationForbidden.selector, proposalId)
+        );
+        vm.prank(canceller);
+        plugin.cancelProposal({ _proposalId: proposalId });
+    }
+
+    function test_shouldFail_whenCancelled() external {
+        vm.store(
+            address(plugin),
+            PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(0),
+            bytes32(uint256(1) << 8) // !executed & cancelled
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(PWNOptimisticGovernancePlugin.ProposalCancellationForbidden.selector, proposalId)
+        );
+        vm.prank(canceller);
+        plugin.cancelProposal({ _proposalId: proposalId });
+    }
+
+    function test_shouldFail_whenVetoRatioReached() external {
+        vm.store(
+            address(plugin),
+            PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(3),
+            bytes32(_applyRatioCeiled(pastTotalSupply, settings.minVetoRatio))
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSelector(PWNOptimisticGovernancePlugin.ProposalCancellationForbidden.selector, proposalId)
+        );
+        vm.prank(canceller);
+        plugin.cancelProposal({ _proposalId: proposalId });
+    }
+
+    function test_shouldStoreCancelledProposal() external {
+        vm.prank(canceller);
+        plugin.cancelProposal({ _proposalId: proposalId });
+
+        assertEq( // cancelled
+            vm.load(address(plugin), PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(0)).maskUint8(8),
+            1
+        );
+    }
+
+    function test_shouldEmit_ProposalCancelled() external {
+        vm.expectEmit();
+        emit ProposalCancelled({ proposalId: proposalId });
+
+        vm.prank(canceller);
+        plugin.cancelProposal({ _proposalId: proposalId });
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
 |*  # UPDATE GOVERNANCE SETTINGS                            *|
 |*----------------------------------------------------------*/
 
@@ -780,25 +901,30 @@ contract PWNOptimisticGovernancePlugin_GetProposal_Test is PWNOptimisticGovernan
         bool open;
 
         // true when not executed, started and not ended
-        _mockProposal(proposalId, false, timestamp - 10, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
-        (open,,,,,) = plugin.getProposal(proposalId);
+        _mockProposal(proposalId, false, false, timestamp - 10, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
+        (open,,,,,,) = plugin.getProposal(proposalId);
         assertTrue(open);
         // false when executed
-        _mockProposal(proposalId, true, timestamp - 10, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
-        (open,,,,,) = plugin.getProposal(proposalId);
+        _mockProposal(proposalId, true, false, timestamp - 10, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
+        (open,,,,,,) = plugin.getProposal(proposalId);
+        assertFalse(open);
+        // false when cancelled
+        _mockProposal(proposalId, false, true, timestamp - 10, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
+        (open,,,,,,) = plugin.getProposal(proposalId);
         assertFalse(open);
         // false when not started
-        _mockProposal(proposalId, false, timestamp + 1, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
-        (open,,,,,) = plugin.getProposal(proposalId);
+        _mockProposal(proposalId, false, false, timestamp + 1, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
+        (open,,,,,,) = plugin.getProposal(proposalId);
         assertFalse(open);
         // false when ended
-        _mockProposal(proposalId, false, timestamp - 10, timestamp - 1, 0, 0, 0, vetoVoters, actions, 0);
-        (open,,,,,) = plugin.getProposal(proposalId);
+        _mockProposal(proposalId, false, false, timestamp - 10, timestamp - 1, 0, 0, 0, vetoVoters, actions, 0);
+        (open,,,,,,) = plugin.getProposal(proposalId);
         assertFalse(open);
     }
 
     function testFuzz_shouldReturnProposal(
         bool _executed,
+        bool _cancelled,
         uint64 _startDate,
         uint64 _endDate,
         uint64 _snapshotEpoch,
@@ -820,6 +946,7 @@ contract PWNOptimisticGovernancePlugin_GetProposal_Test is PWNOptimisticGovernan
         _mockProposal({
             _proposalId: proposalId,
             _executed: _executed,
+            _cancelled: _cancelled,
             _startDate: _startDate,
             _endDate: _endDate,
             _snapshotEpoch: _snapshotEpoch,
@@ -832,6 +959,7 @@ contract PWNOptimisticGovernancePlugin_GetProposal_Test is PWNOptimisticGovernan
 
         (
             , bool executed,
+            bool cancelled,
             IPWNOptimisticGovernance.ProposalParameters memory parameters,
             uint256 vetoTally,
             IDAO.Action[] memory actions_,
@@ -839,6 +967,7 @@ contract PWNOptimisticGovernancePlugin_GetProposal_Test is PWNOptimisticGovernan
         ) = plugin.getProposal(proposalId);
 
         assertEq(executed, _executed);
+        assertEq(cancelled, _cancelled);
         assertEq(parameters.startDate, _startDate);
         assertEq(parameters.endDate, _endDate);
         assertEq(parameters.snapshotEpoch, _snapshotEpoch);
@@ -960,20 +1089,23 @@ contract PWNOptimisticGovernancePlugin_CanVeto_Test is PWNOptimisticGovernancePl
 
 
     function test_shouldReturnFalse_whenProposalClosed() external {
-        _mockProposal(proposalId, true, timestamp - 10, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
+        _mockProposal(proposalId, true, false, timestamp - 10, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
         assertFalse(plugin.canVeto(proposalId, voter));
 
-        _mockProposal(proposalId, false, timestamp + 1, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
+        _mockProposal(proposalId, false, true, timestamp - 10, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
         assertFalse(plugin.canVeto(proposalId, voter));
 
-        _mockProposal(proposalId, false, timestamp - 10, timestamp - 1, 0, 0, 0, vetoVoters, actions, 0);
+        _mockProposal(proposalId, false, false, timestamp + 1, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
+        assertFalse(plugin.canVeto(proposalId, voter));
+
+        _mockProposal(proposalId, false, false, timestamp - 10, timestamp - 1, 0, 0, 0, vetoVoters, actions, 0);
         assertFalse(plugin.canVeto(proposalId, voter));
     }
 
     function test_shouldReturnFalse_whenVetoed() external {
         vetoVoters.push(voter);
 
-        _mockProposal(proposalId, false, timestamp - 10, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
+        _mockProposal(proposalId, false, false, timestamp - 10, timestamp + 10, 0, 0, 0, vetoVoters, actions, 0);
         assertFalse(plugin.canVeto(proposalId, voter));
     }
 
@@ -984,12 +1116,16 @@ contract PWNOptimisticGovernancePlugin_CanVeto_Test is PWNOptimisticGovernancePl
             abi.encode(uint256(0))
         );
 
-        _mockProposal(proposalId, false, timestamp - 10, timestamp + 10, snapshotEpoch, 0, 0, vetoVoters, actions, 0);
+        _mockProposal(
+            proposalId, false, false, timestamp - 10, timestamp + 10, snapshotEpoch, 0, 0, vetoVoters, actions, 0
+        );
         assertFalse(plugin.canVeto(proposalId, voter));
     }
 
     function test_shouldReturnTrue_whenOpen_whenNotVetoed_whenNonZeroPower() external {
-        _mockProposal(proposalId, false, timestamp - 10, timestamp + 10, snapshotEpoch, 0, 0, vetoVoters, actions, 0);
+        _mockProposal(
+            proposalId, false, false, timestamp - 10, timestamp + 10, snapshotEpoch, 0, 0, vetoVoters, actions, 0
+        );
         assertTrue(plugin.canVeto(proposalId, voter));
     }
 
@@ -1013,23 +1149,59 @@ contract PWNOptimisticGovernancePlugin_CanExecute_Test is PWNOptimisticGovernanc
 
 
     function test_shouldReturnFalse_whenExecuted() external {
-        _mockProposal(proposalId, true, 0, timestamp - 10, 0, 20, 10, vetoVoters, actions, 0);
+        _mockProposal(proposalId, true, false, 0, timestamp - 10, 0, 20, 10, vetoVoters, actions, 0);
+        assertFalse(plugin.canExecute(proposalId));
+    }
+
+    function test_shouldReturnFalse_whenCancelled() external {
+        _mockProposal(proposalId, false, true, 0, timestamp - 10, 0, 20, 10, vetoVoters, actions, 0);
         assertFalse(plugin.canExecute(proposalId));
     }
 
     function test_shouldReturnFalse_whenEnded() external {
-        _mockProposal(proposalId, false, 0, timestamp + 10, 0, 20, 10, vetoVoters, actions, 0);
+        _mockProposal(proposalId, false, false, 0, timestamp + 10, 0, 20, 10, vetoVoters, actions, 0);
         assertFalse(plugin.canExecute(proposalId));
     }
 
     function test_shouldReturnFalse_whenVetoed() external {
-        _mockProposal(proposalId, false, 0, timestamp - 10, 0, 20, 21, vetoVoters, actions, 0);
+        _mockProposal(proposalId, false, false, 0, timestamp - 10, 0, 20, 21, vetoVoters, actions, 0);
         assertFalse(plugin.canExecute(proposalId));
     }
 
     function test_shouldReturnTrue_whenNotExecuted_whenNotEnded_whenNotVetoed() external {
-        _mockProposal(proposalId, false, 0, timestamp - 10, 0, 20, 10, vetoVoters, actions, 0);
+        _mockProposal(proposalId, false, false, 0, timestamp - 10, 0, 20, 10, vetoVoters, actions, 0);
         assertTrue(plugin.canExecute(proposalId));
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # CAN CANCEL                                            *|
+|*----------------------------------------------------------*/
+
+contract PWNOptimisticGovernancePlugin_CanCancel_Test is PWNOptimisticGovernancePlugin_Test {
+
+    uint256 public proposalId = 420;
+
+    function test_shouldReturnFalse_whenExecuted() external {
+        _mockProposal(proposalId, true, false, 0, 0, 0, 2, 1, vetoVoters, actions, 0);
+        assertFalse(plugin.canCancel(proposalId));
+    }
+
+    function test_shouldReturnFalse_whenCancelled() external {
+        _mockProposal(proposalId, false, true, 0, 0, 0, 2, 1, vetoVoters, actions, 0);
+        assertFalse(plugin.canCancel(proposalId));
+    }
+
+    function test_shouldReturnFalse_whenVetoRatioReached() external {
+        _mockProposal(proposalId, false, false, 0, 0, 0, 2, 3, vetoVoters, actions, 0);
+        assertFalse(plugin.canCancel(proposalId));
+    }
+
+    function test_shouldReturnTrue_whenNotExecuted_whenNotCancelled_whenVetoRatioNotReached() external {
+        _mockProposal(proposalId, false, false, 0, 0, 0, 2, 1, vetoVoters, actions, 0);
+        assertTrue(plugin.canCancel(proposalId));
     }
 
 }
@@ -1044,10 +1216,10 @@ contract PWNOptimisticGovernancePlugin_IsMinVetoRatioReached_Test is PWNOptimist
     function test_shouldReturnTrue_whenMinVetoPowerReached() external {
         uint256 proposalId = 420;
 
-        _mockProposal(proposalId, false, 0, 0, 0, 20, 20, vetoVoters, actions, 0);
+        _mockProposal(proposalId, false, false, 0, 0, 0, 20, 20, vetoVoters, actions, 0);
         assertTrue(plugin.isMinVetoRatioReached(proposalId));
 
-        _mockProposal(proposalId, false, 0, 0, 0, 20, 10, vetoVoters, actions, 0);
+        _mockProposal(proposalId, false, false, 0, 0, 0, 20, 10, vetoVoters, actions, 0);
         assertFalse(plugin.isMinVetoRatioReached(proposalId));
     }
 
