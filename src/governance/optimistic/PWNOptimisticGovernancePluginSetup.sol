@@ -6,6 +6,7 @@ import { PermissionLib } from "@aragon/osx/core/permission/PermissionLib.sol";
 import { PluginSetup, IPluginSetup } from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 
 import { PWNOptimisticGovernancePlugin } from "./PWNOptimisticGovernancePlugin.sol";
+import { DAOExecuteAllowlist } from "../permission/DAOExecuteAllowlist.sol";
 
 /// @title PWNOptimisticGovernancePluginSetup
 /// @notice The setup contract of the `PWNOptimisticGovernancePlugin` plugin.
@@ -67,6 +68,14 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             )
         );
 
+        // Prepare helpers.
+        address[] memory helpers = new address[](1);
+
+        // Deploy DAOExecuteAllowlist condition.
+        DAOExecuteAllowlist allowlist = new DAOExecuteAllowlist(_dao);
+
+        helpers[0] = address(allowlist);
+
         // Prepare permissions
         PermissionLib.MultiTargetPermission[] memory permissions
             = new PermissionLib.MultiTargetPermission[](3 + (2 * proposers.length));
@@ -91,12 +100,12 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             permissionId: optimisticGovernancePluginBase.UPGRADE_PLUGIN_PERMISSION_ID()
         });
 
-        // The plugin can make the DAO execute actions
+        // The plugin can make the DAO execute actions with allowlist condition
         permissions[2] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
+            operation: PermissionLib.Operation.GrantWithCondition,
             where: _dao,
             who: plugin,
-            condition: PermissionLib.NO_CONDITION,
+            condition: address(allowlist),
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
@@ -123,6 +132,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             }
         }
 
+        preparedSetupData.helpers = helpers;
         preparedSetupData.permissions = permissions;
     }
 
@@ -155,7 +165,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             operation: PermissionLib.Operation.Revoke,
             where: _dao,
             who: _payload.plugin,
-            condition: PermissionLib.NO_CONDITION,
+            condition: _payload.currentHelpers[0], // DAOExecuteAllowlist
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 

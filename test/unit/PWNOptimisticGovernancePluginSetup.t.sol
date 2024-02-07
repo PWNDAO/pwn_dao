@@ -6,10 +6,11 @@ import {
     PWNOptimisticGovernancePlugin,
     PWNOptimisticGovernancePluginSetup,
     PermissionLib,
-    IPluginSetup
+    IPluginSetup,
+    DAOExecuteAllowlist
 } from "src/governance/optimistic/PWNOptimisticGovernancePluginSetup.sol";
 
-import { Base_Test, Vm } from "../Base.t.sol";
+import { Base_Test, Vm, console2 } from "../Base.t.sol";
 
 abstract contract PWNOptimisticGovernancePluginSetup_Test is Base_Test {
 
@@ -146,11 +147,15 @@ contract PWNOptimisticGovernancePluginSetup_PrepareInstallation_Test is PWNOptim
 
         PermissionLib.MultiTargetPermission memory permission = preparedSetupData.permissions[2];
         bytes32 permissionId = DUMMY_EXECUTE_PERMISSION_ID;
-        assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.Grant));
+        assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.GrantWithCondition));
         assertEq(permission.where, dao);
         assertEq(permission.who, plugin);
-        assertEq(permission.condition, PermissionLib.NO_CONDITION);
+        assertEq(permission.condition, preparedSetupData.helpers[0]);
         assertEq(permission.permissionId, permissionId);
+        assertEq( // check that the condition is the DAOExecuteAllowlist contract with the correct DAO address
+            preparedSetupData.helpers[0].codehash,
+            address(new DAOExecuteAllowlist(dao)).codehash
+        );
     }
 
     function test_shouldGrantPermission_PROPOSER_PERMISSION_ID_wherePlugin_whoProposers() external {
@@ -193,6 +198,7 @@ contract PWNOptimisticGovernancePluginSetup_PrepareInstallation_Test is PWNOptim
 contract PWNOptimisticGovernancePluginSetup_PrepareUninstallation_Test is PWNOptimisticGovernancePluginSetup_Test {
 
     address public plugin = makeAddr("plugin");
+    address public allowlist = makeAddr("allowlist");
     IPluginSetup.SetupPayload public setupPayload;
 
     function setUp() public override {
@@ -200,9 +206,10 @@ contract PWNOptimisticGovernancePluginSetup_PrepareUninstallation_Test is PWNOpt
 
         setupPayload = IPluginSetup.SetupPayload({
             plugin: plugin,
-            currentHelpers: new address[](0),
+            currentHelpers: new address[](1),
             data: new bytes(0)
         });
+        setupPayload.currentHelpers[0] = allowlist;
     }
 
 
@@ -243,7 +250,7 @@ contract PWNOptimisticGovernancePluginSetup_PrepareUninstallation_Test is PWNOpt
         assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.Revoke));
         assertEq(permission.where, dao);
         assertEq(permission.who, plugin);
-        assertEq(permission.condition, PermissionLib.NO_CONDITION);
+        assertEq(permission.condition, allowlist);
         assertEq(permission.permissionId, permissionId);
     }
 

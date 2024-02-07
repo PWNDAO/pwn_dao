@@ -4,10 +4,11 @@ pragma solidity 0.8.17;
 import { DAO } from "@aragon/osx/core/dao/DAO.sol";
 import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 import { IPermissionCondition } from "@aragon/osx/core/permission/IPermissionCondition.sol";
+import { PermissionCondition } from "@aragon/osx/core/permission/PermissionCondition.sol";
 
 /// @title Proposal Reward Condition
 /// @notice Permission condition that checks if a proposal is assigning a reward to itself and current proposal.
-contract DAOExecuteAllowlist is IPermissionCondition {
+contract DAOExecuteAllowlist is PermissionCondition {
 
     /*----------------------------------------------------------*|
     |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
