@@ -10,7 +10,7 @@ import { Base_Test } from "../Base.t.sol";
 
 abstract contract DAOExecuteAllowlist_Test is Base_Test {
 
-    bytes32 constant public ALLOWLIST_SLOT = bytes32(uint256(1));
+    bytes32 constant public ALLOWLIST_SLOT = bytes32(uint256(0));
 
     address public dao = makeAddr("dao");
     address public who = makeAddr("who");
@@ -232,6 +232,8 @@ contract DAOExecuteAllowlist_IsGranted_Test is DAOExecuteAllowlist_Test {
 contract DAOExecuteAllowlist_SetAllowlist_Test is DAOExecuteAllowlist_Test {
 
     function testFuzz_shouldFail_whenCallerIsNotDAO(address caller) external checkAddress(caller) {
+        vm.assume(caller != dao);
+
         vm.expectRevert(abi.encodeWithSelector(DAOExecuteAllowlist.CallerNotDAO.selector));
         vm.prank(caller);
         condition.setAllowlist(address(0), 0, true);
