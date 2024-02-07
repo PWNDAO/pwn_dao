@@ -71,7 +71,8 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
         (
             PWNTokenGovernancePlugin.TokenGovernanceSettings memory governanceSettings,
             address epochClock,
-            address votingToken
+            address votingToken,
+            address rewardToken
         ) = decodeInstallationParams(_installParameters);
 
         // Prepare and deploy plugin proxy.
@@ -86,7 +87,7 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
         address[] memory helpers = new address[](1);
 
         // Deploy ProposalRewardAssignerCondition condition.
-        ProposalRewardAssignerCondition assignerCondition = new ProposalRewardAssignerCondition(_dao, votingToken);
+        ProposalRewardAssignerCondition assignerCondition = new ProposalRewardAssignerCondition(_dao, rewardToken);
 
         helpers[0] = address(assignerCondition);
 
@@ -177,9 +178,10 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
     function encodeInstallationParams(
         PWNTokenGovernancePlugin.TokenGovernanceSettings memory _governanceSettings,
         address _epochClock,
-        address _votingToken
+        address _votingToken,
+        address _rewardToken
     ) external pure returns (bytes memory) {
-        return abi.encode(_governanceSettings, _epochClock, _votingToken);
+        return abi.encode(_governanceSettings, _epochClock, _votingToken, _rewardToken);
     }
 
     /// @notice Decodes the given byte array into the original installation parameters
@@ -189,11 +191,12 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
         returns (
             PWNTokenGovernancePlugin.TokenGovernanceSettings memory governanceSettings,
             address epochClock,
-            address votingToken
+            address votingToken,
+            address rewardToken
         )
     {
-        (governanceSettings, epochClock, votingToken) = abi.decode(
-            _data, (PWNTokenGovernancePlugin.TokenGovernanceSettings, address, address)
+        (governanceSettings, epochClock, votingToken, rewardToken) = abi.decode(
+            _data, (PWNTokenGovernancePlugin.TokenGovernanceSettings, address, address, address)
         );
     }
 

@@ -16,7 +16,8 @@ abstract contract PWNTokenGovernancePluginSetup_Test is Base_Test {
 
     address public dao = makeAddr("dao");
     address public epochClock = makeAddr("epochClock");
-    address public votingToken = makeAddr("votingToken");
+    address public votingToken = makeAddr("votingToken"); // vePWN
+    address public rewardToken = makeAddr("rewardToken"); // PWN
     bytes32 public DUMMY_EXECUTE_PERMISSION_ID = keccak256("DUMMY_EXECUTE_PERMISSION_ID");
 
     PWNTokenGovernancePluginSetup public pluginSetup;
@@ -69,7 +70,9 @@ contract PWNTokenGovernancePluginSetup_PrepareInstallation_Test is PWNTokenGover
     function setUp() public override {
         super.setUp();
 
-        installParameters = pluginSetup.encodeInstallationParams(governanceSettings, epochClock, votingToken);
+        installParameters = pluginSetup.encodeInstallationParams(
+            governanceSettings, epochClock, votingToken, rewardToken
+        );
     }
 
 
@@ -142,10 +145,21 @@ contract PWNTokenGovernancePluginSetup_PrepareInstallation_Test is PWNTokenGover
         assertEq(permission.who, plugin);
         assertEq(permission.condition, preparedSetupData.helpers[0]);
         assertEq(permission.permissionId, permissionId);
-        assertEq( // check that the condition is the ProposalRewardAssignerCondition contract
-            preparedSetupData.helpers[0].codehash,
-            address(new ProposalRewardAssignerCondition(dao, votingToken)).codehash
+    }
+
+    function test_shouldReturnHelpersArrayWithAssignerCondition() external {
+        (, IPluginSetup.PreparedSetupData memory preparedSetupData)
+            = pluginSetup.prepareInstallation(dao, installParameters);
+
+        assertEq(preparedSetupData.helpers.length, 1);
+        ProposalRewardAssignerCondition assignerCondition
+            = ProposalRewardAssignerCondition(preparedSetupData.helpers[0]);
+        assertEq(
+            address(assignerCondition).codehash,
+            address(new ProposalRewardAssignerCondition(dao, rewardToken)).codehash
         );
+        assertEq(assignerCondition.dao(), dao);
+        assertEq(assignerCondition.proposalReward(), rewardToken);
     }
 
 }
@@ -230,7 +244,8 @@ contract PWNTokenGovernancePluginSetup_EncodeInstallationParams_Test is PWNToken
         uint64 _minDuration,
         uint256 _minProposerVotingPower,
         address _epochClock,
-        address _votingToken
+        address _votingToken,
+        address _rewardToken
     ) external {
         governanceSettings.votingMode = IPWNTokenGovernance.VotingMode(_votingMode % 3);
         governanceSettings.supportThreshold = _supportThreshold;
@@ -239,14 +254,12 @@ contract PWNTokenGovernancePluginSetup_EncodeInstallationParams_Test is PWNToken
         governanceSettings.minProposerVotingPower = _minProposerVotingPower;
 
         bytes memory encodedParams = pluginSetup.encodeInstallationParams(
-            governanceSettings,
-            _epochClock,
-            _votingToken
+            governanceSettings, _epochClock, _votingToken, _rewardToken
         );
 
         assertEq(
             keccak256(encodedParams),
-            keccak256(abi.encode(governanceSettings, _epochClock, _votingToken))
+            keccak256(abi.encode(governanceSettings, _epochClock, _votingToken, _rewardToken))
         );
     }
 
@@ -266,19 +279,21 @@ contract PWNTokenGovernancePluginSetup_DecodeInstallationParams_Test is PWNToken
         uint64 _minDuration,
         uint256 _minProposerVotingPower,
         address _epochClock,
-        address _votingToken
+        address _votingToken,
+        address _rewardToken
     ) external {
         governanceSettings.votingMode = IPWNTokenGovernance.VotingMode(_votingMode % 3);
         governanceSettings.supportThreshold = _supportThreshold;
         governanceSettings.minParticipation = _minParticipation;
         governanceSettings.minDuration = _minDuration;
         governanceSettings.minProposerVotingPower = _minProposerVotingPower;
-        bytes memory encodedParams = abi.encode(governanceSettings, _epochClock, _votingToken);
+        bytes memory encodedParams = abi.encode(governanceSettings, _epochClock, _votingToken, _rewardToken);
 
         (
             PWNTokenGovernancePlugin.TokenGovernanceSettings memory decodedGovernanceSettings,
             address decodedEpochClock,
-            address decodedVotingToken
+            address decodedVotingToken,
+            address decodedRewardToken
         ) = pluginSetup.decodeInstallationParams(encodedParams);
 
         assertEq(uint8(decodedGovernanceSettings.votingMode), _votingMode % 3);
@@ -288,6 +303,7 @@ contract PWNTokenGovernancePluginSetup_DecodeInstallationParams_Test is PWNToken
         assertEq(decodedGovernanceSettings.minProposerVotingPower, _minProposerVotingPower);
         assertEq(decodedEpochClock, _epochClock);
         assertEq(decodedVotingToken, _votingToken);
+        assertEq(decodedRewardToken, _rewardToken);
     }
 
 }

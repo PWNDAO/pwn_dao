@@ -152,10 +152,6 @@ contract PWNOptimisticGovernancePluginSetup_PrepareInstallation_Test is PWNOptim
         assertEq(permission.who, plugin);
         assertEq(permission.condition, preparedSetupData.helpers[0]);
         assertEq(permission.permissionId, permissionId);
-        assertEq( // check that the condition is the DAOExecuteAllowlist contract
-            preparedSetupData.helpers[0].codehash,
-            address(new DAOExecuteAllowlist(dao)).codehash
-        );
     }
 
     function test_shouldGrantPermission_PROPOSER_PERMISSION_ID_wherePlugin_whoProposers() external {
@@ -186,6 +182,16 @@ contract PWNOptimisticGovernancePluginSetup_PrepareInstallation_Test is PWNOptim
             assertEq(permission.condition, PermissionLib.NO_CONDITION);
             assertEq(permission.permissionId, permissionId);
         }
+    }
+
+    function test_shouldReturnHelpersArrayWithAllowlist() external {
+        (, IPluginSetup.PreparedSetupData memory preparedSetupData)
+            = pluginSetup.prepareInstallation(dao, installParameters);
+
+        assertEq(preparedSetupData.helpers.length, 1);
+        DAOExecuteAllowlist allowlist = DAOExecuteAllowlist(preparedSetupData.helpers[0]);
+        assertEq(address(allowlist).codehash, address(new DAOExecuteAllowlist(dao)).codehash);
+        assertEq(allowlist.dao(), dao);
     }
 
 }

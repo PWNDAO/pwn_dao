@@ -25,6 +25,7 @@ contract Deploy is Script {
     address internal constant PLUGIN_REPO_FACTORY = 0xaac9E9cdb8C1eb42d881ADd59Ee9c53847a3a4f3;
     address internal constant PLUGIN_SETUP_PROCESSOR = 0xE978942c691e43f65c1B7c7F8f1dc8cDF061B13f;
     address internal constant EPOCH_CLOCK = 0xc9E94453d182c50984A2a4afdD60796D25B027Aa;
+    address internal constant PWN_TOKEN = 0xd65404695a101B4FD476f4F2222F68917f96b911;
     address internal constant VEPWN_TOKEN = 0x2277c872A63FA7b2759173cdcfF693435532B4e4;
 
 /*
@@ -68,7 +69,8 @@ forge script script/PWN.governance.s.sol:Deploy \
                     minProposerVotingPower: 100_000e18 // 100k vePWN
                 }),
                 _epochClock: EPOCH_CLOCK,
-                _votingToken: VEPWN_TOKEN
+                _votingToken: VEPWN_TOKEN,
+                _rewardToken: PWN_TOKEN
             })
         });
         (address plugin, IPluginSetup.PreparedSetupData memory preparedSetupData)
