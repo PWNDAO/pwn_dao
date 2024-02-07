@@ -21,7 +21,7 @@ contract DAOExecuteAllowlist is PermissionCondition {
 
     /// @notice The DAO address.
     /// @dev Only the DAO can update the allowlist.
-    address public dao;
+    address immutable public dao;
 
     /// @notice Contracts and their selectors that are allowed to call via the DAO execute function.
     /// @dev if `ANY_SELECTOR` is allowed, all selectors of the contract are allowed.

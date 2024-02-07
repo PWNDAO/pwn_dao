@@ -16,9 +16,9 @@ contract ProposalRewardAssignerCondition is PermissionCondition {
     bytes32 immutable public EXECUTE_PERMISSION_ID;
 
     /// @notice The DAO address.
-    address public dao;
+    address immutable public dao;
     /// @notice The proposal reward contract address (PWN token).
-    address public proposalReward;
+    address immutable public proposalReward;
 
     constructor(address _dao, address _proposalReward) {
         dao = _dao;
