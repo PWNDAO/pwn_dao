@@ -21,6 +21,7 @@ abstract contract Base_Test is Test {
     function _checkAddress(address addr, bool allowZero) internal virtual {
         if (!allowZero) vm.assume(addr != address(0));
         assumeAddressIsNot(addr, AddressType.Precompile, AddressType.ForgeAddress);
+        vm.assume(addr != 0x2e234DAe75C793f67A35089C9d99245E1C58470b);
     }
 
 }
