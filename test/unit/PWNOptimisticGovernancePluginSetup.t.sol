@@ -10,7 +10,7 @@ import {
     DAOExecuteAllowlist
 } from "src/governance/optimistic/PWNOptimisticGovernancePluginSetup.sol";
 
-import { Base_Test, Vm, console2 } from "../Base.t.sol";
+import { Base_Test, Vm } from "../Base.t.sol";
 
 abstract contract PWNOptimisticGovernancePluginSetup_Test is Base_Test {
 
@@ -152,7 +152,7 @@ contract PWNOptimisticGovernancePluginSetup_PrepareInstallation_Test is PWNOptim
         assertEq(permission.who, plugin);
         assertEq(permission.condition, preparedSetupData.helpers[0]);
         assertEq(permission.permissionId, permissionId);
-        assertEq( // check that the condition is the DAOExecuteAllowlist contract with the correct DAO address
+        assertEq( // check that the condition is the DAOExecuteAllowlist contract
             preparedSetupData.helpers[0].codehash,
             address(new DAOExecuteAllowlist(dao)).codehash
         );

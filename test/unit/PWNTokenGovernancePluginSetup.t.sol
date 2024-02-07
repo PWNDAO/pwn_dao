@@ -6,7 +6,8 @@ import {
     PWNTokenGovernancePlugin,
     PWNTokenGovernancePluginSetup,
     PermissionLib,
-    IPluginSetup
+    IPluginSetup,
+    ProposalRewardAssignerCondition
 } from "src/governance/token/PWNTokenGovernancePluginSetup.sol";
 
 import { Base_Test, Vm } from "../Base.t.sol";
@@ -136,11 +137,15 @@ contract PWNTokenGovernancePluginSetup_PrepareInstallation_Test is PWNTokenGover
 
         PermissionLib.MultiTargetPermission memory permission = preparedSetupData.permissions[2];
         bytes32 permissionId = DUMMY_EXECUTE_PERMISSION_ID;
-        assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.Grant));
+        assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.GrantWithCondition));
         assertEq(permission.where, dao);
         assertEq(permission.who, plugin);
-        assertEq(permission.condition, PermissionLib.NO_CONDITION);
+        assertEq(permission.condition, preparedSetupData.helpers[0]);
         assertEq(permission.permissionId, permissionId);
+        assertEq( // check that the condition is the ProposalRewardAssignerCondition contract
+            preparedSetupData.helpers[0].codehash,
+            address(new ProposalRewardAssignerCondition(dao, votingToken)).codehash
+        );
     }
 
 }
@@ -153,6 +158,7 @@ contract PWNTokenGovernancePluginSetup_PrepareInstallation_Test is PWNTokenGover
 contract PWNTokenGovernancePluginSetup_PrepareUninstallation_Test is PWNTokenGovernancePluginSetup_Test {
 
     address public plugin = makeAddr("plugin");
+    address public assignerCondition = makeAddr("assignerCondition");
     IPluginSetup.SetupPayload public setupPayload;
 
     function setUp() public override {
@@ -160,9 +166,10 @@ contract PWNTokenGovernancePluginSetup_PrepareUninstallation_Test is PWNTokenGov
 
         setupPayload = IPluginSetup.SetupPayload({
             plugin: plugin,
-            currentHelpers: new address[](0),
+            currentHelpers: new address[](1),
             data: new bytes(0)
         });
+        setupPayload.currentHelpers[0] = assignerCondition;
     }
 
 
@@ -203,7 +210,7 @@ contract PWNTokenGovernancePluginSetup_PrepareUninstallation_Test is PWNTokenGov
         assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.Revoke));
         assertEq(permission.where, dao);
         assertEq(permission.who, plugin);
-        assertEq(permission.condition, PermissionLib.NO_CONDITION);
+        assertEq(permission.condition, assignerCondition);
         assertEq(permission.permissionId, permissionId);
     }
 

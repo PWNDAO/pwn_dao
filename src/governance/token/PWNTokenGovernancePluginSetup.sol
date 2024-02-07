@@ -13,6 +13,7 @@ import { PermissionLib } from "@aragon/osx/core/permission/PermissionLib.sol";
 import { PluginSetup , IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 
 import { PWNTokenGovernancePlugin } from "./PWNTokenGovernancePlugin.sol";
+import { ProposalRewardAssignerCondition } from "../permission/ProposalRewardAssignerCondition.sol";
 
 /// @title PWNTokenGovernancePluginSetup
 /// @notice The setup contract of the `PWNTokenGovernancePlugin` plugin.
@@ -81,6 +82,14 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
             )
         );
 
+        // Prepare helpers.
+        address[] memory helpers = new address[](1);
+
+        // Deploy ProposalRewardAssignerCondition condition.
+        ProposalRewardAssignerCondition assignerCondition = new ProposalRewardAssignerCondition(_dao, votingToken);
+
+        helpers[0] = address(assignerCondition);
+
         // Prepare permissions
         PermissionLib.MultiTargetPermission[] memory permissions = new PermissionLib.MultiTargetPermission[](3);
 
@@ -104,13 +113,14 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
 
         // Grant `EXECUTE_PERMISSION` of the DAO to the plugin.{
         permissions[2] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.Grant,
+            operation: PermissionLib.Operation.GrantWithCondition,
             where: _dao,
             who: plugin,
-            condition: PermissionLib.NO_CONDITION,
+            condition: address(assignerCondition),
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
+        preparedSetupData.helpers = helpers;
         preparedSetupData.permissions = permissions;
     }
 
@@ -143,7 +153,7 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
             operation: PermissionLib.Operation.Revoke,
             where: _dao,
             who: _payload.plugin,
-            condition: PermissionLib.NO_CONDITION,
+            condition: _payload.currentHelpers[0], // ProposalRewardAssignerCondition
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
     }
