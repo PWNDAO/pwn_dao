@@ -187,6 +187,15 @@ contract PWNTokenGovernancePluginSetup_PrepareUninstallation_Test is PWNTokenGov
     }
 
 
+    function test_shouldFail_whenHelpersArrayLengthIsNotOne() external {
+        setupPayload.currentHelpers = new address[](0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(PWNTokenGovernancePluginSetup.WrongHelpersArrayLength.selector, 0)
+        );
+        pluginSetup.prepareUninstallation(dao, setupPayload);
+    }
+
     function test_shouldRevokePermission_UPDATE_TOKEN_GOVERNANCE_SETTINGS_PERMISSION_ID_wherePlugin_whoDAO() external {
         PermissionLib.MultiTargetPermission[] memory permissions
             = pluginSetup.prepareUninstallation(dao, setupPayload);
