@@ -51,6 +51,11 @@ contract PWN is Ownable2Step, ERC20 {
     |*  # EVENTS                                                *|
     |*----------------------------------------------------------*/
 
+    /// @notice Emitted when the owner sets the reward for voting in a voting contract.
+    /// @param votingContract The voting contract address.
+    /// @param votingReward The voting reward nominator.
+    event VotingRewardSet(address indexed votingContract, uint256 votingReward);
+
     /// @notice Emitted when the owner assigns a reward to a governance proposal.
     /// @param votingContract The voting contract address.
     /// @param proposalId The proposal id.
@@ -129,6 +134,8 @@ contract PWN is Ownable2Step, ERC20 {
             revert Error.InvalidVotingReward();
         }
         votingRewards[votingContract] = votingReward;
+
+        emit VotingRewardSet(votingContract, votingReward);
     }
 
     /// @notice Assigns a reward to a governance proposal.

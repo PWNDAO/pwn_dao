@@ -179,6 +179,9 @@ contract PWN_Burn_Test is PWN_Test {
 contract PWN_SetVotingReward_Test is PWN_Test {
     using SlotComputingLib for bytes32;
 
+    event VotingRewardSet(address indexed votingContract, uint256 votingReward);
+
+
     function testFuzz_shouldFail_whenCallerNotOwner(address caller) external {
         vm.assume(caller != owner);
 
@@ -212,6 +215,19 @@ contract PWN_SetVotingReward_Test is PWN_Test {
 
         bytes32 votingRewardValue = vm.load(address(pwnToken), VOTING_REWARDS_SLOT.withMappingKey(_votingContract));
         assertEq(uint256(votingRewardValue), votingReward);
+    }
+
+    function testFuzz_shouldEmit_VotingRewardSet(address _votingContract, uint256 _votingReward)
+        external
+        checkAddress(_votingContract)
+    {
+        votingReward = bound(_votingReward, 0, pwnToken.MAX_VOTING_REWARD());
+
+        vm.expectEmit();
+        emit VotingRewardSet(_votingContract, votingReward);
+
+        vm.prank(owner);
+        pwnToken.setVotingReward(_votingContract, votingReward);
     }
 
 }
