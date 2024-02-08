@@ -23,7 +23,7 @@ import { RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds } from "@aragon/osx/plu
 import { IPWNOptimisticGovernance } from "./IPWNOptimisticGovernance.sol";
 import { IPWNEpochClock } from "../../interfaces/IPWNEpochClock.sol";
 
-/// @title PWNOptimisticGovernancePlugin
+/// @title PWN Optimistic Governance Plugin
 /// @notice The implementation of optimistic governance plugin.
 /// @dev This contract implements the `IPWNOptimisticGovernance` interface.
 contract PWNOptimisticGovernancePlugin is
@@ -56,15 +56,15 @@ contract PWNOptimisticGovernancePlugin is
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
     IVotesUpgradeable private votingToken;
 
-    /// @notice A container for the optimistic majority settings that will be applied as parameters on proposal creation.
-    /// @param minVetoRatio The support threshold value. Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
+    /// @notice A container for the optimistic governance settings that will be applied as parameters on proposal creation.
+    /// @param minVetoRatio The veto threshold value. Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     struct OptimisticGovernanceSettings {
         uint32 minVetoRatio;
         uint64 minDuration;
     }
 
-    /// @notice The struct storing the optimistic governance settings.
+    /// @notice The property storing the optimistic governance settings.
     OptimisticGovernanceSettings private governanceSettings;
 
     /// @notice A container for proposal-related information.
@@ -94,7 +94,7 @@ contract PWNOptimisticGovernancePlugin is
     |*----------------------------------------------------------*/
 
     /// @notice Emitted when the optimistic governance settings are updated.
-    /// @param minVetoRatio The support threshold value.
+    /// @param minVetoRatio The veto threshold value.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     event OptimisticGovernanceSettingsUpdated(
         uint32 minVetoRatio,
@@ -128,6 +128,7 @@ contract PWNOptimisticGovernancePlugin is
     /// @notice Thrown if an account is not allowed to cast a veto. This can be because the challenge period
     /// - has not started,
     /// - has ended,
+    /// - was cancelled,
     /// - was executed, or
     /// - the account doesn't have vetoing powers.
     /// @param proposalId The ID of the proposal.
@@ -147,18 +148,14 @@ contract PWNOptimisticGovernancePlugin is
 
 
     /*----------------------------------------------------------*|
-    |*  # CONSTRUCTOR                                           *|
+    |*  # INITIALIZE                                            *|
     |*----------------------------------------------------------*/
 
-    // solhint-disable-next-line no-empty-blocks
-    constructor() {
-        // Is used as a proxy. Use initializer to setup initial properties.
-    }
-
-    /// @notice Initializes the component to be used by inheriting contracts.
+    /// @notice Initializes the component.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
     /// @param _dao The IDAO interface of the associated DAO.
-    /// @param _governanceSettings The vetoing settings.
+    /// @param _governanceSettings The optimistic governance settings.
+    /// @param _epochClock The epoch clock used for time tracking.
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
     function initialize(
         IDAO _dao,
@@ -206,7 +203,7 @@ contract PWNOptimisticGovernancePlugin is
             _allowFailureMap: _allowFailureMap
         });
 
-        // Store proposal related information
+        // store proposal related information
         Proposal storage proposal_ = proposals[proposalId];
 
         proposal_.parameters.startDate = _startDate;
@@ -217,7 +214,7 @@ contract PWNOptimisticGovernancePlugin is
             minVetoRatio()
         );
 
-        // Save gas
+        // save gas
         if (_allowFailureMap != 0) {
             proposal_.allowFailureMap = _allowFailureMap;
         }
@@ -239,7 +236,7 @@ contract PWNOptimisticGovernancePlugin is
             revert ProposalVetoingForbidden({ proposalId: _proposalId, account: _voter });
         }
 
-        // Write the updated tally.
+        // write the updated tally
         Proposal storage proposal_ = proposals[_proposalId];
         proposal_.vetoTally += votingPower;
         proposal_.vetoVoters[_voter] = true;
@@ -329,19 +326,19 @@ contract PWNOptimisticGovernancePlugin is
     function canExecute(uint256 _proposalId) public view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        // Verify that the proposal has not been executed already
+        // verify that the proposal has not been executed already
         if (proposal_.executed) {
             return false;
         }
-        // Check that the proposal has not been cancelled
+        // check that the proposal has not been cancelled
         else if (proposal_.cancelled) {
             return false;
         }
-        // Check that the proposal vetoing time frame already expired
+        // check that the proposal vetoing time frame already expired
         else if (!_isProposalEnded(proposal_)) {
             return false;
         }
-        // Check that not enough voters have vetoed the proposal
+        // check that not enough voters have vetoed the proposal
         else if (isMinVetoRatioReached(_proposalId)) {
             return false;
         }
@@ -353,15 +350,15 @@ contract PWNOptimisticGovernancePlugin is
     function canCancel(uint256 _proposalId) public view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        // Verify that the proposal has not been executed already
+        // verify that the proposal has not been executed already
         if (proposal_.executed) {
             return false;
         }
-        // Check that the proposal has not been cancelled
+        // check that the proposal has not been cancelled
         else if (proposal_.cancelled) {
             return false;
         }
-        // Check that not enough voters have vetoed the proposal
+        // check that not enough voters have vetoed the proposal
         else if (isMinVetoRatioReached(_proposalId)) {
             return false;
         }
@@ -415,7 +412,7 @@ contract PWNOptimisticGovernancePlugin is
 
     /// @inheritdoc IMembership
     function isMember(address _account) external view returns (bool) {
-        // A member must have at least one voting power.
+        // a member must have at least some voting power
         return votingToken.getVotes(_account) > 0;
     }
 
@@ -444,9 +441,9 @@ contract PWNOptimisticGovernancePlugin is
     |*  # INTERNALS                                             *|
     |*----------------------------------------------------------*/
 
-    /// @notice Internal implementation
+    /// @notice Internal implementation.
     function _updateOptimisticGovernanceSettings(OptimisticGovernanceSettings calldata _governanceSettings) internal {
-        // Require the minimum veto ratio value to be in the interval [0, 10^6], because `>=` comparision is used.
+        // require the minimum veto ratio value to be in the interval [0, 10^6], because `>=` comparision is used
         if (_governanceSettings.minVetoRatio == 0) {
             revert RatioOutOfBounds({
                 limit: 1,
@@ -479,20 +476,21 @@ contract PWNOptimisticGovernancePlugin is
         });
     }
 
+    /// @notice Internal implementation
     function _canVeto(uint256 _proposalId, address _voter) internal view returns (bool, uint256) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        // The proposal vote hasn't started or has already ended.
+        // the proposal vote hasn't started or has already ended
         if (!_isProposalOpen(proposal_)) {
             return (false, 0);
         }
 
-        // The voter already vetoed.
+        // the voter already vetoed
         if (proposal_.vetoVoters[_voter]) {
             return (false, 0);
         }
 
-        // The voter has no voting power.
+        // the voter has no voting power
         uint256 votingPower = votingToken.getPastVotes(_voter, proposal_.parameters.snapshotEpoch);
         if (votingPower == 0) {
             return (false, 0);

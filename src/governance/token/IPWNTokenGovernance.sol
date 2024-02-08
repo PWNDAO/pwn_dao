@@ -11,7 +11,7 @@ pragma solidity ^0.8.17;
 import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 
-/// @title IPWNTokenGovernance
+/// @title PWN Token Governance Interface
 /// @notice The interface of a token governance plugin.
 interface IPWNTokenGovernance {
 
@@ -71,7 +71,7 @@ interface IPWNTokenGovernance {
     /// @param supportThreshold The support threshold value. The value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
     /// @param startDate The start date of the proposal vote.
     /// @param endDate The end date of the proposal vote.
-    /// @param snapshotBlock The number of the block prior to the proposal creation.
+    /// @param snapshotEpoch The number of the proposal creation epoch.
     /// @param minVotingPower The minimum voting power needed.
     struct ProposalParameters {
         VotingMode votingMode;
@@ -149,30 +149,29 @@ interface IPWNTokenGovernance {
 
     // # SETTINGS
 
-    /// @notice Returns the support threshold parameter stored in the voting settings.
+    /// @notice Returns the support threshold parameter stored in the governance settings.
     /// @return The support threshold parameter.
     function supportThreshold() external view returns (uint32);
 
-    /// @notice Returns the minimum participation parameter stored in the voting settings.
+    /// @notice Returns the minimum participation parameter stored in the governance settings.
     /// @return The minimum participation parameter.
     function minParticipation() external view returns (uint32);
 
-    /// @notice Returns the minimum duration parameter stored in the voting settings.
+    /// @notice Returns the minimum duration parameter stored in the governance settings.
     /// @return The minimum duration parameter.
     function minDuration() external view returns (uint64);
 
-    /// @notice Returns the minimum voting power required to create a proposal stored in the voting settings.
+    /// @notice Returns the minimum voting power required to create a proposal stored in the governance settings.
     /// @return The minimum voting power required to create a proposal.
     function minProposerVotingPower() external view returns (uint256);
 
-    /// @notice Returns the vote mode stored in the voting settings.
+    /// @notice Returns the vote mode stored in the governance settings.
     /// @return The vote mode parameter.
     function votingMode() external view returns (VotingMode);
 
     // # VOTING TOKEN
 
     /// @notice Getter function for the voting token.
-    /// @dev Public function also useful for registering interfaceId and for distinguishing from majority voting interface.
     /// @return The token used for voting.
     function getVotingToken() external view returns (IVotesUpgradeable);
 

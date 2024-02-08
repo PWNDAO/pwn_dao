@@ -14,8 +14,10 @@ contract DAOExecuteAllowlist is PermissionCondition {
     |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
     |*----------------------------------------------------------*/
 
+    /// @notice The value that allows any selector of the contract.
     bytes4 constant public ANY_SELECTOR = bytes4(0);
 
+    /// @notice The permission id of the DAO execute function.
     // solhint-disable-next-line immutable-vars-naming
     bytes32 immutable public EXECUTE_PERMISSION_ID;
 
@@ -23,7 +25,7 @@ contract DAOExecuteAllowlist is PermissionCondition {
     /// @dev Only the DAO can update the allowlist.
     address immutable public dao;
 
-    /// @notice Contracts and their selectors that are allowed to call via the DAO execute function.
+    /// @notice Contracts and their selectors that are allowed to be called via the DAO execute function.
     /// @dev if `ANY_SELECTOR` is allowed, all selectors of the contract are allowed.
     mapping(address => mapping(bytes4 => bool)) private _allowlist;
 
@@ -96,7 +98,7 @@ contract DAOExecuteAllowlist is PermissionCondition {
     |*  # ALLOWLIST                                             *|
     |*----------------------------------------------------------*/
 
-    /// @notice Update the allowlist of contracts and their selectors that are allowed to call via the DAO execute function.
+    /// @notice Update the allowlist of contracts and their selectors that are allowed to be called via the DAO execute function.
     /// @dev Only the DAO can call this function. Use `ANY_SELECTOR` to allow all selectors of the contract.
     /// @param _contract The contract address.
     /// @param _selector The function selector.
@@ -108,10 +110,10 @@ contract DAOExecuteAllowlist is PermissionCondition {
         _allowlist[_contract][_selector] = _allowed;
     }
 
-    /// @notice Returns if a contract and selector is allowed to call via the DAO execute function.
+    /// @notice Returns if a contract and selector is allowed to be called via the DAO execute function.
     /// @param _contract The contract address.
     /// @param _selector The function selector.
-    /// @return True if the contract and selector is allowed to call via the DAO execute function.
+    /// @return True if the contract and selector is allowed to be called via the DAO execute function.
     function isAllowed(address _contract, bytes4 _selector) external view returns (bool) {
         return _allowlist[_contract][_selector];
     }

@@ -14,7 +14,7 @@ import { PluginSetup, IPluginSetup } from "@aragon/osx/framework/plugin/setup/Pl
 import { PWNOptimisticGovernancePlugin } from "./PWNOptimisticGovernancePlugin.sol";
 import { DAOExecuteAllowlist } from "../permission/DAOExecuteAllowlist.sol";
 
-/// @title PWNOptimisticGovernancePluginSetup
+/// @title PWN Optimistic Governance Plugin Setup
 /// @notice The setup contract of the `PWNOptimisticGovernancePlugin` plugin.
 contract PWNOptimisticGovernancePluginSetup is PluginSetup {
 
@@ -32,6 +32,10 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
 
     /// @notice Thrown when trying to prepare an installation with no proposers.
     error NoProposers();
+
+    /// @notice Thrown if passed helpers array is of wrong length.
+    /// @param length The array length of passed helpers.
+    error WrongHelpersArrayLength(uint256 length);
 
 
     /*----------------------------------------------------------*|
@@ -54,7 +58,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
         returns (address plugin, PreparedSetupData memory preparedSetupData)
     {
         // Decode `_installParameters` to extract the params needed for deploying and initializing `PWNOptimisticGovernancePlugin` plugin,
-        // and the required helpers
+        // and the required helpers.
         (
             PWNOptimisticGovernancePlugin.OptimisticGovernanceSettings memory governanceSettings,
             address epochClock,
@@ -66,7 +70,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             revert NoProposers();
         }
 
-        // Prepare and deploy plugin proxy.
+        // prepare and deploy plugin proxy
         plugin = createERC1967Proxy(
             address(optimisticGovernancePluginBase),
             abi.encodeWithSelector(
@@ -74,21 +78,21 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             )
         );
 
-        // Prepare helpers.
+        // prepare helpers
         address[] memory helpers = new address[](1);
 
-        // Deploy DAOExecuteAllowlist condition.
+        // deploy DAOExecuteAllowlist condition
         DAOExecuteAllowlist allowlist = new DAOExecuteAllowlist(_dao);
 
         helpers[0] = address(allowlist);
 
-        // Prepare permissions
+        // prepare permissions
         PermissionLib.MultiTargetPermission[] memory permissions
             = new PermissionLib.MultiTargetPermission[](3 + (2 * proposers.length));
 
-        // Request the permissions to be granted
+        // request the permissions to be granted
 
-        // The DAO can update the plugin settings
+        // the DAO can update the plugin settings
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
@@ -97,7 +101,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             permissionId: optimisticGovernancePluginBase.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
         });
 
-        // The DAO can upgrade the plugin implementation
+        // the DAO can upgrade the plugin implementation
         permissions[1] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
@@ -106,7 +110,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             permissionId: optimisticGovernancePluginBase.UPGRADE_PLUGIN_PERMISSION_ID()
         });
 
-        // The plugin can make the DAO execute actions with allowlist condition
+        // the plugin can make the DAO execute actions with allowlist condition
         permissions[2] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.GrantWithCondition,
             where: _dao,
@@ -115,7 +119,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
-        // Proposers can create proposals
+        // proposers can create & cancel proposals
         for (uint256 i; i < proposers.length;) {
             permissions[3 + (i * 2)] = PermissionLib.MultiTargetPermission({
                 operation: PermissionLib.Operation.Grant,
@@ -148,9 +152,16 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
         view
         returns (PermissionLib.MultiTargetPermission[] memory permissions)
     {
+        uint256 helperLength = _payload.currentHelpers.length;
+        if (helperLength != 1) {
+            revert WrongHelpersArrayLength({ length: helperLength });
+        }
+        address allowlist = _payload.currentHelpers[0]; // DAOExecuteAllowlist
+
+        // prepare permissions
         permissions = new PermissionLib.MultiTargetPermission[](3);
 
-        // Set permissions to be Revoked.
+        // set permissions to be Revoked
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Revoke,
             where: _payload.plugin,
@@ -171,11 +182,11 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
             operation: PermissionLib.Operation.Revoke,
             where: _dao,
             who: _payload.plugin,
-            condition: _payload.currentHelpers[0], // DAOExecuteAllowlist
+            condition: allowlist,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
-        // Note: It no longer matters if proposers can still create proposals
+        // Note: it no longer matters if proposers can still create proposals
     }
 
 
@@ -193,7 +204,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
     |*  # EN/DECODE INSTALL PARAMS                              *|
     |*----------------------------------------------------------*/
 
-    /// @notice Encodes the given installation parameters into a byte array
+    /// @notice Encodes the given installation parameters into a byte array.
     function encodeInstallationParams(
         PWNOptimisticGovernancePlugin.OptimisticGovernanceSettings calldata _governanceSettings,
         address _epochClock,
@@ -203,7 +214,7 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
         return abi.encode(_governanceSettings, _epochClock, _votingToken, _proposers);
     }
 
-    /// @notice Decodes the given byte array into the original installation parameters
+    /// @notice Decodes the given byte array into the original installation parameters.
     function decodeInstallationParams(bytes memory _data)
         public
         pure

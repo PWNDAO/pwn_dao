@@ -21,7 +21,7 @@ import { RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds } from "@aragon/osx/plu
 import { IPWNTokenGovernance } from "./IPWNTokenGovernance.sol";
 import { IPWNEpochClock } from "../../interfaces/IPWNEpochClock.sol";
 
-/// @title PWNTokenGovernancePlugin
+/// @title PWN Token Governance Plugin
 /// @notice The implementation of token governance plugin.
 ///
 /// ### Parameterization
@@ -68,7 +68,7 @@ import { IPWNEpochClock } from "../../interfaces/IPWNEpochClock.sol";
 /// This contract allows a proposal to be executed early, iff the vote outcome cannot change anymore by more people voting. Accordingly, vote replacement and early execution are /// mutually exclusive options.
 /// The outcome cannot change anymore iff the support threshold is met even if all remaining votes are no votes. We call this number the worst-case number of no votes and define it as
 ///
-/// $$N_\text{no, worst-case} = N_\text{no, worst-case} + \texttt{remainingVotes}$$
+/// $$N_\text{no, worst-case} = N_\text{no} + \texttt{remainingVotes}$$
 ///
 /// where
 ///
@@ -138,7 +138,7 @@ contract PWNTokenGovernancePlugin is
         uint256 minProposerVotingPower;
     }
 
-    /// @notice The struct storing the token governance settings.
+    /// @notice The property storing the token governance settings.
     TokenGovernanceSettings private governanceSettings;
 
     /// @notice A container for proposal-related information.
@@ -224,18 +224,14 @@ contract PWNTokenGovernancePlugin is
 
 
     /*----------------------------------------------------------*|
-    |*  # CONSTRUCTOR                                           *|
+    |*  # INITIALIZE                                            *|
     |*----------------------------------------------------------*/
-
-    // solhint-disable-next-line no-empty-blocks
-    constructor() {
-        // Is used as a proxy. Use initializer to setup initial properties.
-    }
 
     /// @notice Initializes the component.
     /// @dev This method is required to support [ERC-1822](https://eips.ethereum.org/EIPS/eip-1822).
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _governanceSettings The voting settings.
+    /// @param _epochClock The epoch clock used for time tracking.
     /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
     function initialize(
         IDAO _dao,
@@ -267,7 +263,7 @@ contract PWNTokenGovernancePlugin is
         VoteOption _voteOption,
         bool _tryEarlyExecution
     ) external returns (uint256 proposalId) {
-        // Check that `_msgSender` has enough voting power
+        // check that `_msgSender` has enough voting power
         {
             uint256 minProposerVotingPower_ = minProposerVotingPower();
 
@@ -296,7 +292,7 @@ contract PWNTokenGovernancePlugin is
             _allowFailureMap: _allowFailureMap
         });
 
-        // Store proposal related information
+        // store proposal related information
         Proposal storage proposal_ = proposals[proposalId];
 
         proposal_.parameters.startDate = _startDate;
@@ -306,7 +302,7 @@ contract PWNTokenGovernancePlugin is
         proposal_.parameters.supportThreshold = supportThreshold();
         proposal_.parameters.minVotingPower = _applyRatioCeiled(totalVotingPower_, minParticipation());
 
-        // Reduce costs
+        // reduce costs
         if (_allowFailureMap != 0) {
             proposal_.allowFailureMap = _allowFailureMap;
         }
@@ -516,6 +512,7 @@ contract PWNTokenGovernancePlugin is
     |*  # INTERNALS                                             *|
     |*----------------------------------------------------------*/
 
+    /// @notice Internal implementation.
     function _canVote(uint256 _proposalId, address _account, VoteOption _voteOption)
         internal
         view
@@ -523,23 +520,23 @@ contract PWNTokenGovernancePlugin is
     {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        // The proposal vote hasn't started or has already ended.
+        // the proposal vote hasn't started or has already ended
         if (!_isProposalOpen(proposal_)) {
             return (false, 0);
         }
 
-        // The voter votes `None` which is not allowed.
+        // the voter votes `None` which is not allowed
         if (_voteOption == VoteOption.None) {
             return (false, 0);
         }
 
-        // The voter has no voting power.
+        // the voter has no voting power
         uint256 votingPower = votingToken.getPastVotes(_account, proposal_.parameters.snapshotEpoch);
         if (votingPower == 0) {
             return (false, 0);
         }
 
-        // The voter has already voted but vote replacment is not allowed.
+        // the voter has already voted but vote replacment is not allowed
         if (
             proposal_.voters[_account] != VoteOption.None &&
             proposal_.parameters.votingMode != VotingMode.VoteReplacement
@@ -550,6 +547,7 @@ contract PWNTokenGovernancePlugin is
         return (true, votingPower);
     }
 
+    /// @notice Internal implementation.
     function _vote(
         uint256 _proposalId,
         VoteOption _voteOption,
@@ -561,7 +559,7 @@ contract PWNTokenGovernancePlugin is
 
         VoteOption state = proposal_.voters[_voter];
 
-        // If voter had previously voted, decrease count
+        // if voter had previously voted, decrease count
         if (state == VoteOption.Yes) {
             proposal_.tally.yes = proposal_.tally.yes - _votingPower;
         } else if (state == VoteOption.No) {
@@ -570,7 +568,7 @@ contract PWNTokenGovernancePlugin is
             proposal_.tally.abstain = proposal_.tally.abstain - _votingPower;
         }
 
-        // write the updated/new vote for the voter.
+        // write the updated/new vote for the voter
         if (_voteOption == VoteOption.Yes) {
             proposal_.tally.yes = proposal_.tally.yes + _votingPower;
         } else if (_voteOption == VoteOption.No) {
@@ -594,9 +592,9 @@ contract PWNTokenGovernancePlugin is
     }
 
     /// @notice Internal function to check if a proposal can be executed. It assumes the queried proposal exists.
+    /// @dev Threshold and minimal values are compared with `>` and `>=` comparators, respectively.
     /// @param _proposalId The ID of the proposal.
     /// @return True if the proposal can be executed, false otherwise.
-    /// @dev Threshold and minimal values are compared with `>` and `>=` comparators, respectively.
     function _canExecute(uint256 _proposalId) internal view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
@@ -708,7 +706,9 @@ contract PWNTokenGovernancePlugin is
             }
         }
 
-        uint64 earliestEndDate = startDate + governanceSettings.minDuration; // Since `minDuration` is limited to 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`. In this case, the proposal creation will revert and another date can be picked.
+        // Since `minDuration` is limited to 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`.
+        // In this case, the proposal creation will revert and another date can be picked.
+        uint64 earliestEndDate = startDate + governanceSettings.minDuration;
 
         if (_end == 0) {
             endDate = earliestEndDate;

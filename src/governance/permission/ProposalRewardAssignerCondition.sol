@@ -9,9 +9,10 @@ import { PermissionCondition } from "@aragon/osx/core/permission/PermissionCondi
 import { IProposalReward } from "../../interfaces/IProposalReward.sol";
 
 /// @title Proposal Reward Condition
-/// @notice Permission condition that checks if a proposal is assigning a reward to itself and current proposal.
+/// @notice Permission condition that checks that proposal is assigning a reward only to itself.
 contract ProposalRewardAssignerCondition is PermissionCondition {
 
+    /// @notice The permission id of the DAO execute function.
     // solhint-disable-next-line immutable-vars-naming
     bytes32 immutable public EXECUTE_PERMISSION_ID;
 
@@ -27,7 +28,7 @@ contract ProposalRewardAssignerCondition is PermissionCondition {
     }
 
     /// @inheritdoc IPermissionCondition
-    /// @dev Checks if a proposal is assigning a reward to itself and current proposal.
+    /// @dev Checks that proposal is assigning a reward only to itself.
     function isGranted(address _where, address _who, bytes32 _permissionId, bytes calldata _data)
         external
         view

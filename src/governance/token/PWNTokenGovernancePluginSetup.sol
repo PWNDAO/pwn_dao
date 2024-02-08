@@ -21,7 +21,7 @@ import { PluginSetup , IPluginSetup} from "@aragon/osx/framework/plugin/setup/Pl
 import { PWNTokenGovernancePlugin } from "./PWNTokenGovernancePlugin.sol";
 import { ProposalRewardAssignerCondition } from "../permission/ProposalRewardAssignerCondition.sol";
 
-/// @title PWNTokenGovernancePluginSetup
+/// @title PWN Token Governance Plugin Setup
 /// @notice The setup contract of the `PWNTokenGovernancePlugin` plugin.
 contract PWNTokenGovernancePluginSetup is PluginSetup {
     using Address for address;
@@ -39,14 +39,6 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
     /*----------------------------------------------------------*|
     |*  # ERRORS                                                *|
     |*----------------------------------------------------------*/
-
-    /// @notice Thrown if token address is passed which is not a token.
-    /// @param token The token address
-    error TokenNotContract(address token);
-
-    /// @notice Thrown if token address is not ERC20.
-    /// @param token The token address
-    error TokenNotERC20(address token);
 
     /// @notice Thrown if passed helpers array is of wrong length.
     /// @param length The array length of passed helpers.
@@ -73,7 +65,7 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
         returns (address plugin, PreparedSetupData memory preparedSetupData)
     {
         // Decode `_installParameters` to extract the params needed for deploying and initializing `PWNTokenGovernancePlugin` plugin,
-        // and the required helpers
+        // and the required helpers.
         (
             PWNTokenGovernancePlugin.TokenGovernanceSettings memory governanceSettings,
             address epochClock,
@@ -81,7 +73,7 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
             address rewardToken
         ) = decodeInstallationParams(_installParameters);
 
-        // Prepare and deploy plugin proxy.
+        // prepare and deploy plugin proxy
         plugin = createERC1967Proxy(
             address(tokenGovernancePluginBase),
             abi.encodeWithSelector(
@@ -89,19 +81,20 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
             )
         );
 
-        // Prepare helpers.
+        // prepare helpers
         address[] memory helpers = new address[](1);
 
-        // Deploy ProposalRewardAssignerCondition condition.
+        // deploy ProposalRewardAssignerCondition condition
         ProposalRewardAssignerCondition assignerCondition = new ProposalRewardAssignerCondition(_dao, rewardToken);
 
         helpers[0] = address(assignerCondition);
 
-        // Prepare permissions
+        // prepare permissions
         PermissionLib.MultiTargetPermission[] memory permissions = new PermissionLib.MultiTargetPermission[](3);
 
-        // Set plugin permissions to be granted.
-        // Grant the list of permissions of the plugin to the DAO.
+        // request the permissions to be granted
+
+        // the DAO can update the plugin settings
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
@@ -110,6 +103,7 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
             permissionId: tokenGovernancePluginBase.UPDATE_TOKEN_GOVERNANCE_SETTINGS_PERMISSION_ID()
         });
 
+        // the DAO can upgrade the plugin implementation
         permissions[1] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Grant,
             where: plugin,
@@ -118,7 +112,7 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
             permissionId: tokenGovernancePluginBase.UPGRADE_PLUGIN_PERMISSION_ID()
         });
 
-        // Grant `EXECUTE_PERMISSION` of the DAO to the plugin.{
+        // the plugin can make the DAO execute actions with proposal reward assigner condition
         permissions[2] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.GrantWithCondition,
             where: _dao,
@@ -137,9 +131,16 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
         view
         returns (PermissionLib.MultiTargetPermission[] memory permissions)
     {
+        uint256 helperLength = _payload.currentHelpers.length;
+        if (helperLength != 1) {
+            revert WrongHelpersArrayLength({ length: helperLength });
+        }
+        address assignerCondition = _payload.currentHelpers[0]; // ProposalRewardAssignerCondition
+
+        // prepare permissions
         permissions = new PermissionLib.MultiTargetPermission[](3);
 
-        // Set permissions to be Revoked.
+        // set permissions to be Revoked
         permissions[0] = PermissionLib.MultiTargetPermission({
             operation: PermissionLib.Operation.Revoke,
             where: _payload.plugin,
@@ -160,7 +161,7 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
             operation: PermissionLib.Operation.Revoke,
             where: _dao,
             who: _payload.plugin,
-            condition: _payload.currentHelpers[0], // ProposalRewardAssignerCondition
+            condition: assignerCondition,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
     }
@@ -180,7 +181,7 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
     |*  # EN/DECODE INSTALL PARAMS                              *|
     |*----------------------------------------------------------*/
 
-    /// @notice Encodes the given installation parameters into a byte array
+    /// @notice Encodes the given installation parameters into a byte array.
     function encodeInstallationParams(
         PWNTokenGovernancePlugin.TokenGovernanceSettings memory _governanceSettings,
         address _epochClock,
@@ -190,7 +191,7 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
         return abi.encode(_governanceSettings, _epochClock, _votingToken, _rewardToken);
     }
 
-    /// @notice Decodes the given byte array into the original installation parameters
+    /// @notice Decodes the given byte array into the original installation parameters.
     function decodeInstallationParams(bytes memory _data)
         public
         pure

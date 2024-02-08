@@ -11,7 +11,7 @@ pragma solidity ^0.8.17;
 import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 
-/// @title IPWNOptimisticGovernance
+/// @title PWN Optimistic Governance Interface
 /// @notice The interface of an optimistic governance plugin.
 interface IPWNOptimisticGovernance {
 
@@ -32,7 +32,7 @@ interface IPWNOptimisticGovernance {
         uint64 _endDate
     ) external returns (uint256 proposalId);
 
-    /// @notice Registers the veto for the given proposal.
+    /// @notice Registers a veto for the given proposal.
     /// @param _proposalId The ID of the proposal.
     function veto(uint256 _proposalId) external;
 
@@ -83,6 +83,7 @@ interface IPWNOptimisticGovernance {
     /// @notice Checks if an account can participate on an optimistic proposal. This can be because the proposal
     /// - has not started,
     /// - has ended,
+    /// - was cancelled,
     /// - was executed, or
     /// - the voter doesn't have voting power.
     /// @param _proposalId The proposal Id.
@@ -118,18 +119,17 @@ interface IPWNOptimisticGovernance {
     /// @return The veto ratio parameter.
     function minVetoRatio() external view returns (uint32);
 
-    /// @notice Returns the minimum duration parameter stored in the vetoing settings.
+    /// @notice Returns the minimum duration parameter stored in the optimistic governance settings.
     /// @return The minimum duration parameter.
     function minDuration() external view returns (uint64);
 
     // # VOTING TOKEN
 
-    /// @notice getter function for the voting token.
-    /// @dev public function also useful for registering interfaceId and for distinguishing from majority voting interface.
+    /// @notice Getter function for the voting token.
     /// @return The token used for voting.
     function getVotingToken() external view returns (IVotesUpgradeable);
 
-    /// @notice Returns the total voting power checkpointed for a specific point in time.
+    /// @notice Returns the total voting power checkpointed for a specific epoch.
     /// @param _epoch The epoch to query.
     /// @return The total voting power.
     function totalVotingPower(uint256 _epoch) external view returns (uint256);
