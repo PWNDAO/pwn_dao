@@ -3,8 +3,7 @@ pragma solidity 0.8.18;
 
 import { Error } from "src/lib/Error.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
-
-import { StakedPWN } from "src/StakedPWN.sol";
+import { StakedPWN } from "src/token/StakedPWN.sol";
 
 import { StakedPWNHarness } from "../harness/StakedPWNHarness.sol";
 import { Base_Test } from "../Base.t.sol";

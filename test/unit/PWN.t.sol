@@ -6,7 +6,7 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IPWNTokenGovernance, IDAO } from "src/governance/token/IPWNTokenGovernance.sol";
 import { Error } from "src/lib/Error.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
-import { PWN } from "src/PWN.sol";
+import { PWN } from "src/token/PWN.sol";
 
 import { Base_Test } from "../Base.t.sol";
 

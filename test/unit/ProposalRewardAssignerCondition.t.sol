@@ -41,7 +41,6 @@ contract ProposalRewardAssignerCondition_Constructor_Test is ProposalRewardAssig
         checkAddress(_dao)
         checkAddress(_proposalReward)
     {
-        vm.etch(_dao, "data");
         vm.mockCall(
             _dao,
             abi.encodeWithSignature("EXECUTE_PERMISSION_ID()"),

@@ -5,7 +5,7 @@ pragma solidity 0.8.18;
 
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
-import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
+import { VoteEscrowedPWN } from "src/token/VoteEscrowedPWN.sol";
 
 import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
 

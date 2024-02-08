@@ -6,10 +6,10 @@ import "forge-std/Script.sol";
 import { TransparentUpgradeableProxy }
     from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-import { PWN } from "src/PWN.sol";
+import { PWN } from "src/token/PWN.sol";
+import { StakedPWN } from "src/token/StakedPWN.sol";
+import { VoteEscrowedPWN } from "src/token/VoteEscrowedPWN.sol";
 import { PWNEpochClock } from "src/PWNEpochClock.sol";
-import { StakedPWN } from "src/StakedPWN.sol";
-import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
 
 contract Deploy is Script {
 

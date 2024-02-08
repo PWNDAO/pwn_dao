@@ -5,9 +5,9 @@ import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2St
 import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
-import { IPWNTokenGovernance } from "./governance/token/IPWNTokenGovernance.sol";
-import { IProposalReward } from "./interfaces/IProposalReward.sol";
-import { Error } from "./lib/Error.sol";
+import { IPWNTokenGovernance } from "src/governance/token/IPWNTokenGovernance.sol";
+import { IProposalReward } from "src/interfaces/IProposalReward.sol";
+import { Error } from "src/lib/Error.sol";
 
 /// @title PWN token contract.
 /// @notice The token is the main governance token of the PWN DAO and is used

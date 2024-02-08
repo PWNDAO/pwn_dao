@@ -3,9 +3,9 @@ pragma solidity 0.8.18;
 
 import { Initializable } from "openzeppelin-contracts/contracts/proxy/utils/Initializable.sol";
 
-import { PWN } from "../PWN.sol";
-import { PWNEpochClock } from "../PWNEpochClock.sol";
-import { StakedPWN } from "../StakedPWN.sol";
+import { PWN } from "src/token/PWN.sol";
+import { StakedPWN } from "src/token/StakedPWN.sol";
+import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
 /// @title VoteEscrowedPWNStorage.
 /// @notice Storage contract holding all state variables used by VoteEscrowedPWN.

@@ -4,9 +4,9 @@ pragma solidity 0.8.18;
 import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import { ERC721 } from "openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
 
-import { IStakedPWNSupplyManager } from "./interfaces/IStakedPWNSupplyManager.sol";
-import { Error } from "./lib/Error.sol";
-import { PWNEpochClock } from "./PWNEpochClock.sol";
+import { IStakedPWNSupplyManager } from "src/interfaces/IStakedPWNSupplyManager.sol";
+import { Error } from "src/lib/Error.sol";
+import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
 /// @title Staked PWN token contract.
 /// @notice The token is representation of a stake in the PWN DAO.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { StakedPWN } from "src/StakedPWN.sol";
+import { StakedPWN } from "src/token/StakedPWN.sol";
 
 // solhint-disable foundry-test-functions
 contract StakedPWNHarness is StakedPWN {

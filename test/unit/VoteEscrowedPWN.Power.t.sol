@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import { Error } from "src/lib/Error.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
-import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
+import { VoteEscrowedPWN } from "src/token/VoteEscrowedPWN.sol";
 
 import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
 

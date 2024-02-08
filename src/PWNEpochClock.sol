@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { IPWNEpochClock } from "./interfaces/IPWNEpochClock.sol";
-import { Error } from "./lib/Error.sol";
+import { IPWNEpochClock } from "src/interfaces/IPWNEpochClock.sol";
+import { Error } from "src/lib/Error.sol";
 
 /// @title PWN Epoch Clock contract.
 /// @notice A contract that provides the current epoch number.

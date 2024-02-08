@@ -5,10 +5,10 @@ import { TransparentUpgradeableProxy }
     from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
-import { PWN } from "src/PWN.sol";
+import { PWN } from "src/token/PWN.sol";
+import { StakedPWN } from "src/token/StakedPWN.sol";
+import { VoteEscrowedPWN } from "src/token/VoteEscrowedPWN.sol";
 import { PWNEpochClock } from "src/PWNEpochClock.sol";
-import { StakedPWN } from "src/StakedPWN.sol";
-import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
 
 import { Base_Test } from "../Base.t.sol";
 
