@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.17;
 
+// This code is based on the Aragon's optimistic token voting interface.
+// https://github.com/aragon/optimistic-token-voting-plugin/blob/f25ea1db9b67a72b7a2e225d719577551e30ac9b/src/IOptimisticTokenVoting.sol
+// Changes:
+// - Remove `minProposerVotingPower`
+// - Add `cancelProposal` and `canCancel`
+// - Add `getProposal`
+
 import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 

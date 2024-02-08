@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.17;
 
+// This code is based on the Aragon's token voting plugin setup.
+// https://github.com/aragon/osx/blob/e90ea8f5cd6b98cbba16db07ab7bc0cdbf517f3e/packages/contracts/src/plugins/governance/majority-voting/token/TokenVotingSetup.sol
+// Changes:
+// - Remove `GovernanceERC20` and `GovernanceWrappedERC20`
+// - Grant `EXECUTE_PERMISSION_ID` with `ProposalRewardAssignerCondition` condition
+
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";

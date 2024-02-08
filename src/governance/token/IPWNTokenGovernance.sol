@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.17;
 
+// This code is based on the Aragon's majority voting interface.
+// https://github.com/aragon/osx/blob/e90ea8f5cd6b98cbba16db07ab7bc0cdbf517f3e/packages/contracts/src/plugins/governance/majority-voting/IMajorityVoting.sol
+// Changes:
+// - Add `createProposal` and `getProposal`
+// - Add `getVotingToken` and `totalVotingPower`
+// - Add `minDuration`, `minProposerVotingPower`, and `votingMode`
+
 import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 

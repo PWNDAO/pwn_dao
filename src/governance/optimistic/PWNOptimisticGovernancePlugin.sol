@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.17;
 
+// This code is based on the Aragon's optimistic token voting plugin.
+// https://github.com/aragon/optimistic-token-voting-plugin/blob/f25ea1db9b67a72b7a2e225d719577551e30ac9b/src/OptimisticTokenVotingPlugin.sol
+// Changes:
+// - Remove `minProposerVotingPower`
+// - Add `cancelProposal` and `canCancel`
+// - Remove `OPTIMISTIC_GOVERNANCE_INTERFACE_ID`
+// - Use epochs instead of block numbers
+
 import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { ERC165Upgradeable } from "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";

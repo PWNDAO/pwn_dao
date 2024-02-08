@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.17;
 
+// This code is based on the Aragon's optimistic token voting plugin setup.
+// https://github.com/aragon/optimistic-token-voting-plugin/blob/f25ea1db9b67a72b7a2e225d719577551e30ac9b/src/OptimisticTokenVotingPluginSetup.sol
+// Changes:
+// - Remove `GovernanceERC20` and `GovernanceWrappedERC20`
+// - Grant `EXECUTE_PERMISSION_ID` with `DAOExecuteAllowlist` condition
+
 import { DAO } from "@aragon/osx/core/dao/DAO.sol";
 import { PermissionLib } from "@aragon/osx/core/permission/PermissionLib.sol";
 import { PluginSetup, IPluginSetup } from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";

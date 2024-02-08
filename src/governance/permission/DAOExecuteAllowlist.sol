@@ -6,8 +6,8 @@ import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 import { IPermissionCondition } from "@aragon/osx/core/permission/IPermissionCondition.sol";
 import { PermissionCondition } from "@aragon/osx/core/permission/PermissionCondition.sol";
 
-/// @title Proposal Reward Condition
-/// @notice Permission condition that checks if a proposal is assigning a reward to itself and current proposal.
+/// @title DAO Execute Allowlist Permission Condition
+/// @notice Permission condition that allows to execute actions only to a specific set of contracts and selectors.
 contract DAOExecuteAllowlist is PermissionCondition {
 
     /*----------------------------------------------------------*|
