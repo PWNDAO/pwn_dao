@@ -157,7 +157,7 @@ contract PWNOptimisticGovernancePlugin_Initialize_Test is PWNOptimisticGovernanc
         address _dao, uint32 _minVetoRatio, uint64 _minDuration, address _epochClock, address _votingToken
     ) external {
         settings.minVetoRatio = uint32(bound(_minVetoRatio, 1, RATIO_BASE));
-        settings.minDuration = uint64(bound(_minDuration, 4 days, 365 days));
+        settings.minDuration = uint64(bound(_minDuration, 3 days, 365 days));
 
         address _plugin = createERC1967Proxy(
             pluginImpl,
@@ -199,7 +199,7 @@ contract PWNOptimisticGovernancePlugin_Initialize_Test is PWNOptimisticGovernanc
         external
     {
         settings.minVetoRatio = uint32(bound(_minVetoRatio, 1, RATIO_BASE));
-        settings.minDuration = uint64(bound(_minDuration, 4 days, 365 days));
+        settings.minDuration = uint64(bound(_minDuration, 3 days, 365 days));
 
         vm.expectEmit();
         emit OptimisticGovernanceSettingsUpdated({
@@ -826,10 +826,10 @@ contract PWNOptimisticGovernancePlugin_UpdateGovernanceSettings_Test is PWNOptim
     }
 
     function test_shouldFail_whenMinDurationOutOfBounds() external {
-        settings.minDuration = 4 days - 1;
+        settings.minDuration = 3 days - 1;
         vm.expectRevert(
             abi.encodeWithSelector(
-                PWNOptimisticGovernancePlugin.MinDurationOutOfBounds.selector, 4 days, settings.minDuration
+                PWNOptimisticGovernancePlugin.MinDurationOutOfBounds.selector, 3 days, settings.minDuration
             )
         );
         vm.prank(admin);
@@ -847,7 +847,7 @@ contract PWNOptimisticGovernancePlugin_UpdateGovernanceSettings_Test is PWNOptim
 
     function testFuzz_shouldStoreNewSettings(uint256 minVetoRatio, uint256 minDuration) external {
         minVetoRatio = bound(minVetoRatio, 1, RATIO_BASE);
-        minDuration = bound(minDuration, 4 days, 365 days);
+        minDuration = bound(minDuration, 3 days, 365 days);
 
         settings.minVetoRatio = uint32(minVetoRatio);
         settings.minDuration = uint64(minDuration);
@@ -869,7 +869,7 @@ contract PWNOptimisticGovernancePlugin_UpdateGovernanceSettings_Test is PWNOptim
         external
     {
         minVetoRatio = bound(minVetoRatio, 1, RATIO_BASE);
-        minDuration = bound(minDuration, 4 days, 365 days);
+        minDuration = bound(minDuration, 3 days, 365 days);
 
         settings.minVetoRatio = uint32(minVetoRatio);
         settings.minDuration = uint64(minDuration);

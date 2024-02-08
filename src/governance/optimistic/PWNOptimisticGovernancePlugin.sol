@@ -120,7 +120,7 @@ contract PWNOptimisticGovernancePlugin is
     /// @param actual The actual value.
     error DateOutOfBounds(uint64 limit, uint64 actual);
 
-    /// @notice Thrown if the minimum duration value is out of bounds (less than four days or greater than 1 year).
+    /// @notice Thrown if the minimum duration value is out of bounds (less than 3 days or greater than 1 year).
     /// @param limit The limit value.
     /// @param actual The actual value.
     error MinDurationOutOfBounds(uint64 limit, uint64 actual);
@@ -456,9 +456,9 @@ contract PWNOptimisticGovernancePlugin is
             });
         }
 
-        if (_governanceSettings.minDuration < 4 days) {
+        if (_governanceSettings.minDuration < 3 days) {
             revert MinDurationOutOfBounds({
-                limit: 4 days,
+                limit: 3 days,
                 actual: _governanceSettings.minDuration
             });
         } else if (_governanceSettings.minDuration > 365 days) {
