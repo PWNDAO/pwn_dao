@@ -74,8 +74,8 @@ contract DAOExecuteAllowlist_Constructor_Test is DAOExecuteAllowlist_Test {
 
 contract DAOExecuteAllowlist_IsGranted_Test is DAOExecuteAllowlist_Test {
 
-    address _contract = makeAddr("contract");
-    bytes4 _selector = bytes4(keccak256("selector"));
+    address public _contract = makeAddr("contract");
+    bytes4 public _selector = bytes4(keccak256("selector"));
     IDAO.Action[] public actions;
 
     function testFuzz_shouldReturnTrue_whenWhereIsNotDAO(address _where) external {

@@ -98,7 +98,8 @@ contract DAOExecuteAllowlist is PermissionCondition {
     |*  # ALLOWLIST                                             *|
     |*----------------------------------------------------------*/
 
-    /// @notice Update the allowlist of contracts and their selectors that are allowed to be called via the DAO execute function.
+    /// @notice Update the allowlist of contracts and their selectors that are allowed to be called via the DAO execute
+    /// function.
     /// @dev Only the DAO can call this function. Use `ANY_SELECTOR` to allow all selectors of the contract.
     /// @param _contract The contract address.
     /// @param _selector The function selector.

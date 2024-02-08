@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.17;
 
+// solhint-disable max-line-length
+
 // This code is based on the Aragon's token voting plugin.
 // https://github.com/aragon/osx/blob/e90ea8f5cd6b98cbba16db07ab7bc0cdbf517f3e/packages/contracts/src/plugins/governance/majority-voting/token/TokenVoting.sol
 // Changes:
 // - Remove `MAJORITY_VOTING_BASE_INTERFACE_ID` and `TOKEN_VOTING_INTERFACE_ID`
 // - Use epochs instead of block numbers
+
+// solhint-enable max-line-length
 
 import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import { SafeCastUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
@@ -20,6 +24,8 @@ import { RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds } from "@aragon/osx/plu
 
 import { IPWNTokenGovernance } from "./IPWNTokenGovernance.sol";
 import { IPWNEpochClock } from "../../interfaces/IPWNEpochClock.sol";
+
+// solhint-disable max-line-length
 
 /// @title PWN Token Governance Plugin
 /// @notice The implementation of token governance plugin.
@@ -100,6 +106,7 @@ import { IPWNEpochClock } from "../../interfaces/IPWNEpochClock.sol";
 ///
 /// Accordingly, early execution is possible when the vote is open, the modified support criterion, and the particicpation criterion are met.
 /// @dev This contract implements the `IPWNTokenGovernance` interface.
+// solhint-enable max-line-length
 contract PWNTokenGovernancePlugin is
     IPWNTokenGovernance,
     IMembership,
@@ -121,13 +128,20 @@ contract PWNTokenGovernancePlugin is
     /// @notice The epoch clock contract.
     IPWNEpochClock private epochClock;
 
-    /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
+    /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes)
+    /// compatible contract referencing the token being used for voting.
     IVotesUpgradeable private votingToken;
 
     /// @notice A container for the token governance settings that will be applied as parameters on proposal creation.
-    /// @param votingMode A parameter to select the vote mode. In standard mode (0), early execution and vote replacement are disabled. In early execution mode (1), a proposal can be executed early before the end date if the vote outcome cannot mathematically change by more voters voting. In vote replacement mode (2), voters can change their vote multiple times and only the latest vote option is tallied.
-    /// @param supportThreshold The support threshold value. Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
-    /// @param minParticipation The minimum participation value. Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
+    /// @param votingMode A parameter to select the vote mode.
+    /// In standard mode (0), early execution and vote replacement are disabled.
+    /// In early execution mode (1), a proposal can be executed early before the end date if the vote outcome cannot
+    /// mathematically change by more voters voting. In vote replacement mode (2), voters can change their vote
+    /// multiple times and only the latest vote option is tallied.
+    /// @param supportThreshold The support threshold value.
+    /// Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
+    /// @param minParticipation The minimum participation value.
+    /// Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     /// @param minProposerVotingPower The minimum voting power required to create a proposal.
     struct TokenGovernanceSettings {
@@ -147,7 +161,9 @@ contract PWNTokenGovernancePlugin is
     /// @param tally The vote tally of the proposal.
     /// @param voters The votes casted by the voters.
     /// @param actions The actions to be executed when the proposal passes.
-    /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert.
+    /// If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts.
+    /// A failure map value of 0 requires every action to not revert.
     struct Proposal {
         bool executed;
         ProposalParameters parameters;
@@ -385,7 +401,8 @@ contract PWNTokenGovernancePlugin is
             proposal_.tally.yes -
             proposal_.tally.abstain;
 
-        // The code below implements the formula of the early execution support criterion explained in the top of this file.
+        // The code below implements the formula of the early execution support criterion explained
+        // in the top of this file.
         // `(1 - supportThreshold) * N_yes > supportThreshold *  N_no,worst-case`
         return
             (RATIO_BASE - proposal_.parameters.supportThreshold) * proposal_.tally.yes >
@@ -652,7 +669,8 @@ contract PWNTokenGovernancePlugin is
     /// @notice Internal function to update the plugin-wide governance settings.
     /// @param _governanceSettings The governance settings to be validated and updated.
     function _updateTokenGovernanceSettings(TokenGovernanceSettings calldata _governanceSettings) internal {
-        // Require the support threshold value to be in the interval [0, 10^6-1], because `>` comparision is used in the support criterion and >100% could never be reached.
+        // Require the support threshold value to be in the interval [0, 10^6-1],
+        // because `>` comparision is used in the support criterion and >100% could never be reached.
         if (_governanceSettings.supportThreshold > RATIO_BASE - 1) {
             revert RatioOutOfBounds({
                 limit: RATIO_BASE - 1,
@@ -660,7 +678,8 @@ contract PWNTokenGovernancePlugin is
             });
         }
 
-        // Require the minimum participation value to be in the interval [0, 10^6], because `>=` comparision is used in the participation criterion.
+        // Require the minimum participation value to be in the interval [0, 10^6], because `>=` comparision is used
+        // in the participation criterion.
         if (_governanceSettings.minParticipation > RATIO_BASE) {
             revert RatioOutOfBounds({ limit: RATIO_BASE, actual: _governanceSettings.minParticipation });
         }
@@ -685,7 +704,8 @@ contract PWNTokenGovernancePlugin is
     }
 
     /// @notice Validates and returns the proposal vote dates.
-    /// @param _start The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
+    /// @param _start The start date of the proposal vote.
+    /// If 0, the current timestamp is used and the vote starts immediately.
     /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
     /// @return startDate The validated start date of the proposal vote.
     /// @return endDate The validated end date of the proposal vote.
@@ -706,8 +726,9 @@ contract PWNTokenGovernancePlugin is
             }
         }
 
-        // Since `minDuration` is limited to 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`.
-        // In this case, the proposal creation will revert and another date can be picked.
+        // Since `minDuration` is limited to 1 year, `startDate + minDuration` can only overflow if
+        // the `startDate` is after `type(uint64).max - minDuration`. In this case, the proposal creation will revert
+        // and another date can be picked.
         uint64 earliestEndDate = startDate + governanceSettings.minDuration;
 
         if (_end == 0) {

@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.17;
 
+// solhint-disable max-line-length
+
 // This code is based on the Aragon's token voting plugin setup.
 // https://github.com/aragon/osx/blob/e90ea8f5cd6b98cbba16db07ab7bc0cdbf517f3e/packages/contracts/src/plugins/governance/majority-voting/token/TokenVotingSetup.sol
 // Changes:
 // - Remove `GovernanceERC20` and `GovernanceWrappedERC20`
 // - Grant `EXECUTE_PERMISSION_ID` with `ProposalRewardAssignerCondition` condition
 
+// solhint-enable max-line-length
+
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import { IERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
-import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 import { DAO } from "@aragon/osx/core/dao/DAO.sol";
 import { PermissionLib } from "@aragon/osx/core/permission/PermissionLib.sol";
 import { PluginSetup , IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
@@ -64,8 +65,8 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
         external
         returns (address plugin, PreparedSetupData memory preparedSetupData)
     {
-        // Decode `_installParameters` to extract the params needed for deploying and initializing `PWNTokenGovernancePlugin` plugin,
-        // and the required helpers.
+        // Decode `_installParameters` to extract the params needed for deploying and initializing
+        // `PWNTokenGovernancePlugin` plugin, and the required helpers.
         (
             PWNTokenGovernancePlugin.TokenGovernanceSettings memory governanceSettings,
             address epochClock,

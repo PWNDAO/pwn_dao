@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.17;
 
-import { IPWNOptimisticGovernance } from "src/governance/optimistic/IPWNOptimisticGovernance.sol";
 import {
     PWNOptimisticGovernancePlugin,
     PWNOptimisticGovernancePluginSetup,
@@ -115,12 +114,14 @@ contract PWNOptimisticGovernancePluginSetup_PrepareInstallation_Test is PWNOptim
         assertEq(log.emitter, plugin);
     }
 
+    // solhint-disable-next-line max-line-length
     function test_shouldGrantPermission_UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID_wherePlugin_whoDAO() external {
         (address plugin, IPluginSetup.PreparedSetupData memory preparedSetupData)
             = pluginSetup.prepareInstallation(dao, installParameters);
 
         PermissionLib.MultiTargetPermission memory permission = preparedSetupData.permissions[0];
-        bytes32 permissionId = PWNOptimisticGovernancePlugin(plugin).UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID();
+        bytes32 permissionId = PWNOptimisticGovernancePlugin(plugin)
+            .UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID();
         assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.Grant));
         assertEq(permission.where, plugin);
         assertEq(permission.who, dao);
@@ -228,6 +229,7 @@ contract PWNOptimisticGovernancePluginSetup_PrepareUninstallation_Test is PWNOpt
         pluginSetup.prepareUninstallation(dao, setupPayload);
     }
 
+    // solhint-disable-next-line max-line-length
     function test_shouldRevokePermission_UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID_wherePlugin_whoDAO() external {
         PermissionLib.MultiTargetPermission[] memory permissions
             = pluginSetup.prepareUninstallation(dao, setupPayload);

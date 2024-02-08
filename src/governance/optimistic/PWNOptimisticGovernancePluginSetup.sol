@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.17;
 
+// solhint-disable max-line-length
+
 // This code is based on the Aragon's optimistic token voting plugin setup.
 // https://github.com/aragon/optimistic-token-voting-plugin/blob/f25ea1db9b67a72b7a2e225d719577551e30ac9b/src/OptimisticTokenVotingPluginSetup.sol
 // Changes:
 // - Remove `GovernanceERC20` and `GovernanceWrappedERC20`
 // - Grant `EXECUTE_PERMISSION_ID` with `DAOExecuteAllowlist` condition
+
+// solhint-enable max-line-length
 
 import { DAO } from "@aragon/osx/core/dao/DAO.sol";
 import { PermissionLib } from "@aragon/osx/core/permission/PermissionLib.sol";
@@ -57,8 +61,8 @@ contract PWNOptimisticGovernancePluginSetup is PluginSetup {
         external
         returns (address plugin, PreparedSetupData memory preparedSetupData)
     {
-        // Decode `_installParameters` to extract the params needed for deploying and initializing `PWNOptimisticGovernancePlugin` plugin,
-        // and the required helpers.
+        // Decode `_installParameters` to extract the params needed for deploying and initializing
+        // `PWNOptimisticGovernancePlugin` plugin, and the required helpers.
         (
             PWNOptimisticGovernancePlugin.OptimisticGovernanceSettings memory governanceSettings,
             address epochClock,

@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.17;
 
+// solhint-disable max-line-length
+
 // This code is based on the Aragon's optimistic token voting interface.
 // https://github.com/aragon/optimistic-token-voting-plugin/blob/f25ea1db9b67a72b7a2e225d719577551e30ac9b/src/IOptimisticTokenVoting.sol
 // Changes:
 // - Remove `minProposerVotingPower`
 // - Add `cancelProposal` and `canCancel`
 // - Add `getProposal`
+
+// solhint-enable max-line-length
 
 import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
@@ -20,8 +24,11 @@ interface IPWNOptimisticGovernance {
     /// @notice Creates a new optimistic proposal.
     /// @param _metadata The metadata of the proposal.
     /// @param _actions The actions that will be executed after the proposal passes.
-    /// @param _allowFailureMap Allows proposal to succeed even if an action reverts. Uses bitmap representation. If the bit at index `x` is 1, the tx succeeds even if the action at `x` failed. Passing 0 will be treated as atomic execution.
-    /// @param _startDate The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
+    /// @param _allowFailureMap Allows proposal to succeed even if an action reverts. Uses bitmap representation.
+    /// If the bit at index `x` is 1, the tx succeeds even if the action at `x` failed.
+    /// Passing 0 will be treated as atomic execution.
+    /// @param _startDate The start date of the proposal vote.
+    /// If 0, the current timestamp is used and the vote starts immediately.
     /// @param _endDate The end date of the proposal vote. If 0, `_startDate + minDuration` is used.
     /// @return proposalId The ID of the proposal.
     function createProposal(
@@ -92,7 +99,8 @@ interface IPWNOptimisticGovernance {
     /// @dev The function assumes that the queried proposal exists.
     function canVeto(uint256 _proposalId, address _account) external view returns (bool);
 
-    /// @notice Returns whether the account has voted for the proposal.  Note, that this does not check if the account has vetoing power.
+    /// @notice Returns whether the account has voted for the proposal.
+    /// Note, that this does not check if the account has vetoing power.
     /// @param _proposalId The ID of the proposal.
     /// @param _account The account address to be checked.
     /// @return The whether the given account has vetoed the given proposal.
@@ -100,7 +108,8 @@ interface IPWNOptimisticGovernance {
 
     /// @notice Checks if the total votes against a proposal is greater than the veto threshold.
     /// @param _proposalId The ID of the proposal.
-    /// @return Returns `true` if the total veto power against the proposal is greater or equal than the threshold and `false` otherwise.
+    /// @return Returns `true` if the total veto power against the proposal is greater or equal than the threshold and
+    /// `false` otherwise.
     function isMinVetoRatioReached(uint256 _proposalId) external view returns (bool);
 
     /// @notice Checks if a proposal can be executed.

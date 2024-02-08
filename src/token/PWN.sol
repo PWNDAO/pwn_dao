@@ -178,32 +178,37 @@ contract PWN is Ownable2Step, ERC20, IProposalReward {
         if (votingContract == address(0)) {
             revert Error.ZeroVotingContract();
         }
+
         // check that the reward has been assigned
         ProposalReward storage proposalReward = proposalRewards[votingContract][proposalId];
         uint256 assignedReward = proposalReward.reward;
         if (assignedReward == 0) {
             revert Error.ProposalRewardNotAssigned();
         }
+
+        IPWNTokenGovernance _votingContract = IPWNTokenGovernance(votingContract);
         ( // get proposal data
             ,, IPWNTokenGovernance.ProposalParameters memory proposalParameters,
             IPWNTokenGovernance.Tally memory tally,,
-        ) = IPWNTokenGovernance(votingContract).getProposal(proposalId);
+        ) = _votingContract.getProposal(proposalId);
+
         // check that the caller has voted
         address voter = msg.sender;
-        if (IPWNTokenGovernance(votingContract).getVoteOption(proposalId, voter) == IPWNTokenGovernance.VoteOption.None) {
+        if (_votingContract.getVoteOption(proposalId, voter) == IPWNTokenGovernance.VoteOption.None) {
             revert Error.CallerHasNotVoted();
         }
+
         // check that the reward has not been claimed yet
         if (proposalReward.claimed[voter]) {
             revert Error.ProposalRewardAlreadyClaimed();
         }
+
         // store that the reward has been claimed
         proposalReward.claimed[voter] = true;
 
         // voter is rewarded proportionally to the amount of votes he had in the snapshot epoch
         // it doesn't matter if he voted yes, no or abstained
-        uint256 voterVotes = IPWNTokenGovernance(votingContract).getVotingToken()
-            .getPastVotes(voter, proposalParameters.snapshotEpoch);
+        uint256 voterVotes = _votingContract.getVotingToken().getPastVotes(voter, proposalParameters.snapshotEpoch);
         uint256 totalVotes = tally.abstain + tally.yes + tally.no;
         uint256 voterReward = Math.mulDiv(assignedReward, voterVotes, totalVotes);
 

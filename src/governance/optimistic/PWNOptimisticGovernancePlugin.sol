@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.17;
 
+// solhint-disable max-line-length
+
 // This code is based on the Aragon's optimistic token voting plugin.
 // https://github.com/aragon/optimistic-token-voting-plugin/blob/f25ea1db9b67a72b7a2e225d719577551e30ac9b/src/OptimisticTokenVotingPlugin.sol
 // Changes:
@@ -8,6 +10,8 @@ pragma solidity 0.8.17;
 // - Add `cancelProposal` and `canCancel`
 // - Remove `OPTIMISTIC_GOVERNANCE_INTERFACE_ID`
 // - Use epochs instead of block numbers
+
+// solhint-enable max-line-length
 
 import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -53,11 +57,14 @@ contract PWNOptimisticGovernancePlugin is
     /// @notice The epoch clock contract.
     IPWNEpochClock private epochClock;
 
-    /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes) compatible contract referencing the token being used for voting.
+    /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes)
+    /// compatible contract referencing the token being used for voting.
     IVotesUpgradeable private votingToken;
 
-    /// @notice A container for the optimistic governance settings that will be applied as parameters on proposal creation.
-    /// @param minVetoRatio The veto threshold value. Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
+    /// @notice A container for the optimistic governance settings that will be applied as parameters on
+    /// proposal creation.
+    /// @param minVetoRatio The veto threshold value. Its value has to be in the interval [0, 10^6] defined
+    /// by `RATIO_BASE = 10**6`.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     struct OptimisticGovernanceSettings {
         uint32 minVetoRatio;
@@ -74,7 +81,9 @@ contract PWNOptimisticGovernancePlugin is
     /// @param vetoTally The amount of voting power used to veto the proposal.
     /// @param vetoVoters The voters who have vetoed.
     /// @param actions The actions to be executed when the proposal passes.
-    /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert. If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts. A failure map value of 0 requires every action to not revert.
+    /// @param allowFailureMap A bitmap allowing the proposal to succeed, even if individual actions might revert.
+    /// If the bit at index `i` is 1, the proposal succeeds even if the `i`th action reverts.
+    /// A failure map value of 0 requires every action to not revert.
     struct Proposal {
         bool executed;
         bool cancelled;
@@ -522,7 +531,8 @@ contract PWNOptimisticGovernancePlugin is
     }
 
     /// @notice Validates and returns the proposal vote dates.
-    /// @param _start The start date of the proposal vote. If 0, the current timestamp is used and the vote starts immediately.
+    /// @param _start The start date of the proposal vote. If 0, the current timestamp is used and the vote starts
+    /// immediately.
     /// @param _end The end date of the proposal vote. If 0, `_start + minDuration` is used.
     /// @return startDate The validated start date of the proposal vote.
     /// @return endDate The validated end date of the proposal vote.
@@ -546,7 +556,10 @@ contract PWNOptimisticGovernancePlugin is
             }
         }
 
-        uint64 earliestEndDate = startDate + governanceSettings.minDuration; // Since `minDuration` will be less than 1 year, `startDate + minDuration` can only overflow if the `startDate` is after `type(uint64).max - minDuration`. In this case, the proposal creation will revert and another date can be picked.
+        // Since `minDuration` will be less than 1 year, `startDate + minDuration` can only overflow if
+        // the `startDate` is after `type(uint64).max - minDuration`. In this case, the proposal creation will revert
+        // and another date can be picked.
+        uint64 earliestEndDate = startDate + governanceSettings.minDuration;
 
         if (_end == 0) {
             endDate = earliestEndDate;
@@ -562,6 +575,8 @@ contract PWNOptimisticGovernancePlugin is
         }
     }
 
-    /// @notice This empty reserved space is put in place to allow future versions to add new variables without shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps](https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
+    /// @notice This empty reserved space is put in place to allow future versions to add new variables without
+    /// shifting down storage in the inheritance chain (see [OpenZeppelin's guide about storage gaps]
+    /// (https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps)).
     uint256[50] private __gap;
 }

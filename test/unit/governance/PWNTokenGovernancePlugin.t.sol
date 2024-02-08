@@ -4,7 +4,6 @@ pragma solidity 0.8.17;
 import { IVotesUpgradeable } from "@openzeppelin/contracts-upgradeable/governance/utils/IVotesUpgradeable.sol";
 
 import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
-import { DaoUnauthorized } from "@aragon/osx/core/utils/auth.sol";
 import { createERC1967Proxy } from "@aragon/osx/utils/Proxy.sol";
 import { RATIO_BASE, RatioOutOfBounds, _applyRatioCeiled } from "@aragon/osx/plugins/utils/Ratio.sol";
 
@@ -637,6 +636,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
         assertEq(uint256(noTally), proposerVotingPower);
     }
 
+    // solhint-disable-next-line max-line-length
     function test_shouldExecute_whenVoteOptionProvided_whenTryEarlyExecution_whenEarlyExecutionMode_whenSupportThresholdReachedEarly() external {
         bytes32 settingsValue = vm.load(address(plugin), GOVERNANCE_SETTINGS_SLOT);
         vm.store(
@@ -958,6 +958,7 @@ contract PWNTokenGovernancePlugin_Vote_Test is PWNTokenGovernancePlugin_Test {
         });
     }
 
+    // solhint-disable-next-line max-line-length
     function test_shouldExecute_whenTryEarlyExecution_whenEarlyExecutionMode_whenSupportThresholdReachedEarly() external {
         _setVotingMode(proposalId, IPWNTokenGovernance.VotingMode.EarlyExecution);
         vm.mockCall(
@@ -1062,7 +1063,9 @@ contract PWNTokenGovernancePlugin_Execute_Test is PWNTokenGovernancePlugin_Test 
         plugin.execute({ _proposalId: proposalId });
     }
 
-    function testFuzz_shouldFail_whenEarlyExecutionMode_whenSupportThresholdNotReachedEarly(uint256 _votingPower) external {
+    function testFuzz_shouldFail_whenEarlyExecutionMode_whenSupportThresholdNotReachedEarly(
+        uint256 _votingPower
+    ) external {
         _votingPower = bound(_votingPower, 1, pastTotalSupply / 2);
         _setVotingMode(proposalId, IPWNTokenGovernance.VotingMode.EarlyExecution);
 
