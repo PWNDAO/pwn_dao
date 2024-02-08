@@ -6,7 +6,7 @@ import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 import { DAOExecuteAllowlist } from "src/governance/permission/DAOExecuteAllowlist.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 
-import { Base_Test } from "../Base.t.sol";
+import { Base_Test } from "test/Base.t.sol";
 
 abstract contract DAOExecuteAllowlist_Test is Base_Test {
 

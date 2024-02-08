@@ -6,7 +6,7 @@ import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 import { ProposalRewardAssignerCondition } from "src/governance/permission/ProposalRewardAssignerCondition.sol";
 import { IProposalReward } from "src/interfaces/IProposalReward.sol";
 
-import { Base_Test } from "../Base.t.sol";
+import { Base_Test } from "test/Base.t.sol";
 
 abstract contract ProposalRewardAssignerCondition_Test is Base_Test {
 

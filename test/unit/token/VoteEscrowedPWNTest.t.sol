@@ -3,8 +3,8 @@ pragma solidity 0.8.18;
 
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 
-import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
-import { Base_Test } from "../Base.t.sol";
+import { VoteEscrowedPWNHarness } from "test/harness/VoteEscrowedPWNHarness.sol";
+import { Base_Test } from "test/Base.t.sol";
 
 abstract contract VoteEscrowedPWN_Test is Base_Test {
     using SlotComputingLib for bytes32;

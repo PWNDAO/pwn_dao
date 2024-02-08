@@ -3,7 +3,7 @@ pragma solidity 0.8.18;
 
 import { Error } from "src/lib/Error.sol";
 
-import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
+import { VoteEscrowedPWNHarness } from "test/harness/VoteEscrowedPWNHarness.sol";
 import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
 
 // solhint-disable-next-line no-empty-blocks

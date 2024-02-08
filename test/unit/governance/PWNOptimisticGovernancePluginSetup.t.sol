@@ -10,7 +10,7 @@ import {
     DAOExecuteAllowlist
 } from "src/governance/optimistic/PWNOptimisticGovernancePluginSetup.sol";
 
-import { Base_Test, Vm } from "../Base.t.sol";
+import { Base_Test, Vm } from "test/Base.t.sol";
 
 abstract contract PWNOptimisticGovernancePluginSetup_Test is Base_Test {
 

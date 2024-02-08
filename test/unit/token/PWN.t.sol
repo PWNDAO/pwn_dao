@@ -8,7 +8,7 @@ import { Error } from "src/lib/Error.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 import { PWN } from "src/token/PWN.sol";
 
-import { Base_Test } from "../Base.t.sol";
+import { Base_Test } from "test/Base.t.sol";
 
 abstract contract PWN_Test is Base_Test {
     using SlotComputingLib for bytes32;

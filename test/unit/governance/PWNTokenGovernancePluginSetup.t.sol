@@ -10,7 +10,7 @@ import {
     ProposalRewardAssignerCondition
 } from "src/governance/token/PWNTokenGovernancePluginSetup.sol";
 
-import { Base_Test, Vm } from "../Base.t.sol";
+import { Base_Test, Vm } from "test/Base.t.sol";
 
 abstract contract PWNTokenGovernancePluginSetup_Test is Base_Test {
 

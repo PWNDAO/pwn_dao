@@ -14,7 +14,7 @@ import { IPWNEpochClock } from "src/interfaces/IPWNEpochClock.sol";
 import { BitMaskLib } from "src/lib/BitMaskLib.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 
-import { Base_Test } from "../Base.t.sol";
+import { Base_Test } from "test/Base.t.sol";
 
 abstract contract PWNTokenGovernancePlugin_Test is Base_Test {
     using SlotComputingLib for bytes32;
