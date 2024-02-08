@@ -67,9 +67,6 @@ contract PWN_ForkTest is Base_Test {
         vePWN.createStake(100e18, 130); // 350 power
         vm.stopPrank();
 
-        // get over immutable period => epoch 28
-        vm.warp(block.timestamp + epochClock.SECONDS_IN_EPOCH() * 27);
-
         IPWNTokenGovernance.ProposalParameters memory proposalParameters = IPWNTokenGovernance.ProposalParameters({
             votingMode: IPWNTokenGovernance.VotingMode.Standard,
             supportThreshold: 0,

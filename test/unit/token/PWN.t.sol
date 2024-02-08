@@ -88,7 +88,6 @@ contract PWN_Constants_Test is PWN_Test {
         assertEq(pwnToken.MINTABLE_TOTAL_SUPPLY(), 100_000_000e18);
         assertEq(pwnToken.MAX_VOTING_REWARD(), 100);
         assertEq(pwnToken.VOTING_REWARD_DENOMINATOR(), 10000);
-        assertEq(pwnToken.IMMUTABLE_PERIOD(), 26);
     }
 
 }
@@ -294,20 +293,6 @@ contract PWN_AssignProposalReward_Test is PWN_Test {
         );
 
         vm.expectRevert(abi.encodeWithSelector(Error.ProposalNotExecuted.selector));
-        vm.prank(owner);
-        pwnToken.assignProposalReward(votingContract, proposalId);
-    }
-
-    function testFuzz_shouldFail_whenImmutablePeriodNotReached(uint256 snapshotEpoch) external {
-        snapshotEpoch = bound(snapshotEpoch, 1, pwnToken.IMMUTABLE_PERIOD());
-        proposalParameters.snapshotEpoch = uint64(snapshotEpoch);
-        vm.mockCall(
-            votingContract,
-            abi.encodeWithSignature("getProposal(uint256)", proposalId),
-            abi.encode(false, true, proposalParameters, tally, actions, 0)
-        );
-
-        vm.expectRevert(abi.encodeWithSelector(Error.ProposalSnapshotInImmutablePeriod.selector));
         vm.prank(owner);
         pwnToken.assignProposalReward(votingContract, proposalId);
     }

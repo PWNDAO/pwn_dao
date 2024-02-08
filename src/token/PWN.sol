@@ -27,8 +27,6 @@ contract PWN is Ownable2Step, ERC20, IProposalReward {
     uint256 public constant MAX_VOTING_REWARD = 100; // 1%
     /// @notice The denominator of the voting reward.
     uint256 public constant VOTING_REWARD_DENOMINATOR = 10000;
-    /// @notice The immutable period (in epochs) after which voting rewards can be set.
-    uint256 public constant IMMUTABLE_PERIOD = 26; // ~2 years
 
     /// @notice Amount of tokens already minted by the owner.
     uint256 public mintedSupply;
@@ -140,7 +138,7 @@ contract PWN is Ownable2Step, ERC20, IProposalReward {
     }
 
     /// @notice Assigns a reward to a governance proposal.
-    /// @dev The reward can be assigned only by the owner after the immutable period for an executed proposal.
+    /// @dev The reward can be assigned only by the owner for an executed proposal.
     /// The reward is calculated from the current total supply.
     /// @param votingContract The voting contract address.
     /// @param proposalId The proposal id.
@@ -152,21 +150,16 @@ contract PWN is Ownable2Step, ERC20, IProposalReward {
         if (votingReward == 0) {
             revert Error.VotingRewardNotSet();
         }
-        // check that the reward has not been assigned yet
+        // check that the proposal reward has not been assigned yet
         ProposalReward storage proposalReward = proposalRewards[votingContract][proposalId];
         if (proposalReward.reward != 0) {
             revert Error.ProposalRewardAlreadyAssigned(proposalReward.reward);
         }
-        ( // get proposal data
-            , bool executed, IPWNTokenGovernance.ProposalParameters memory proposalParameters,,,
-        ) = IPWNTokenGovernance(votingContract).getProposal(proposalId);
+        // get proposal data
+        (, bool executed,,,,) = IPWNTokenGovernance(votingContract).getProposal(proposalId);
         // check that the proposal has been executed
         if (!executed) {
             revert Error.ProposalNotExecuted();
-        }
-        // check that the proposal is not in the immutable period
-        if (proposalParameters.snapshotEpoch <= IMMUTABLE_PERIOD) { // expecting the first epoch to be number 1
-            revert Error.ProposalSnapshotInImmutablePeriod();
         }
 
         // assign the reward
