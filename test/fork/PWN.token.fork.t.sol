@@ -12,7 +12,7 @@ import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
 import { Base_Test } from "../Base.t.sol";
 
-contract PWN_ForkTest is Base_Test {
+contract PWNToken_ForkTest is Base_Test {
 
     PWN public pwnToken;
     PWNEpochClock public epochClock;
@@ -20,7 +20,7 @@ contract PWN_ForkTest is Base_Test {
     VoteEscrowedPWN public vePWN;
 
     address public dao = vm.envAddress("DAO");
-    address public governancePlugin = vm.envAddress("GOVERNANCE_PLUGIN");
+    address public multisigGovernancePlugin = vm.envAddress("MULTISIG_GOVERNANCE_PLUGIN");
 
     address public voter = makeAddr("voter");
     address public votingContract = makeAddr("votingContract");
@@ -115,7 +115,7 @@ contract PWN_ForkTest is Base_Test {
         });
 
         // execute the proposal
-        vm.prank(governancePlugin);
+        vm.prank(multisigGovernancePlugin);
         _dao.execute({
             _callId: bytes32(proposalId),
             _actions: actions,
