@@ -274,7 +274,7 @@ contract PWNOptimisticGovernancePlugin is
     }
 
     /// @inheritdoc IPWNOptimisticGovernance
-    function cancelProposal(uint256 _proposalId) external auth(CANCELLER_PERMISSION_ID) {
+    function cancel(uint256 _proposalId) external auth(CANCELLER_PERMISSION_ID) {
         if (!canCancel(_proposalId)) {
             revert ProposalCancellationForbidden(_proposalId);
         }

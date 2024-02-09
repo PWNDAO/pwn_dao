@@ -6,7 +6,7 @@ import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
 import { IPermissionCondition } from "@aragon/osx/core/permission/IPermissionCondition.sol";
 import { PermissionCondition } from "@aragon/osx/core/permission/PermissionCondition.sol";
 
-import { IProposalReward } from "../../interfaces/IProposalReward.sol";
+import { IProposalReward } from "src/interfaces/IProposalReward.sol";
 
 /// @title Proposal Reward Condition
 /// @notice Permission condition that checks that proposal is assigning a reward only to itself.

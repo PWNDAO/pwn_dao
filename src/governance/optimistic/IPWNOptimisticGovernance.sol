@@ -49,7 +49,7 @@ interface IPWNOptimisticGovernance {
 
     /// @notice Cancels a proposal.
     /// @param _proposalId The ID of the proposal to be cancelled.
-    function cancelProposal(uint256 _proposalId) external;
+    function cancel(uint256 _proposalId) external;
 
     // # PROPOSAL
 

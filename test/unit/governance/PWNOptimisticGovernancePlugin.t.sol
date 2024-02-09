@@ -666,10 +666,10 @@ contract PWNOptimisticGovernancePlugin_Execute_Test is PWNOptimisticGovernancePl
 
 
 /*----------------------------------------------------------*|
-|*  # CANCEL PROPOSAL                                       *|
+|*  # CANCEL                                                *|
 |*----------------------------------------------------------*/
 
-contract PWNOptimisticGovernancePlugin_CancelProposal_Test is PWNOptimisticGovernancePlugin_Test {
+contract PWNOptimisticGovernancePlugin_Cancel_Test is PWNOptimisticGovernancePlugin_Test {
     using SlotComputingLib for bytes32;
     using BitMaskLib for bytes32;
 
@@ -704,7 +704,7 @@ contract PWNOptimisticGovernancePlugin_CancelProposal_Test is PWNOptimisticGover
             )
         );
         vm.prank(caller);
-        plugin.cancelProposal({ _proposalId: proposalId });
+        plugin.cancel({ _proposalId: proposalId });
     }
 
     function test_shouldFail_whenExecuted() external {
@@ -718,7 +718,7 @@ contract PWNOptimisticGovernancePlugin_CancelProposal_Test is PWNOptimisticGover
             abi.encodeWithSelector(PWNOptimisticGovernancePlugin.ProposalCancellationForbidden.selector, proposalId)
         );
         vm.prank(canceller);
-        plugin.cancelProposal({ _proposalId: proposalId });
+        plugin.cancel({ _proposalId: proposalId });
     }
 
     function test_shouldFail_whenCancelled() external {
@@ -732,7 +732,7 @@ contract PWNOptimisticGovernancePlugin_CancelProposal_Test is PWNOptimisticGover
             abi.encodeWithSelector(PWNOptimisticGovernancePlugin.ProposalCancellationForbidden.selector, proposalId)
         );
         vm.prank(canceller);
-        plugin.cancelProposal({ _proposalId: proposalId });
+        plugin.cancel({ _proposalId: proposalId });
     }
 
     function test_shouldFail_whenVetoRatioReached() external {
@@ -746,12 +746,12 @@ contract PWNOptimisticGovernancePlugin_CancelProposal_Test is PWNOptimisticGover
             abi.encodeWithSelector(PWNOptimisticGovernancePlugin.ProposalCancellationForbidden.selector, proposalId)
         );
         vm.prank(canceller);
-        plugin.cancelProposal({ _proposalId: proposalId });
+        plugin.cancel({ _proposalId: proposalId });
     }
 
     function test_shouldStoreCancelledProposal() external {
         vm.prank(canceller);
-        plugin.cancelProposal({ _proposalId: proposalId });
+        plugin.cancel({ _proposalId: proposalId });
 
         assertEq( // cancelled
             vm.load(address(plugin), PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(0)).maskUint8(8),
@@ -764,124 +764,7 @@ contract PWNOptimisticGovernancePlugin_CancelProposal_Test is PWNOptimisticGover
         emit ProposalCancelled({ proposalId: proposalId });
 
         vm.prank(canceller);
-        plugin.cancelProposal({ _proposalId: proposalId });
-    }
-
-}
-
-
-/*----------------------------------------------------------*|
-|*  # UPDATE GOVERNANCE SETTINGS                            *|
-|*----------------------------------------------------------*/
-
-contract PWNOptimisticGovernancePlugin_UpdateGovernanceSettings_Test is PWNOptimisticGovernancePlugin_Test {
-    using SlotComputingLib for bytes32;
-    using BitMaskLib for bytes32;
-
-    address public admin = makeAddr("admin");
-
-    event OptimisticGovernanceSettingsUpdated(
-        uint32 minVetoRatio,
-        uint64 minDuration
-    );
-
-    function setUp() override public {
-        super.setUp();
-
-        // nobody but the admin has `UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID` permission
-        vm.mockCall(
-            dao,
-            abi.encodeWithSelector(
-                IDAO.hasPermission.selector,
-                address(plugin), admin, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
-            ),
-            abi.encode(true)
-        );
-    }
-
-
-    function test_shouldFail_whenCallerWithoutPermission(address caller) external checkAddress(caller) {
-        vm.assume(caller != admin);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                DaoUnauthorized.selector,
-                dao, address(plugin), caller, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
-            )
-        );
-        vm.prank(caller);
-        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
-    }
-
-    function test_shouldFail_whenMinVetoRatioOutOfBounds() external {
-        settings.minVetoRatio = 0;
-        vm.expectRevert(abi.encodeWithSelector(RatioOutOfBounds.selector, 1, settings.minVetoRatio));
-        vm.prank(admin);
-        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
-
-        settings.minVetoRatio = uint32(RATIO_BASE + 1);
-        vm.expectRevert(abi.encodeWithSelector(RatioOutOfBounds.selector, RATIO_BASE, settings.minVetoRatio));
-        vm.prank(admin);
-        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
-    }
-
-    function test_shouldFail_whenMinDurationOutOfBounds() external {
-        settings.minDuration = 3 days - 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PWNOptimisticGovernancePlugin.MinDurationOutOfBounds.selector, 3 days, settings.minDuration
-            )
-        );
-        vm.prank(admin);
-        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
-
-        settings.minDuration = 365 days + 1;
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                PWNOptimisticGovernancePlugin.MinDurationOutOfBounds.selector, 365 days, settings.minDuration
-            )
-        );
-        vm.prank(admin);
-        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
-    }
-
-    function testFuzz_shouldStoreNewSettings(uint256 minVetoRatio, uint256 minDuration) external {
-        minVetoRatio = bound(minVetoRatio, 1, RATIO_BASE);
-        minDuration = bound(minDuration, 3 days, 365 days);
-
-        settings.minVetoRatio = uint32(minVetoRatio);
-        settings.minDuration = uint64(minDuration);
-
-        vm.prank(admin);
-        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
-
-        assertEq(
-            uint256(vm.load(address(plugin), GOVERNANCE_SETTINGS_SLOT).maskUint32(0)),
-            minVetoRatio
-        );
-        assertEq(
-            uint256(vm.load(address(plugin), GOVERNANCE_SETTINGS_SLOT).maskUint64(32)),
-            minDuration
-        );
-    }
-
-    function testFuzz_shouldEmit_OptimisticGovernanceSettingsUpdated(uint256 minVetoRatio, uint256 minDuration)
-        external
-    {
-        minVetoRatio = bound(minVetoRatio, 1, RATIO_BASE);
-        minDuration = bound(minDuration, 3 days, 365 days);
-
-        settings.minVetoRatio = uint32(minVetoRatio);
-        settings.minDuration = uint64(minDuration);
-
-        vm.expectEmit();
-        emit OptimisticGovernanceSettingsUpdated({
-            minVetoRatio: settings.minVetoRatio,
-            minDuration: settings.minDuration
-        });
-
-        vm.prank(admin);
-        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
+        plugin.cancel({ _proposalId: proposalId });
     }
 
 }
@@ -1202,6 +1085,123 @@ contract PWNOptimisticGovernancePlugin_CanCancel_Test is PWNOptimisticGovernance
     function test_shouldReturnTrue_whenNotExecuted_whenNotCancelled_whenVetoRatioNotReached() external {
         _mockProposal(proposalId, false, false, 0, 0, 0, 2, 1, vetoVoters, actions, 0);
         assertTrue(plugin.canCancel(proposalId));
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # UPDATE GOVERNANCE SETTINGS                            *|
+|*----------------------------------------------------------*/
+
+contract PWNOptimisticGovernancePlugin_UpdateGovernanceSettings_Test is PWNOptimisticGovernancePlugin_Test {
+    using SlotComputingLib for bytes32;
+    using BitMaskLib for bytes32;
+
+    address public admin = makeAddr("admin");
+
+    event OptimisticGovernanceSettingsUpdated(
+        uint32 minVetoRatio,
+        uint64 minDuration
+    );
+
+    function setUp() override public {
+        super.setUp();
+
+        // nobody but the admin has `UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID` permission
+        vm.mockCall(
+            dao,
+            abi.encodeWithSelector(
+                IDAO.hasPermission.selector,
+                address(plugin), admin, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
+            ),
+            abi.encode(true)
+        );
+    }
+
+
+    function test_shouldFail_whenCallerWithoutPermission(address caller) external checkAddress(caller) {
+        vm.assume(caller != admin);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DaoUnauthorized.selector,
+                dao, address(plugin), caller, plugin.UPDATE_OPTIMISTIC_GOVERNANCE_SETTINGS_PERMISSION_ID()
+            )
+        );
+        vm.prank(caller);
+        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
+    }
+
+    function test_shouldFail_whenMinVetoRatioOutOfBounds() external {
+        settings.minVetoRatio = 0;
+        vm.expectRevert(abi.encodeWithSelector(RatioOutOfBounds.selector, 1, settings.minVetoRatio));
+        vm.prank(admin);
+        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
+
+        settings.minVetoRatio = uint32(RATIO_BASE + 1);
+        vm.expectRevert(abi.encodeWithSelector(RatioOutOfBounds.selector, RATIO_BASE, settings.minVetoRatio));
+        vm.prank(admin);
+        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
+    }
+
+    function test_shouldFail_whenMinDurationOutOfBounds() external {
+        settings.minDuration = 3 days - 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PWNOptimisticGovernancePlugin.MinDurationOutOfBounds.selector, 3 days, settings.minDuration
+            )
+        );
+        vm.prank(admin);
+        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
+
+        settings.minDuration = 365 days + 1;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PWNOptimisticGovernancePlugin.MinDurationOutOfBounds.selector, 365 days, settings.minDuration
+            )
+        );
+        vm.prank(admin);
+        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
+    }
+
+    function testFuzz_shouldStoreNewSettings(uint256 minVetoRatio, uint256 minDuration) external {
+        minVetoRatio = bound(minVetoRatio, 1, RATIO_BASE);
+        minDuration = bound(minDuration, 3 days, 365 days);
+
+        settings.minVetoRatio = uint32(minVetoRatio);
+        settings.minDuration = uint64(minDuration);
+
+        vm.prank(admin);
+        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
+
+        assertEq(
+            uint256(vm.load(address(plugin), GOVERNANCE_SETTINGS_SLOT).maskUint32(0)),
+            minVetoRatio
+        );
+        assertEq(
+            uint256(vm.load(address(plugin), GOVERNANCE_SETTINGS_SLOT).maskUint64(32)),
+            minDuration
+        );
+    }
+
+    function testFuzz_shouldEmit_OptimisticGovernanceSettingsUpdated(uint256 minVetoRatio, uint256 minDuration)
+        external
+    {
+        minVetoRatio = bound(minVetoRatio, 1, RATIO_BASE);
+        minDuration = bound(minDuration, 3 days, 365 days);
+
+        settings.minVetoRatio = uint32(minVetoRatio);
+        settings.minDuration = uint64(minDuration);
+
+        vm.expectEmit();
+        emit OptimisticGovernanceSettingsUpdated({
+            minVetoRatio: settings.minVetoRatio,
+            minDuration: settings.minDuration
+        });
+
+        vm.prank(admin);
+        plugin.updateOptimisticGovernanceSettings({ _governanceSettings: settings });
     }
 
 }
