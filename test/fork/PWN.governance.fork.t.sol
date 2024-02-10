@@ -16,7 +16,6 @@ import { PWNOptimisticGovernancePluginSetup } from "src/governance/optimistic/PW
 import { IPWNTokenGovernance, PWNTokenGovernancePlugin } from "src/governance/token/PWNTokenGovernancePlugin.sol";
 import { PWNTokenGovernancePluginSetup } from "src/governance/token/PWNTokenGovernancePluginSetup.sol";
 import { DAOExecuteAllowlist } from "src/governance/permission/DAOExecuteAllowlist.sol";
-import { ProposalRewardAssignerCondition } from "src/governance/permission/ProposalRewardAssignerCondition.sol";
 
 import { Base_Test, console2 } from "../Base.t.sol";
 
@@ -51,15 +50,15 @@ contract PWNGovernance_ForkTest is Base_Test {
     PWNOptimisticGovernancePlugin public optimisticGovernance;
 
     DAOExecuteAllowlist public allowlist;
-    ProposalRewardAssignerCondition public rewardAssignerCondition;
 
     function setUp() external {
-        vm.createSelectFork("ethereum", 19193581);
+        vm.createSelectFork("ethereum");
 
         vm.mockCall(vePWN, abi.encodeWithSignature("getVotes(address)"), abi.encode(votingPower));
         vm.mockCall(vePWN, abi.encodeWithSignature("getPastVotes(address,uint256)"), abi.encode(votingPower));
         vm.mockCall(vePWN, abi.encodeWithSignature("getPastTotalSupply(uint256)"), abi.encode(totalVotingPower));
         vm.mockCall(epochClock, abi.encodeWithSignature("currentEpoch()"), abi.encode(currentEpoch));
+        vm.mockCall(pwnToken, abi.encodeWithSignature("assignProposalReward(uint256)"), abi.encode(""));
 
         // deploy plugin setup contract
         tokenPluginSetup = new PWNTokenGovernancePluginSetup();
@@ -127,7 +126,6 @@ contract PWNGovernance_ForkTest is Base_Test {
 
         tokenGovernance = PWNTokenGovernancePlugin(_tokenGovernance);
         optimisticGovernance = PWNOptimisticGovernancePlugin(_optimisticGovernance);
-        rewardAssignerCondition = ProposalRewardAssignerCondition(tokenPreparedSetupData.helpers[0]);
         allowlist = DAOExecuteAllowlist(optimisticPreparedSetupData.helpers[0]);
 
         // apply plugin installation
@@ -205,11 +203,6 @@ contract PWNGovernance_ForkTest is Base_Test {
 
     function testFork_shouldExecute_whenSuccessfulTokenProposal() external {
         actions.push(IDAO.Action({ to: pwnToken, value: 0, data: abi.encodeWithSignature("mint(uint256)", 100) }));
-        actions.push(IDAO.Action({
-            to: pwnToken, value: 0, data: abi.encodeWithSignature(
-                "assignProposalReward(address,uint256)", address(tokenGovernance), tokenGovernance.proposalCount()
-            )
-        }));
 
         // create a proposal
         vm.prank(proposer);
@@ -229,9 +222,6 @@ contract PWNGovernance_ForkTest is Base_Test {
 
         // execute the proposal
         vm.expectCall(pwnToken, abi.encodeWithSignature("mint(uint256)", 100));
-        vm.expectCall(pwnToken, abi.encodeWithSignature(
-            "assignProposalReward(address,uint256)", address(tokenGovernance), proposalId
-        ));
 
         vm.warp(block.timestamp + 4 days);
         tokenGovernance.execute(proposalId);
@@ -240,34 +230,6 @@ contract PWNGovernance_ForkTest is Base_Test {
         (bool open, bool executed,,,,) = tokenGovernance.getProposal(proposalId);
         assertFalse(open);
         assertTrue(executed);
-    }
-
-    function testFork_shouldFail_whenAssigningProposalRewardToDifferentProposer() external {
-        actions.push(IDAO.Action({ to: pwnToken, value: 0, data: abi.encodeWithSignature("mint(uint256)", 100) }));
-        actions.push(IDAO.Action({
-            to: pwnToken, value: 0, data: abi.encodeWithSignature( // assigning different proposal id
-                "assignProposalReward(address,uint256)", address(tokenGovernance), tokenGovernance.proposalCount() + 1
-            )
-        }));
-
-        // create a proposal
-        vm.prank(proposer);
-        uint256 proposalId = tokenGovernance.createProposal({
-            _metadata: "",
-            _actions: actions,
-            _allowFailureMap: 0,
-            _startDate: 0,
-            _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.Yes,
-            _tryEarlyExecution: false
-        });
-
-        // fail to execute the proposal
-        vm.warp(block.timestamp + 4 days);
-        vm.expectRevert(abi.encodeWithSelector(
-            PermissionManager.Unauthorized.selector, dao, address(tokenGovernance), EXECUTE_PERMISSION_ID
-        ));
-        tokenGovernance.execute(proposalId);
     }
 
     function testFork_shouldExecute_whenSuccessfulOptimisticProposal() external {
@@ -331,9 +293,7 @@ contract PWNGovernance_ForkTest is Base_Test {
         vm.roll(block.number + 1); // cannot install & uninstall plugin in the same block
 
         PluginRepo.Tag memory tag = PluginRepo.Tag({ release: 1, build: 1 });
-        address[] memory helpers = new address[](1);
 
-        helpers[0] = address(rewardAssignerCondition);
         _applyUninstallation(
             PluginSetupProcessor.ApplyUninstallationParams({
                 plugin: address(tokenGovernance),
@@ -344,7 +304,7 @@ contract PWNGovernance_ForkTest is Base_Test {
                         pluginSetupRef: PluginSetupRef({ versionTag: tag, pluginSetupRepo: tokenPluginRepo }),
                         setupPayload: IPluginSetup.SetupPayload({
                             plugin: address(tokenGovernance),
-                            currentHelpers: helpers,
+                            currentHelpers: new address[](0),
                             data: ""
                         })
                     })
@@ -352,6 +312,7 @@ contract PWNGovernance_ForkTest is Base_Test {
             })
         );
 
+        address[] memory helpers = new address[](1);
         helpers[0] = address(allowlist);
         _applyUninstallation(
             PluginSetupProcessor.ApplyUninstallationParams({

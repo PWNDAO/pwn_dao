@@ -8,6 +8,7 @@ pragma solidity 0.8.17;
 // Changes:
 // - Remove `MAJORITY_VOTING_BASE_INTERFACE_ID` and `TOKEN_VOTING_INTERFACE_ID`
 // - Use epochs instead of block numbers
+// - Assign voting reward on proposal creation
 
 // solhint-enable max-line-length
 
@@ -23,7 +24,8 @@ import { PluginUUPSUpgradeable } from "@aragon/osx/core/plugin/PluginUUPSUpgrade
 import { RATIO_BASE, _applyRatioCeiled, RatioOutOfBounds } from "@aragon/osx/plugins/utils/Ratio.sol";
 
 import { IPWNTokenGovernance } from "./IPWNTokenGovernance.sol";
-import { IPWNEpochClock } from "../../interfaces/IPWNEpochClock.sol";
+import { IPWNEpochClock } from "src/interfaces/IPWNEpochClock.sol";
+import { IRewardToken } from "src/interfaces/IRewardToken.sol";
 
 // solhint-disable max-line-length
 
@@ -131,6 +133,9 @@ contract PWNTokenGovernancePlugin is
     /// @notice An [OpenZeppelin `Votes`](https://docs.openzeppelin.com/contracts/4.x/api/governance#Votes)
     /// compatible contract referencing the token being used for voting.
     IVotesUpgradeable private votingToken;
+
+    /// @notice The reward token. Voters who vote in proposals can claim a reward proportional to their voting power.
+    IRewardToken public rewardToken;
 
     /// @notice A container for the token governance settings that will be applied as parameters on proposal creation.
     /// @param votingMode A parameter to select the vote mode.
@@ -253,12 +258,14 @@ contract PWNTokenGovernancePlugin is
         IDAO _dao,
         TokenGovernanceSettings calldata _governanceSettings,
         IPWNEpochClock _epochClock,
-        IVotesUpgradeable _token
+        IVotesUpgradeable _token,
+        IRewardToken _rewardToken
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
         epochClock = _epochClock;
         votingToken = _token;
+        rewardToken = _rewardToken;
 
         _updateTokenGovernanceSettings(_governanceSettings);
         emit MembershipContractAnnounced({ definingContract: address(_token) });
@@ -329,6 +336,9 @@ contract PWNTokenGovernancePlugin is
                 ++i;
             }
         }
+
+        // assign voting reward
+        rewardToken.assignProposalReward(proposalId);
 
         if (_voteOption != VoteOption.None) {
             vote(proposalId, _voteOption, _tryEarlyExecution);

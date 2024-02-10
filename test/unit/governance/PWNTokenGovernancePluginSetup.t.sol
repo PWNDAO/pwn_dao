@@ -6,8 +6,7 @@ import {
     PWNTokenGovernancePlugin,
     PWNTokenGovernancePluginSetup,
     PermissionLib,
-    IPluginSetup,
-    ProposalRewardAssignerCondition
+    IPluginSetup
 } from "src/governance/token/PWNTokenGovernancePluginSetup.sol";
 
 import { Base_Test, Vm } from "test/Base.t.sol";
@@ -140,26 +139,18 @@ contract PWNTokenGovernancePluginSetup_PrepareInstallation_Test is PWNTokenGover
 
         PermissionLib.MultiTargetPermission memory permission = preparedSetupData.permissions[2];
         bytes32 permissionId = DUMMY_EXECUTE_PERMISSION_ID;
-        assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.GrantWithCondition));
+        assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.Grant));
         assertEq(permission.where, dao);
         assertEq(permission.who, plugin);
-        assertEq(permission.condition, preparedSetupData.helpers[0]);
+        assertEq(permission.condition, PermissionLib.NO_CONDITION);
         assertEq(permission.permissionId, permissionId);
     }
 
-    function test_shouldReturnHelpersArrayWithAssignerCondition() external {
+    function test_shouldReturnEmptyHelpersArray() external {
         (, IPluginSetup.PreparedSetupData memory preparedSetupData)
             = pluginSetup.prepareInstallation(dao, installParameters);
 
-        assertEq(preparedSetupData.helpers.length, 1);
-        ProposalRewardAssignerCondition assignerCondition
-            = ProposalRewardAssignerCondition(preparedSetupData.helpers[0]);
-        assertEq(
-            address(assignerCondition).codehash,
-            address(new ProposalRewardAssignerCondition(dao, rewardToken)).codehash
-        );
-        assertEq(assignerCondition.dao(), dao);
-        assertEq(assignerCondition.proposalReward(), rewardToken);
+        assertEq(preparedSetupData.helpers.length, 0);
     }
 
 }
@@ -172,7 +163,6 @@ contract PWNTokenGovernancePluginSetup_PrepareInstallation_Test is PWNTokenGover
 contract PWNTokenGovernancePluginSetup_PrepareUninstallation_Test is PWNTokenGovernancePluginSetup_Test {
 
     address public plugin = makeAddr("plugin");
-    address public assignerCondition = makeAddr("assignerCondition");
     IPluginSetup.SetupPayload public setupPayload;
 
     function setUp() public override {
@@ -180,18 +170,17 @@ contract PWNTokenGovernancePluginSetup_PrepareUninstallation_Test is PWNTokenGov
 
         setupPayload = IPluginSetup.SetupPayload({
             plugin: plugin,
-            currentHelpers: new address[](1),
+            currentHelpers: new address[](0),
             data: new bytes(0)
         });
-        setupPayload.currentHelpers[0] = assignerCondition;
     }
 
 
-    function test_shouldFail_whenHelpersArrayLengthIsNotOne() external {
-        setupPayload.currentHelpers = new address[](0);
+    function test_shouldFail_whenHelpersArrayLengthIsNotZero() external {
+        setupPayload.currentHelpers = new address[](1);
 
         vm.expectRevert(
-            abi.encodeWithSelector(PWNTokenGovernancePluginSetup.WrongHelpersArrayLength.selector, 0)
+            abi.encodeWithSelector(PWNTokenGovernancePluginSetup.WrongHelpersArrayLength.selector, 1)
         );
         pluginSetup.prepareUninstallation(dao, setupPayload);
     }
@@ -233,7 +222,7 @@ contract PWNTokenGovernancePluginSetup_PrepareUninstallation_Test is PWNTokenGov
         assertEq(uint8(permission.operation), uint8(PermissionLib.Operation.Revoke));
         assertEq(permission.where, dao);
         assertEq(permission.who, plugin);
-        assertEq(permission.condition, assignerCondition);
+        assertEq(permission.condition, PermissionLib.NO_CONDITION);
         assertEq(permission.permissionId, permissionId);
     }
 

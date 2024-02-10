@@ -6,7 +6,7 @@ import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 import { IPWNTokenGovernance } from "src/governance/token/IPWNTokenGovernance.sol";
-import { IProposalReward } from "src/interfaces/IProposalReward.sol";
+import { IRewardToken } from "src/interfaces/IRewardToken.sol";
 import { Error } from "src/lib/Error.sol";
 
 /// @title PWN token contract.
@@ -15,7 +15,7 @@ import { Error } from "src/lib/Error.sol";
 /// @dev This contract is Ownable2Step, which means that the ownership transfer
 /// must be accepted by the new owner.
 /// The token is mintable and burnable by the owner.
-contract PWN is Ownable2Step, ERC20, IProposalReward {
+contract PWN is Ownable2Step, ERC20, IRewardToken {
 
     /*----------------------------------------------------------*|
     |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
@@ -124,6 +124,7 @@ contract PWN is Ownable2Step, ERC20, IProposalReward {
     /// @dev The reward can be set only by the owner and cannot exceed `MAX_VOTING_REWARD`.
     /// The reward is calculated from the current total supply at the moment of assigning the reward.
     /// @param votingContract The voting contract address.
+    /// The contract must call `assignProposalReward` on proposal creation with the new proposal id.
     /// @param votingReward The voting reward nominator. Passing 0 disables the reward.
     function setVotingReward(address votingContract, uint256 votingReward) external onlyOwner {
         if (votingContract == address(0)) {
@@ -137,36 +138,23 @@ contract PWN is Ownable2Step, ERC20, IProposalReward {
         emit VotingRewardSet(votingContract, votingReward);
     }
 
-    /// @notice Assigns a reward to a governance proposal.
-    /// @dev The reward can be assigned only by the owner for an executed proposal.
-    /// The reward is calculated from the current total supply.
-    /// @param votingContract The voting contract address.
-    /// @param proposalId The proposal id.
-    function assignProposalReward(address votingContract, uint256 proposalId) external onlyOwner {
-        if (votingContract == address(0)) {
-            revert Error.ZeroVotingContract();
-        }
+    /// @inheritdoc IRewardToken
+    function assignProposalReward(uint256 proposalId) external {
+        address votingContract = msg.sender;
+
+        // check that the voting contract has a reward set
         uint256 votingReward = votingRewards[votingContract];
-        if (votingReward == 0) {
-            revert Error.VotingRewardNotSet();
-        }
-        // check that the proposal reward has not been assigned yet
-        ProposalReward storage proposalReward = proposalRewards[votingContract][proposalId];
-        if (proposalReward.reward != 0) {
-            revert Error.ProposalRewardAlreadyAssigned(proposalReward.reward);
-        }
-        // get proposal data
-        (, bool executed,,,,) = IPWNTokenGovernance(votingContract).getProposal(proposalId);
-        // check that the proposal has been executed
-        if (!executed) {
-            revert Error.ProposalNotExecuted();
-        }
+        if (votingReward > 0) {
+            // check that the proposal reward has not been assigned yet
+            ProposalReward storage proposalReward = proposalRewards[votingContract][proposalId];
+            if (proposalReward.reward == 0) {
+                // assign the reward
+                uint256 reward = Math.mulDiv(totalSupply(), votingReward, VOTING_REWARD_DENOMINATOR);
+                proposalReward.reward = reward;
 
-        // assign the reward
-        uint256 reward = Math.mulDiv(totalSupply(), votingReward, VOTING_REWARD_DENOMINATOR);
-        proposalReward.reward = reward;
-
-        emit ProposalRewardAssigned(votingContract, proposalId, reward);
+                emit ProposalRewardAssigned(votingContract, proposalId, reward);
+            }
+        }
     }
 
     /// @notice Claims the reward for voting in a proposal.
@@ -188,9 +176,15 @@ contract PWN is Ownable2Step, ERC20, IProposalReward {
 
         IPWNTokenGovernance _votingContract = IPWNTokenGovernance(votingContract);
         ( // get proposal data
-            ,, IPWNTokenGovernance.ProposalParameters memory proposalParameters,
+            , bool executed,
+            IPWNTokenGovernance.ProposalParameters memory proposalParameters,
             IPWNTokenGovernance.Tally memory tally,,
         ) = _votingContract.getProposal(proposalId);
+
+        // check that the proposal has been executed
+        if (!executed) {
+            revert Error.ProposalNotExecuted();
+        }
 
         // check that the caller has voted
         address voter = msg.sender;

@@ -10,6 +10,7 @@ import { RATIO_BASE, RatioOutOfBounds, _applyRatioCeiled } from "@aragon/osx/plu
 import { IPWNTokenGovernance } from "src/governance/token/IPWNTokenGovernance.sol";
 import { PWNTokenGovernancePlugin } from "src/governance/token/PWNTokenGovernancePlugin.sol";
 import { IPWNEpochClock } from "src/interfaces/IPWNEpochClock.sol";
+import { IRewardToken } from "src/interfaces/IRewardToken.sol";
 import { BitMaskLib } from "src/lib/BitMaskLib.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 
@@ -22,12 +23,14 @@ abstract contract PWNTokenGovernancePlugin_Test is Base_Test {
     bytes32 public constant PROPOSAL_COUNTER_SLOT = bytes32(uint256(301));
     bytes32 public constant EPOCH_CLOCK_SLOT = bytes32(uint256(351));
     bytes32 public constant VOTING_TOKEN_SLOT = bytes32(uint256(352));
-    bytes32 public constant GOVERNANCE_SETTINGS_SLOT = bytes32(uint256(353));
-    bytes32 public constant PROPOSALS_SLOT = bytes32(uint256(355));
+    bytes32 public constant REWARD_TOKEN_SLOT = bytes32(uint256(353));
+    bytes32 public constant GOVERNANCE_SETTINGS_SLOT = bytes32(uint256(354));
+    bytes32 public constant PROPOSALS_SLOT = bytes32(uint256(356));
 
     address public dao = makeAddr("dao");
     address public epochClock = makeAddr("epochClock");
     address public votingToken = makeAddr("votingToken");
+    address public rewardToken = makeAddr("rewardToken");
     address public proposer = makeAddr("proposer"); // has min proposer voting power
     address public voter = makeAddr("voter"); // has some voting power
 
@@ -56,7 +59,8 @@ abstract contract PWNTokenGovernancePlugin_Test is Base_Test {
             createERC1967Proxy(
                 pluginImpl,
                 abi.encodeWithSelector(
-                    PWNTokenGovernancePlugin.initialize.selector, dao, settings, epochClock, votingToken
+                    PWNTokenGovernancePlugin.initialize.selector,
+                    dao, settings, epochClock, votingToken, rewardToken
                 )
             )
         );
@@ -87,6 +91,11 @@ abstract contract PWNTokenGovernancePlugin_Test is Base_Test {
             votingToken,
             abi.encodeWithSelector(IVotesUpgradeable.getPastVotes.selector, voter),
             abi.encode(voterVotingPower)
+        );
+        vm.mockCall(
+            rewardToken,
+            abi.encodeWithSelector(IRewardToken.assignProposalReward.selector),
+            abi.encode("")
         );
 
         vm.label(pluginImpl, "Token Plugin Impl");
@@ -186,7 +195,8 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
         uint64 _minDuration,
         uint256 _minProposerVotingPower,
         address _epochClock,
-        address _votingToken
+        address _votingToken,
+        address _rewardToken
     ) external {
         settings.votingMode = IPWNTokenGovernance.VotingMode(uint8(bound(_votingMode, 0, 2)));
         settings.supportThreshold = uint32(bound(_supportThreshold, 1, RATIO_BASE - 1));
@@ -197,7 +207,8 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
         address _plugin = createERC1967Proxy(
             pluginImpl,
             abi.encodeWithSelector(
-                PWNTokenGovernancePlugin.initialize.selector, _dao, settings, _epochClock, _votingToken
+                PWNTokenGovernancePlugin.initialize.selector,
+                _dao, settings, _epochClock, _votingToken, _rewardToken
             )
         );
 
@@ -209,6 +220,9 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
 
         bytes32 votingTokenValue = vm.load(_plugin, VOTING_TOKEN_SLOT);
         assertEq(address(uint160(uint256(votingTokenValue))), _votingToken);
+
+        bytes32 rewardTokenValue = vm.load(_plugin, REWARD_TOKEN_SLOT);
+        assertEq(address(uint160(uint256(rewardTokenValue))), _rewardToken);
 
         uint8 votingMode = vm.load(_plugin, GOVERNANCE_SETTINGS_SLOT).maskUint8(0);
         assertEq(votingMode, uint8(settings.votingMode));
@@ -233,7 +247,8 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
         createERC1967Proxy(
             pluginImpl,
             abi.encodeWithSelector(
-                PWNTokenGovernancePlugin.initialize.selector, dao, settings, epochClock, _votingToken
+                PWNTokenGovernancePlugin.initialize.selector,
+                dao, settings, epochClock, _votingToken, rewardToken
             )
         );
     }
@@ -263,7 +278,8 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
         createERC1967Proxy(
             pluginImpl,
             abi.encodeWithSelector(
-                PWNTokenGovernancePlugin.initialize.selector, dao, settings, epochClock, votingToken
+                PWNTokenGovernancePlugin.initialize.selector,
+                dao, settings, epochClock, votingToken, rewardToken
             )
         );
     }
@@ -587,6 +603,25 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _voteOption: IPWNTokenGovernance.VoteOption.None,
             _tryEarlyExecution: false
         });
+    }
+
+    function test_shouldAssignProposalReward() external {
+        uint256 _proposalId = 101;
+        vm.store(address(plugin), PROPOSAL_COUNTER_SLOT, bytes32(_proposalId));
+        vm.expectCall(rewardToken, abi.encodeWithSignature("assignProposalReward(uint256)", _proposalId));
+
+        vm.prank(proposer);
+        uint256 proposalId = plugin.createProposal({
+            _metadata: "",
+            _actions: actions,
+            _allowFailureMap: 0,
+            _startDate: 0,
+            _endDate: 0,
+            _voteOption: IPWNTokenGovernance.VoteOption.Abstain,
+            _tryEarlyExecution: false
+        });
+
+        assertEq(proposalId, _proposalId);
     }
 
     function test_shouldVote_whenVoteOptionProvided() external {

@@ -7,7 +7,6 @@ pragma solidity 0.8.17;
 // https://github.com/aragon/osx/blob/e90ea8f5cd6b98cbba16db07ab7bc0cdbf517f3e/packages/contracts/src/plugins/governance/majority-voting/token/TokenVotingSetup.sol
 // Changes:
 // - Remove `GovernanceERC20` and `GovernanceWrappedERC20`
-// - Grant `EXECUTE_PERMISSION_ID` with `ProposalRewardAssignerCondition` condition
 
 // solhint-enable max-line-length
 
@@ -20,7 +19,6 @@ import { PermissionLib } from "@aragon/osx/core/permission/PermissionLib.sol";
 import { PluginSetup , IPluginSetup} from "@aragon/osx/framework/plugin/setup/PluginSetup.sol";
 
 import { PWNTokenGovernancePlugin } from "./PWNTokenGovernancePlugin.sol";
-import { ProposalRewardAssignerCondition } from "../permission/ProposalRewardAssignerCondition.sol";
 
 /// @title PWN Token Governance Plugin Setup
 /// @notice The setup contract of the `PWNTokenGovernancePlugin` plugin.
@@ -78,17 +76,10 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
         plugin = createERC1967Proxy(
             address(tokenGovernancePluginBase),
             abi.encodeWithSelector(
-                PWNTokenGovernancePlugin.initialize.selector, _dao, governanceSettings, epochClock, votingToken
+                PWNTokenGovernancePlugin.initialize.selector,
+                _dao, governanceSettings, epochClock, votingToken, rewardToken
             )
         );
-
-        // prepare helpers
-        address[] memory helpers = new address[](1);
-
-        // deploy ProposalRewardAssignerCondition condition
-        ProposalRewardAssignerCondition assignerCondition = new ProposalRewardAssignerCondition(_dao, rewardToken);
-
-        helpers[0] = address(assignerCondition);
 
         // prepare permissions
         PermissionLib.MultiTargetPermission[] memory permissions = new PermissionLib.MultiTargetPermission[](3);
@@ -113,16 +104,15 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
             permissionId: tokenGovernancePluginBase.UPGRADE_PLUGIN_PERMISSION_ID()
         });
 
-        // the plugin can make the DAO execute actions with proposal reward assigner condition
+        // the plugin can call the DAO execute function
         permissions[2] = PermissionLib.MultiTargetPermission({
-            operation: PermissionLib.Operation.GrantWithCondition,
+            operation: PermissionLib.Operation.Grant,
             where: _dao,
             who: plugin,
-            condition: address(assignerCondition),
+            condition: PermissionLib.NO_CONDITION,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
 
-        preparedSetupData.helpers = helpers;
         preparedSetupData.permissions = permissions;
     }
 
@@ -133,10 +123,9 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
         returns (PermissionLib.MultiTargetPermission[] memory permissions)
     {
         uint256 helperLength = _payload.currentHelpers.length;
-        if (helperLength != 1) {
+        if (helperLength != 0) {
             revert WrongHelpersArrayLength({ length: helperLength });
         }
-        address assignerCondition = _payload.currentHelpers[0]; // ProposalRewardAssignerCondition
 
         // prepare permissions
         permissions = new PermissionLib.MultiTargetPermission[](3);
@@ -162,7 +151,7 @@ contract PWNTokenGovernancePluginSetup is PluginSetup {
             operation: PermissionLib.Operation.Revoke,
             where: _dao,
             who: _payload.plugin,
-            condition: assignerCondition,
+            condition: PermissionLib.NO_CONDITION,
             permissionId: DAO(payable(_dao)).EXECUTE_PERMISSION_ID()
         });
     }
