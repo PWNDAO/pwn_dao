@@ -54,6 +54,12 @@
           "name": "votingToken",
           "type": "address",
           "description": "The token that will be used for voting."
+        },
+        {
+          "internalType": "address",
+          "name": "rewardToken",
+          "type": "address",
+          "description": "Token used to reward voters for participating in governance."
         }
       ],
       "prepareUninstallation": {
