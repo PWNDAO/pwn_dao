@@ -165,20 +165,20 @@ contract PWNOptimisticGovernancePlugin is
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _governanceSettings The optimistic governance settings.
     /// @param _epochClock The epoch clock used for time tracking.
-    /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
+    /// @param _votingToken The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
     function initialize(
         IDAO _dao,
         OptimisticGovernanceSettings calldata _governanceSettings,
         IPWNEpochClock _epochClock,
-        IVotesUpgradeable _token
+        IVotesUpgradeable _votingToken
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
         epochClock = _epochClock;
-        votingToken = _token;
+        votingToken = _votingToken;
 
         _updateOptimisticGovernanceSettings(_governanceSettings);
-        emit MembershipContractAnnounced({ definingContract: address(_token) });
+        emit MembershipContractAnnounced({ definingContract: address(_votingToken) });
     }
 
 

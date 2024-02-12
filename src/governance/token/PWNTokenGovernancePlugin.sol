@@ -253,22 +253,23 @@ contract PWNTokenGovernancePlugin is
     /// @param _dao The IDAO interface of the associated DAO.
     /// @param _governanceSettings The voting settings.
     /// @param _epochClock The epoch clock used for time tracking.
-    /// @param _token The [ERC-20](https://eips.ethereum.org/EIPS/eip-20) token used for voting.
+    /// @param _votingToken The token used for voting.
+    /// @param _rewardToken The token used to reward voters for participating in governance.
     function initialize(
         IDAO _dao,
         TokenGovernanceSettings calldata _governanceSettings,
         IPWNEpochClock _epochClock,
-        IVotesUpgradeable _token,
+        IVotesUpgradeable _votingToken,
         IRewardToken _rewardToken
     ) external initializer {
         __PluginUUPSUpgradeable_init(_dao);
 
         epochClock = _epochClock;
-        votingToken = _token;
+        votingToken = _votingToken;
         rewardToken = _rewardToken;
 
         _updateTokenGovernanceSettings(_governanceSettings);
-        emit MembershipContractAnnounced({ definingContract: address(_token) });
+        emit MembershipContractAnnounced({ definingContract: address(_votingToken) });
     }
 
 
