@@ -5,8 +5,9 @@ import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2St
 import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
-import { IVotingContract } from "./interfaces/IVotingContract.sol";
-import { Error } from "./lib/Error.sol";
+import { IPWNTokenGovernance } from "src/governance/token/IPWNTokenGovernance.sol";
+import { IRewardToken } from "src/interfaces/IRewardToken.sol";
+import { Error } from "src/lib/Error.sol";
 
 /// @title PWN token contract.
 /// @notice The token is the main governance token of the PWN DAO and is used
@@ -14,7 +15,7 @@ import { Error } from "./lib/Error.sol";
 /// @dev This contract is Ownable2Step, which means that the ownership transfer
 /// must be accepted by the new owner.
 /// The token is mintable and burnable by the owner.
-contract PWN is Ownable2Step, ERC20 {
+contract PWN is Ownable2Step, ERC20, IRewardToken {
 
     /*----------------------------------------------------------*|
     |*  # VARIABLES & CONSTANTS DEFINITIONS                     *|
@@ -26,8 +27,6 @@ contract PWN is Ownable2Step, ERC20 {
     uint256 public constant MAX_VOTING_REWARD = 100; // 1%
     /// @notice The denominator of the voting reward.
     uint256 public constant VOTING_REWARD_DENOMINATOR = 10000;
-    /// @notice The immutable period (in epochs) after which voting rewards can be set.
-    uint256 public constant IMMUTABLE_PERIOD = 26; // ~2 years
 
     /// @notice Amount of tokens already minted by the owner.
     uint256 public mintedSupply;
@@ -125,6 +124,7 @@ contract PWN is Ownable2Step, ERC20 {
     /// @dev The reward can be set only by the owner and cannot exceed `MAX_VOTING_REWARD`.
     /// The reward is calculated from the current total supply at the moment of assigning the reward.
     /// @param votingContract The voting contract address.
+    /// The contract must call `assignProposalReward` on proposal creation with the new proposal id.
     /// @param votingReward The voting reward nominator. Passing 0 disables the reward.
     function setVotingReward(address votingContract, uint256 votingReward) external onlyOwner {
         if (votingContract == address(0)) {
@@ -138,41 +138,23 @@ contract PWN is Ownable2Step, ERC20 {
         emit VotingRewardSet(votingContract, votingReward);
     }
 
-    /// @notice Assigns a reward to a governance proposal.
-    /// @dev The reward can be assigned only by the owner after the immutable period for an executed proposal.
-    /// The reward is calculated from the current total supply.
-    /// @param votingContract The voting contract address.
-    /// @param proposalId The proposal id.
-    function assignProposalReward(address votingContract, uint256 proposalId) external onlyOwner {
-        if (votingContract == address(0)) {
-            revert Error.ZeroVotingContract();
-        }
+    /// @inheritdoc IRewardToken
+    function assignProposalReward(uint256 proposalId) external {
+        address votingContract = msg.sender;
+
+        // check that the voting contract has a reward set
         uint256 votingReward = votingRewards[votingContract];
-        if (votingReward == 0) {
-            revert Error.VotingRewardNotSet();
-        }
-        // check that the reward has not been assigned yet
-        ProposalReward storage proposalReward = proposalRewards[votingContract][proposalId];
-        if (proposalReward.reward != 0) {
-            revert Error.ProposalRewardAlreadyAssigned(proposalReward.reward);
-        }
-        ( // get proposal data
-            , bool executed, IVotingContract.ProposalParameters memory proposalParameters,,,
-        ) = IVotingContract(votingContract).getProposal(proposalId);
-        // check that the proposal has been executed
-        if (!executed) {
-            revert Error.ProposalNotExecuted();
-        }
-        // check that the proposal is not in the immutable period
-        if (proposalParameters.snapshotEpoch <= IMMUTABLE_PERIOD) { // expecting the first epoch to be number 1
-            revert Error.ProposalSnapshotInImmutablePeriod();
-        }
+        if (votingReward > 0) {
+            // check that the proposal reward has not been assigned yet
+            ProposalReward storage proposalReward = proposalRewards[votingContract][proposalId];
+            if (proposalReward.reward == 0) {
+                // assign the reward
+                uint256 reward = Math.mulDiv(totalSupply(), votingReward, VOTING_REWARD_DENOMINATOR);
+                proposalReward.reward = reward;
 
-        // assign the reward
-        uint256 reward = Math.mulDiv(totalSupply(), votingReward, VOTING_REWARD_DENOMINATOR);
-        proposalReward.reward = reward;
-
-        emit ProposalRewardAssigned(votingContract, proposalId, reward);
+                emit ProposalRewardAssigned(votingContract, proposalId, reward);
+            }
+        }
     }
 
     /// @notice Claims the reward for voting in a proposal.
@@ -184,31 +166,43 @@ contract PWN is Ownable2Step, ERC20 {
         if (votingContract == address(0)) {
             revert Error.ZeroVotingContract();
         }
+
         // check that the reward has been assigned
         ProposalReward storage proposalReward = proposalRewards[votingContract][proposalId];
         uint256 assignedReward = proposalReward.reward;
         if (assignedReward == 0) {
             revert Error.ProposalRewardNotAssigned();
         }
+
+        IPWNTokenGovernance _votingContract = IPWNTokenGovernance(votingContract);
         ( // get proposal data
-            ,, IVotingContract.ProposalParameters memory proposalParameters, IVotingContract.Tally memory tally,,
-        ) = IVotingContract(votingContract).getProposal(proposalId);
+            , bool executed,
+            IPWNTokenGovernance.ProposalParameters memory proposalParameters,
+            IPWNTokenGovernance.Tally memory tally,,
+        ) = _votingContract.getProposal(proposalId);
+
+        // check that the proposal has been executed
+        if (!executed) {
+            revert Error.ProposalNotExecuted();
+        }
+
         // check that the caller has voted
         address voter = msg.sender;
-        if (IVotingContract(votingContract).getVoteOption(proposalId, voter) == IVotingContract.VoteOption.None) {
+        if (_votingContract.getVoteOption(proposalId, voter) == IPWNTokenGovernance.VoteOption.None) {
             revert Error.CallerHasNotVoted();
         }
+
         // check that the reward has not been claimed yet
         if (proposalReward.claimed[voter]) {
             revert Error.ProposalRewardAlreadyClaimed();
         }
+
         // store that the reward has been claimed
         proposalReward.claimed[voter] = true;
 
         // voter is rewarded proportionally to the amount of votes he had in the snapshot epoch
         // it doesn't matter if he voted yes, no or abstained
-        uint256 voterVotes = IVotingContract(votingContract).getVotingToken()
-            .getPastVotes(voter, proposalParameters.snapshotEpoch);
+        uint256 voterVotes = _votingContract.getVotingToken().getPastVotes(voter, proposalParameters.snapshotEpoch);
         uint256 totalVotes = tally.abstain + tally.yes + tally.no;
         uint256 voterReward = Math.mulDiv(assignedReward, voterVotes, totalVotes);
 

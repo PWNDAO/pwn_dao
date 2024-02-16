@@ -2,10 +2,10 @@
 pragma solidity 0.8.18;
 // solhint-disable no-console
 
-import { PWN } from "src/PWN.sol";
+import { PWN } from "src/token/PWN.sol";
+import { StakedPWN } from "src/token/StakedPWN.sol";
+import { VoteEscrowedPWN } from "src/token/VoteEscrowedPWN.sol";
 import { PWNEpochClock } from "src/PWNEpochClock.sol";
-import { StakedPWN } from "src/StakedPWN.sol";
-import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
 
 import { Base_Test, console2 } from "./Base.t.sol";
 
@@ -38,7 +38,7 @@ contract UseCases is Base_Test {
         vePWN = new VoteEscrowedPWN();
         stPWN = new StakedPWN(dao, address(epochClock), address(vePWN));
 
-        vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock), dao);
+        vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock));
 
         vm.prank(dao);
         stPWN.enableTransfers();

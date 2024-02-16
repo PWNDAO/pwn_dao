@@ -1,20 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import { Initializable } from "openzeppelin-contracts/contracts/proxy/utils/Initializable.sol";
 
-import { PWN } from "../PWN.sol";
-import { PWNEpochClock } from "../PWNEpochClock.sol";
-import { StakedPWN } from "../StakedPWN.sol";
+import { PWN } from "src/token/PWN.sol";
+import { StakedPWN } from "src/token/StakedPWN.sol";
+import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
 /// @title VoteEscrowedPWNStorage.
 /// @notice Storage contract holding all state variables used by VoteEscrowedPWN.
-/// @dev This contract is Ownable2Step, which means that the ownership transfer
-/// must be accepted by the new owner.
-/// The contract is Initializable, which means that it has an initializer
-/// function that must be called exactly once.
-contract VoteEscrowedPWNStorage is Ownable2Step, Initializable {
+contract VoteEscrowedPWNStorage is Initializable {
 
     /*----------------------------------------------------------*|
     |*  # GENERAL PROPERTIES                                    *|

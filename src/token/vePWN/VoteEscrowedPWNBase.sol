@@ -5,7 +5,7 @@ import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
 import { IERC6372 } from "openzeppelin-contracts/contracts/interfaces/IERC6372.sol";
 
-import { Error } from "../lib/Error.sol";
+import { Error } from "src/lib/Error.sol";
 import { VoteEscrowedPWNStorage } from "./VoteEscrowedPWNStorage.sol";
 
 /// @title VoteEscrowedPWNBase

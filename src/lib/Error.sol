@@ -7,8 +7,6 @@ library Error {
     error MintableSupplyExceeded();
     error ZeroVotingContract();
     error VotingRewardNotSet();
-    error ProposalSnapshotInImmutablePeriod();
-    error ProposalRewardAlreadyAssigned(uint256 reward);
     error ProposalNotExecuted();
     error CallerHasNotVoted();
     error ProposalRewardAlreadyClaimed();

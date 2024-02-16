@@ -3,9 +3,9 @@ pragma solidity 0.8.18;
 
 import { SafeCast } from "openzeppelin-contracts/contracts/utils/math/SafeCast.sol";
 
-import { Error } from "../lib/Error.sol";
+import { EpochPowerLib } from "src/lib/EpochPowerLib.sol";
+import { Error } from "src/lib/Error.sol";
 import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
-import { EpochPowerLib } from "../lib/EpochPowerLib.sol";
 
 /// @title VoteEscrowedPWNPower
 /// @notice Contract for the vote-escrowed PWN token implementing power functions.

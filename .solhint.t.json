@@ -4,6 +4,7 @@
         "custom-errors": "off",
         "foundry-test-functions": ["error", ["setUp"]],
         "func-name-mixedcase": "off",
+        "var-name-mixedcase": "off",
         "contract-name-camelcase": "off",
         "one-contract-per-file": "off",
         "max-line-length": ["error", 120],

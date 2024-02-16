@@ -3,15 +3,18 @@ pragma solidity 0.8.18;
 
 import "forge-std/Script.sol";
 
-import { PWN } from "../src/PWN.sol";
-import { PWNEpochClock } from "../src/PWNEpochClock.sol";
-import { StakedPWN } from "../src/StakedPWN.sol";
-import { VoteEscrowedPWN } from "../src/VoteEscrowedPWN.sol";
+import { TransparentUpgradeableProxy }
+    from "openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+
+import { PWN } from "src/token/PWN.sol";
+import { StakedPWN } from "src/token/StakedPWN.sol";
+import { VoteEscrowedPWN } from "src/token/VoteEscrowedPWN.sol";
+import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
 contract Deploy is Script {
 
 /*
-forge script script/PWN.s.sol:Deploy \
+forge script script/PWN.token.s.sol:Deploy \
 --sig "deploy(address)" $DAO \
 --rpc-url $RPC_URL \
 --private-key $PRIVATE_KEY \
@@ -24,10 +27,17 @@ forge script script/PWN.s.sol:Deploy \
 
         PWNEpochClock epochClock = new PWNEpochClock(block.timestamp);
         PWN pwnToken = new PWN(dao);
-        VoteEscrowedPWN vePWN = new VoteEscrowedPWN();
+        VoteEscrowedPWN vePWNImpl = new VoteEscrowedPWN();
+        VoteEscrowedPWN vePWN = VoteEscrowedPWN(address(
+            new TransparentUpgradeableProxy({
+                _logic: address(vePWNImpl),
+                admin_: dao,
+                _data: ""
+            })
+        ));
         StakedPWN stPWN = new StakedPWN(dao, address(epochClock), address(vePWN));
 
-        vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock), dao);
+        vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock));
 
         console2.log("PWNEpochClock:", address(epochClock));
         console2.log("PWN:", address(pwnToken));

@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 import { EpochPowerLib } from "src/lib/EpochPowerLib.sol";
-import { VoteEscrowedPWN } from "src/VoteEscrowedPWN.sol";
+import { VoteEscrowedPWN } from "src/token/VoteEscrowedPWN.sol";
 
 // solhint-disable foundry-test-functions
 contract VoteEscrowedPWNHarness is VoteEscrowedPWN {

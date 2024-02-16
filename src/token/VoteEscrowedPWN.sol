@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.18;
 
-import { PWN } from "./PWN.sol";
-import { PWNEpochClock } from "./PWNEpochClock.sol";
-import { StakedPWN } from "./StakedPWN.sol";
-import { VoteEscrowedPWNBase } from "./vePWN/VoteEscrowedPWNBase.sol";
-import { VoteEscrowedPWNStake } from "./vePWN/VoteEscrowedPWNStake.sol";
-import { VoteEscrowedPWNStakeMetadata } from "./vePWN/VoteEscrowedPWNStakeMetadata.sol";
-import { VoteEscrowedPWNPower } from "./vePWN/VoteEscrowedPWNPower.sol";
+import { VoteEscrowedPWNBase } from "src/token/vePWN/VoteEscrowedPWNBase.sol";
+import { VoteEscrowedPWNStake } from "src/token/vePWN/VoteEscrowedPWNStake.sol";
+import { VoteEscrowedPWNStakeMetadata } from "src/token/vePWN/VoteEscrowedPWNStakeMetadata.sol";
+import { VoteEscrowedPWNPower } from "src/token/vePWN/VoteEscrowedPWNPower.sol";
+import { PWN } from "src/token/PWN.sol";
+import { StakedPWN } from "src/token/StakedPWN.sol";
+import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
 /// @title VoteEscrowedPWN
 /// @notice VoteEscrowedPWN is a contract for voting with PWN tokens.
@@ -18,9 +18,9 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNStakeMetadata, 
     |*  # CONSTRUCTOR                                           *|
     |*----------------------------------------------------------*/
 
-    // solhint-disable-next-line no-empty-blocks
     constructor() {
         // Is used as a proxy. Use initializer to setup initial properties.
+        _disableInitializers();
     }
 
     /// @notice Initializes the contract.
@@ -28,17 +28,14 @@ contract VoteEscrowedPWN is VoteEscrowedPWNStake, VoteEscrowedPWNStakeMetadata, 
     /// @param _pwnToken The address of the PWN token.
     /// @param _stakedPWN The address of the staked PWN contract.
     /// @param _epochClock The address of the epoch clock contract.
-    /// @param _owner The address of the owner. Should be PWN DAO.
     function initialize(
         address _pwnToken,
         address _stakedPWN,
-        address _epochClock,
-        address _owner
+        address _epochClock
     ) external initializer {
         pwnToken = PWN(_pwnToken);
         stakedPWN = StakedPWN(_stakedPWN);
         epochClock = PWNEpochClock(_epochClock);
-        _transferOwnership(_owner);
     }
 
     // The following functions are overrides required by Solidity.

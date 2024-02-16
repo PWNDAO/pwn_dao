@@ -5,7 +5,7 @@ pragma solidity 0.8.18;
 import { Base64 } from "openzeppelin-contracts/contracts/utils/Base64.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
-import { IStakedPWNSupplyManager } from "../interfaces/IStakedPWNSupplyManager.sol";
+import { IStakedPWNSupplyManager } from "src/interfaces/IStakedPWNSupplyManager.sol";
 import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
 
 /// @title VoteEscrowedPWNStakeMetadata.

@@ -3,22 +3,21 @@ pragma solidity 0.8.18;
 
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 
-import { VoteEscrowedPWNHarness } from "../harness/VoteEscrowedPWNHarness.sol";
-import { Base_Test } from "../Base.t.sol";
+import { VoteEscrowedPWNHarness } from "test/harness/VoteEscrowedPWNHarness.sol";
+import { Base_Test } from "test/Base.t.sol";
 
 abstract contract VoteEscrowedPWN_Test is Base_Test {
     using SlotComputingLib for bytes32;
 
     uint8 public constant EPOCHS_IN_YEAR = 13;
-    bytes32 public constant STAKES_SLOT = bytes32(uint256(6));
-    bytes32 public constant LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT = bytes32(uint256(7));
+    bytes32 public constant STAKES_SLOT = bytes32(uint256(4));
+    bytes32 public constant LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT = bytes32(uint256(5));
 
     VoteEscrowedPWNHarness public vePWN;
 
     address public pwnToken = makeAddr("pwnToken");
     address public stakedPWN = makeAddr("stakedPWN");
     address public epochClock = makeAddr("epochClock");
-    address public owner = makeAddr("owner");
     address public staker = makeAddr("staker");
 
     uint256 public currentEpoch = 420;
@@ -39,11 +38,11 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
         );
 
         vePWN = new VoteEscrowedPWNHarness();
+        vm.store(address(vePWN), bytes32(0), bytes32(0)); // workaround for enabling initializers again
         vePWN.initialize({
             _pwnToken: pwnToken,
             _stakedPWN: stakedPWN,
-            _epochClock: epochClock,
-            _owner: owner
+            _epochClock: epochClock
         });
     }
 
