@@ -38,6 +38,7 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
         );
 
         vePWN = new VoteEscrowedPWNHarness();
+        vm.store(address(vePWN), bytes32(0), bytes32(0)); // workaround for enabling initializers again
         vePWN.initialize({
             _pwnToken: pwnToken,
             _stakedPWN: stakedPWN,
