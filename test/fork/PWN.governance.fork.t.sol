@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import { IDAO } from "@aragon/osx/core/dao/IDAO.sol";
-import { PermissionLib } from "@aragon/osx/core/permission/PermissionLib.sol";
 import { PermissionManager } from "@aragon/osx/core/permission/PermissionManager.sol";
 import { PluginRepo } from "@aragon/osx/framework/plugin/repo/PluginRepo.sol";
 import { PluginRepoFactory } from "@aragon/osx/framework/plugin/repo/PluginRepoFactory.sol";
@@ -10,14 +9,13 @@ import { IPluginSetup } from "@aragon/osx/framework/plugin/setup/IPluginSetup.so
 import { PluginSetupProcessor } from "@aragon/osx/framework/plugin/setup/PluginSetupProcessor.sol";
 import { PluginSetupRef, hashHelpers } from "@aragon/osx/framework/plugin/setup/PluginSetupProcessorHelpers.sol";
 
-import { IPWNOptimisticGovernance, PWNOptimisticGovernancePlugin }
-    from "src/governance/optimistic/PWNOptimisticGovernancePlugin.sol";
+import { PWNOptimisticGovernancePlugin } from "src/governance/optimistic/PWNOptimisticGovernancePlugin.sol";
 import { PWNOptimisticGovernancePluginSetup } from "src/governance/optimistic/PWNOptimisticGovernancePluginSetup.sol";
 import { IPWNTokenGovernance, PWNTokenGovernancePlugin } from "src/governance/token/PWNTokenGovernancePlugin.sol";
 import { PWNTokenGovernancePluginSetup } from "src/governance/token/PWNTokenGovernancePluginSetup.sol";
 import { DAOExecuteAllowlist } from "src/governance/permission/DAOExecuteAllowlist.sol";
 
-import { Base_Test, console2 } from "../Base.t.sol";
+import { Base_Test } from "../Base.t.sol";
 
 contract PWNGovernance_ForkTest is Base_Test {
 
@@ -81,7 +79,8 @@ contract PWNGovernance_ForkTest is Base_Test {
         });
 
         // prepare plugin installation params
-        PluginSetupProcessor.PrepareInstallationParams memory tokenParams = PluginSetupProcessor.PrepareInstallationParams({
+        PluginSetupProcessor.PrepareInstallationParams memory tokenParams;
+        tokenParams = PluginSetupProcessor.PrepareInstallationParams({
             pluginSetupRef: PluginSetupRef({
                 versionTag: PluginRepo.Tag({ release: 1, build: 1 }),
                 pluginSetupRepo: tokenPluginRepo
@@ -102,7 +101,8 @@ contract PWNGovernance_ForkTest is Base_Test {
 
         address[] memory proposers = new address[](1);
         proposers[0] = proposer;
-        PluginSetupProcessor.PrepareInstallationParams memory optimisticParams = PluginSetupProcessor.PrepareInstallationParams({
+        PluginSetupProcessor.PrepareInstallationParams memory optimisticParams;
+        optimisticParams = PluginSetupProcessor.PrepareInstallationParams({
             pluginSetupRef: PluginSetupRef({
                 versionTag: PluginRepo.Tag({ release: 1, build: 1 }),
                 pluginSetupRepo: optimisticPluginRepo
@@ -192,8 +192,6 @@ contract PWNGovernance_ForkTest is Base_Test {
             _allowFailureMap: 0
         });
     }
-
-
 
 
     function testFork_shouldInstallPlugins() external {
