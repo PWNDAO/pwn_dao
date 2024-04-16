@@ -829,21 +829,41 @@ contract VoteEscrowedPWN_Stake_WithdrawStake_Test is VoteEscrowedPWN_Stake_Test 
         vePWN.withdrawStake(stakeId);
     }
 
-    function testFuzz_shouldFail_whenLockUpStillRunning(uint256 _lockUpEpochs, uint8 _remainingLockup) external {
-        lockUpEpochs = _boundLockUpEpochs(_lockUpEpochs);
-        uint8 remainingLockup = uint8(bound(_remainingLockup, 1, uint256(lockUpEpochs)));
+    function testFuzz_shouldFail_whenStillLock(uint256 _currentEpoch) external {
+        currentEpoch = bound(_currentEpoch, 1, 139);
+        vm.mockCall(epochClock, abi.encodeWithSignature("currentEpoch()"), abi.encode(currentEpoch));
+
         uint256 runningStakeId = stakeId + 132;
 
         vm.mockCall(stakedPWN, abi.encodeWithSignature("ownerOf(uint256)", runningStakeId), abi.encode(staker));
         _mockStake(
             staker,
             runningStakeId,
-            uint16(currentEpoch) - lockUpEpochs + remainingLockup,
-            lockUpEpochs,
+            10,
+            130,
             uint104(amount)
         );
 
         vm.expectRevert(abi.encodeWithSelector(Error.WithrawalBeforeLockUpEnd.selector));
+        vm.prank(staker);
+        vePWN.withdrawStake(runningStakeId);
+    }
+
+    function testFuzz_shouldPass_whenUnlocked(uint256 _currentEpoch) external {
+        currentEpoch = bound(_currentEpoch, 140, 200);
+        vm.mockCall(epochClock, abi.encodeWithSignature("currentEpoch()"), abi.encode(currentEpoch));
+
+        uint256 runningStakeId = stakeId + 132;
+
+        vm.mockCall(stakedPWN, abi.encodeWithSignature("ownerOf(uint256)", runningStakeId), abi.encode(staker));
+        _mockStake(
+            staker,
+            runningStakeId,
+            10,
+            130,
+            uint104(amount)
+        );
+
         vm.prank(staker);
         vePWN.withdrawStake(runningStakeId);
     }
