@@ -49,7 +49,6 @@ abstract contract PWNTokenGovernancePlugin_Test is Base_Test {
     function setUp() virtual public {
         pluginImpl = address(new PWNTokenGovernancePlugin());
         settings = PWNTokenGovernancePlugin.TokenGovernanceSettings({
-            votingMode: IPWNTokenGovernance.VotingMode.Standard,
             supportThreshold: 500000, // 50:50
             minParticipation: 100000, // 10%
             minDuration: 1 days,
@@ -110,7 +109,6 @@ abstract contract PWNTokenGovernancePlugin_Test is Base_Test {
     function _mockProposal(
         uint256 _proposalId,
         bool _executed,
-        IPWNTokenGovernance.VotingMode _votingMode,
         uint32 _supportThreshold,
         uint64 _startDate,
         uint64 _endDate,
@@ -129,7 +127,7 @@ abstract contract PWNTokenGovernancePlugin_Test is Base_Test {
         bytes32 proposalSlot = PROPOSALS_SLOT.withMappingKey(_proposalId);
         vm.store(address(plugin), proposalSlot.withArrayIndex(0), bytes32(uint256(_executed ? 1 : 0))); // executed
         bytes32 parametersData = abi.decode(
-            abi.encodePacked(uint24(0), _snapshotEpoch, _endDate, _startDate, _supportThreshold, uint8(_votingMode)),
+            abi.encodePacked(uint32(0), _snapshotEpoch, _endDate, _startDate, _supportThreshold),
             (bytes32)
         );
         vm.store(address(plugin), proposalSlot.withArrayIndex(1), parametersData); // parameters
@@ -155,17 +153,6 @@ abstract contract PWNTokenGovernancePlugin_Test is Base_Test {
         vm.store(address(plugin), proposalSlot.withArrayIndex(8), bytes32(_allowFailureMap)); // allowFailureMap
     }
 
-    function _setVotingMode(uint256 _proposalId, IPWNTokenGovernance.VotingMode votingMode) internal {
-        bytes32 proposalParametersSlot = PROPOSALS_SLOT.withMappingKey(_proposalId).withArrayIndex(1);
-        bytes32 proposalParametersValue = vm.load(address(plugin), proposalParametersSlot);
-        vm.store(
-            address(plugin),
-            proposalParametersSlot,
-            proposalParametersValue | bytes32(uint256(votingMode))
-        );
-
-    }
-
 }
 
 
@@ -179,7 +166,6 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
 
     event MembershipContractAnnounced(address indexed definingContract);
     event TokenGovernanceSettingsUpdated(
-        IPWNTokenGovernance.VotingMode votingMode,
         uint32 supportThreshold,
         uint32 minParticipation,
         uint64 minDuration,
@@ -189,7 +175,6 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
 
     function testFuzz_shouldStoreProperties(
         address _dao,
-        uint8 _votingMode,
         uint32 _supportThreshold,
         uint32 _minParticipation,
         uint64 _minDuration,
@@ -198,7 +183,6 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
         address _votingToken,
         address _rewardToken
     ) external {
-        settings.votingMode = IPWNTokenGovernance.VotingMode(uint8(bound(_votingMode, 0, 2)));
         settings.supportThreshold = uint32(bound(_supportThreshold, 1, RATIO_BASE - 1));
         settings.minParticipation = uint32(bound(_minParticipation, 1, RATIO_BASE));
         settings.minDuration = uint64(bound(_minDuration, 1 hours, 365 days));
@@ -224,16 +208,13 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
         bytes32 rewardTokenValue = vm.load(_plugin, REWARD_TOKEN_SLOT);
         assertEq(address(uint160(uint256(rewardTokenValue))), _rewardToken);
 
-        uint8 votingMode = vm.load(_plugin, GOVERNANCE_SETTINGS_SLOT).maskUint8(0);
-        assertEq(votingMode, uint8(settings.votingMode));
-
-        uint32 supportThreshold = vm.load(_plugin, GOVERNANCE_SETTINGS_SLOT).maskUint32(8);
+        uint32 supportThreshold = vm.load(_plugin, GOVERNANCE_SETTINGS_SLOT).maskUint32(0);
         assertEq(supportThreshold, settings.supportThreshold);
 
-        uint32 minParticipation = vm.load(_plugin, GOVERNANCE_SETTINGS_SLOT).maskUint32(40);
+        uint32 minParticipation = vm.load(_plugin, GOVERNANCE_SETTINGS_SLOT).maskUint32(32);
         assertEq(minParticipation, settings.minParticipation);
 
-        uint64 minDuration = vm.load(_plugin, GOVERNANCE_SETTINGS_SLOT).maskUint64(72);
+        uint64 minDuration = vm.load(_plugin, GOVERNANCE_SETTINGS_SLOT).maskUint64(64);
         assertEq(uint256(minDuration), settings.minDuration);
 
         bytes32 minProposerVotingPower = vm.load(_plugin, GOVERNANCE_SETTINGS_SLOT.withArrayIndex(1));
@@ -254,13 +235,11 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
     }
 
     function testFuzz_shouldEmit_TokenGovernanceSettingsUpdated(
-        uint8 _votingMode,
         uint32 _supportThreshold,
         uint32 _minParticipation,
         uint64 _minDuration,
         uint256 _minProposerVotingPower
     ) external {
-        settings.votingMode = IPWNTokenGovernance.VotingMode(uint8(bound(_votingMode, 0, 2)));
         settings.supportThreshold = uint32(bound(_supportThreshold, 1, RATIO_BASE - 1));
         settings.minParticipation = uint32(bound(_minParticipation, 1, RATIO_BASE));
         settings.minDuration = uint64(bound(_minDuration, 1 hours, 365 days));
@@ -268,7 +247,6 @@ contract PWNTokenGovernancePlugin_Initialize_Test is PWNTokenGovernancePlugin_Te
 
         vm.expectEmit();
         emit TokenGovernanceSettingsUpdated({
-            votingMode: settings.votingMode,
             supportThreshold: settings.supportThreshold,
             minParticipation: settings.minParticipation,
             minDuration: settings.minDuration,
@@ -321,8 +299,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
     }
 
@@ -336,8 +313,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
     }
 
@@ -352,8 +328,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
     }
 
@@ -385,8 +360,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.Yes,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.Yes
         });
     }
 
@@ -404,8 +378,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
     }
 
@@ -424,8 +397,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: uint64(startDate),
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
 
         // test end date
@@ -441,8 +413,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: uint64(endDate),
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
     }
 
@@ -485,8 +456,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: _allowFailureMap,
             _startDate: uint64(startDate),
             _endDate: uint64(endDate),
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
 
         bytes32 proposalSlot = PROPOSALS_SLOT.withMappingKey(proposalId);
@@ -495,24 +465,20 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             vm.load(address(plugin), proposalSlot.withArrayIndex(0)).maskUint8(0),
             0
         );
-        assertEq( // voting mode
-            vm.load(address(plugin), proposalSlot.withArrayIndex(1)).maskUint8(0),
-            uint8(settings.votingMode)
-        );
         assertEq( // supportThreshold
-            vm.load(address(plugin), proposalSlot.withArrayIndex(1)).maskUint32(8),
+            vm.load(address(plugin), proposalSlot.withArrayIndex(1)).maskUint32(0),
             uint32(settings.supportThreshold)
         );
         assertEq( // startDate
-            vm.load(address(plugin), proposalSlot.withArrayIndex(1)).maskUint64(40),
+            vm.load(address(plugin), proposalSlot.withArrayIndex(1)).maskUint64(32),
             uint64(startDate)
         );
         assertEq( // endDate
-            vm.load(address(plugin), proposalSlot.withArrayIndex(1)).maskUint64(104),
+            vm.load(address(plugin), proposalSlot.withArrayIndex(1)).maskUint64(96),
             uint64(endDate)
         );
         assertEq( // snapshotEpoch
-            vm.load(address(plugin), proposalSlot.withArrayIndex(1)).maskUint64(168),
+            vm.load(address(plugin), proposalSlot.withArrayIndex(1)).maskUint64(160),
             uint64(snapshotEpoch)
         );
         assertEq( // minVotingPower
@@ -560,8 +526,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
         assertEq(proposalId, initialProposalId);
 
@@ -572,8 +537,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
         assertEq(proposalId, initialProposalId + 1);
     }
@@ -600,8 +564,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
     }
 
@@ -617,8 +580,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.Abstain,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.Abstain
         });
 
         assertEq(proposalId, _proposalId);
@@ -633,8 +595,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.Abstain,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.Abstain
         });
 
         bytes32 abstainTally = vm.load(address(plugin), PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(3));
@@ -648,8 +609,7 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.Yes,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.Yes
         });
 
         bytes32 yesTally = vm.load(address(plugin), PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(4));
@@ -663,46 +623,11 @@ contract PWNTokenGovernancePlugin_CreateProposal_Test is PWNTokenGovernancePlugi
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.No,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.No
         });
 
         bytes32 noTally = vm.load(address(plugin), PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(5));
         assertEq(uint256(noTally), proposerVotingPower);
-    }
-
-    // solhint-disable-next-line max-line-length
-    function test_shouldExecute_whenVoteOptionProvided_whenTryEarlyExecution_whenEarlyExecutionMode_whenSupportThresholdReachedEarly() external {
-        bytes32 settingsValue = vm.load(address(plugin), GOVERNANCE_SETTINGS_SLOT);
-        vm.store(
-            address(plugin),
-            GOVERNANCE_SETTINGS_SLOT,
-            settingsValue | bytes32(uint256(IPWNTokenGovernance.VotingMode.EarlyExecution))
-        );
-        vm.mockCall(
-            votingToken,
-            abi.encodeWithSelector(IVotesUpgradeable.getVotes.selector, proposer),
-            abi.encode(pastTotalSupply / 2 + 1) // expecting supportThreshold to be 50%
-        );
-        vm.mockCall(
-            votingToken,
-            abi.encodeWithSelector(IVotesUpgradeable.getPastVotes.selector, proposer),
-            abi.encode(pastTotalSupply / 2 + 1) // expecting supportThreshold to be 50%
-        );
-
-        vm.prank(proposer);
-        uint256 proposalId = plugin.createProposal({
-            _metadata: "",
-            _actions: actions,
-            _allowFailureMap: 0,
-            _startDate: 0,
-            _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.Yes,
-            _tryEarlyExecution: true
-        });
-
-        bytes32 executed = vm.load(address(plugin), PROPOSALS_SLOT.withMappingKey(proposalId));
-        assertEq(uint256(executed), 1);
     }
 
 }
@@ -738,8 +663,7 @@ contract PWNTokenGovernancePlugin_Vote_Test is PWNTokenGovernancePlugin_Test {
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
     }
 
@@ -754,8 +678,7 @@ contract PWNTokenGovernancePlugin_Vote_Test is PWNTokenGovernancePlugin_Test {
         vm.prank(voter);
         plugin.vote({
             _proposalId: proposalId,
-            _voteOption: voteOption,
-            _tryEarlyExecution: false
+            _voteOption: voteOption
         });
     }
 
@@ -770,23 +693,7 @@ contract PWNTokenGovernancePlugin_Vote_Test is PWNTokenGovernancePlugin_Test {
         vm.prank(voter);
         plugin.vote({
             _proposalId: proposalId,
-            _voteOption: voteOption,
-            _tryEarlyExecution: false
-        });
-    }
-
-    function test_shouldFail_whenProposalExecuted() external {
-        vm.store(address(plugin), PROPOSALS_SLOT.withMappingKey(proposalId), bytes32(uint256(1)));
-        voteOption = IPWNTokenGovernance.VoteOption.Yes;
-
-        vm.expectRevert(
-            abi.encodeWithSelector(PWNTokenGovernancePlugin.VoteCastForbidden.selector, proposalId, voter, voteOption)
-        );
-        vm.prank(voter);
-        plugin.vote({
-            _proposalId: proposalId,
-            _voteOption: voteOption,
-            _tryEarlyExecution: false
+            _voteOption: voteOption
         });
     }
 
@@ -799,8 +706,7 @@ contract PWNTokenGovernancePlugin_Vote_Test is PWNTokenGovernancePlugin_Test {
         vm.prank(voter);
         plugin.vote({
             _proposalId: proposalId,
-            _voteOption: voteOption,
-            _tryEarlyExecution: false
+            _voteOption: voteOption
         });
     }
 
@@ -818,19 +724,17 @@ contract PWNTokenGovernancePlugin_Vote_Test is PWNTokenGovernancePlugin_Test {
         vm.prank(voter);
         plugin.vote({
             _proposalId: proposalId,
-            _voteOption: voteOption,
-            _tryEarlyExecution: false
+            _voteOption: voteOption
         });
     }
 
-    function test_shouldFail_whenAlreadyVoted_whenNotVoteReplacementMode() external {
+    function test_shouldFail_whenAlreadyVoted() external {
         voteOption = IPWNTokenGovernance.VoteOption.Yes;
 
         vm.prank(voter);
         plugin.vote({
             _proposalId: proposalId,
-            _voteOption: voteOption,
-            _tryEarlyExecution: false
+            _voteOption: voteOption
         });
 
         vm.expectRevert(
@@ -839,25 +743,7 @@ contract PWNTokenGovernancePlugin_Vote_Test is PWNTokenGovernancePlugin_Test {
         vm.prank(voter);
         plugin.vote({
             _proposalId: proposalId,
-            _voteOption: voteOption,
-            _tryEarlyExecution: false
-        });
-    }
-
-    function test_shouldVote_whenAlreadyVoted_whenVoteReplacementMode() external {
-        _setVotingMode(proposalId, IPWNTokenGovernance.VotingMode.VoteReplacement);
-        vm.prank(voter);
-        plugin.vote({
-            _proposalId: proposalId,
-            _voteOption: IPWNTokenGovernance.VoteOption.Yes,
-            _tryEarlyExecution: false
-        });
-
-        vm.prank(voter);
-        plugin.vote({
-            _proposalId: proposalId,
-            _voteOption: IPWNTokenGovernance.VoteOption.No,
-            _tryEarlyExecution: false
+            _voteOption: voteOption
         });
     }
 
@@ -879,54 +765,10 @@ contract PWNTokenGovernancePlugin_Vote_Test is PWNTokenGovernancePlugin_Test {
         vm.prank(voter);
         plugin.vote({
             _proposalId: proposalId,
-            _voteOption: IPWNTokenGovernance.VoteOption(_voteOption),
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption(_voteOption)
         });
 
         tallyValue = vm.load(address(plugin), PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(tallyIndex));
-        assertEq(uint256(tallyValue), _votingPower);
-    }
-
-    function testFuzz_shouldUpdateTally_whenVoteReplacementMode(uint8 _voteOption, uint256 _votingPower) external {
-        _setVotingMode(proposalId, IPWNTokenGovernance.VotingMode.VoteReplacement);
-        _voteOption = uint8(bound(_voteOption, 1, 3));
-        _votingPower = bound(_votingPower, 1, type(uint256).max);
-        vm.mockCall(
-            votingToken,
-            abi.encodeWithSelector(IVotesUpgradeable.getPastVotes.selector, voter),
-            abi.encode(_votingPower)
-        );
-        bytes32 proposalSlot = PROPOSALS_SLOT.withMappingKey(proposalId);
-
-        // vote
-        vm.prank(voter);
-        plugin.vote({
-            _proposalId: proposalId,
-            _voteOption: IPWNTokenGovernance.VoteOption(_voteOption),
-            _tryEarlyExecution: false
-        });
-
-        // check that vote option tally was updated
-        bytes32 tallyValue = vm.load(address(plugin), proposalSlot.withArrayIndex(2 + _voteOption));
-        assertEq(uint256(tallyValue), _votingPower);
-
-        // pick another vote option
-        uint8 _replacementVoteOption = _voteOption + 1;
-        _replacementVoteOption = _replacementVoteOption > 3 ? 1 : _replacementVoteOption;
-
-        // vote again
-        vm.prank(voter);
-        plugin.vote({
-            _proposalId: proposalId,
-            _voteOption: IPWNTokenGovernance.VoteOption(_replacementVoteOption),
-            _tryEarlyExecution: false
-        });
-
-        // check that previous vote option tally was reset
-        tallyValue = vm.load(address(plugin), proposalSlot.withArrayIndex(2 + _voteOption));
-        assertEq(uint256(tallyValue), 0);
-        // check that new vote option tally was updated
-        tallyValue = vm.load(address(plugin), proposalSlot.withArrayIndex(2 + _replacementVoteOption));
         assertEq(uint256(tallyValue), _votingPower);
     }
 
@@ -936,42 +778,12 @@ contract PWNTokenGovernancePlugin_Vote_Test is PWNTokenGovernancePlugin_Test {
         vm.prank(voter);
         plugin.vote({
             _proposalId: proposalId,
-            _voteOption: IPWNTokenGovernance.VoteOption(_voteOption),
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption(_voteOption)
         });
 
         bytes32 voteOptionSlot = PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(6).withMappingKey(voter);
         bytes32 voteOptionValue = vm.load(address(plugin), voteOptionSlot);
         assertEq(uint256(voteOptionValue), uint256(_voteOption));
-    }
-
-    function testFuzz_shouldUpdateVoteOption_whenVoteReplacementMode(uint8 _voteOption) external {
-        _setVotingMode(proposalId, IPWNTokenGovernance.VotingMode.VoteReplacement);
-        _voteOption = uint8(bound(_voteOption, 1, 3));
-
-        vm.prank(voter);
-        plugin.vote({
-            _proposalId: proposalId,
-            _voteOption: IPWNTokenGovernance.VoteOption(_voteOption),
-            _tryEarlyExecution: false
-        });
-
-        bytes32 voteOptionSlot = PROPOSALS_SLOT.withMappingKey(proposalId).withArrayIndex(6).withMappingKey(voter);
-        bytes32 voteOptionValue = vm.load(address(plugin), voteOptionSlot);
-        assertEq(uint256(voteOptionValue), uint256(_voteOption));
-
-        uint8 _replacementVoteOption = _voteOption + 1;
-        _replacementVoteOption = _replacementVoteOption > 3 ? 1 : _replacementVoteOption;
-
-        vm.prank(voter);
-        plugin.vote({
-            _proposalId: proposalId,
-            _voteOption: IPWNTokenGovernance.VoteOption(_replacementVoteOption),
-            _tryEarlyExecution: false
-        });
-
-        voteOptionValue = vm.load(address(plugin), voteOptionSlot);
-        assertEq(uint256(voteOptionValue), uint256(_replacementVoteOption));
     }
 
     function test_shouldEmit_VoteCast() external {
@@ -988,29 +800,8 @@ contract PWNTokenGovernancePlugin_Vote_Test is PWNTokenGovernancePlugin_Test {
         vm.prank(voter);
         plugin.vote({
             _proposalId: proposalId,
-            _voteOption: voteOption,
-            _tryEarlyExecution: false
+            _voteOption: voteOption
         });
-    }
-
-    // solhint-disable-next-line max-line-length
-    function test_shouldExecute_whenTryEarlyExecution_whenEarlyExecutionMode_whenSupportThresholdReachedEarly() external {
-        _setVotingMode(proposalId, IPWNTokenGovernance.VotingMode.EarlyExecution);
-        vm.mockCall(
-            votingToken,
-            abi.encodeWithSelector(IVotesUpgradeable.getPastVotes.selector, voter),
-            abi.encode(pastTotalSupply / 2 + 1) // expecting supportThreshold to be 50%
-        );
-
-        vm.prank(voter);
-        plugin.vote({
-            _proposalId: proposalId,
-            _voteOption: IPWNTokenGovernance.VoteOption.Yes,
-            _tryEarlyExecution: true
-        });
-
-        bytes32 executed = vm.load(address(plugin), PROPOSALS_SLOT.withMappingKey(proposalId));
-        assertEq(uint256(executed), 1);
     }
 
 }
@@ -1049,8 +840,7 @@ contract PWNTokenGovernancePlugin_Execute_Test is PWNTokenGovernancePlugin_Test 
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.None,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.None
         });
     }
 
@@ -1075,7 +865,7 @@ contract PWNTokenGovernancePlugin_Execute_Test is PWNTokenGovernancePlugin_Test 
         plugin.execute({ _proposalId: proposalId });
     }
 
-    function testFuzz_shouldFail_whenNoEarlyExecutionMode_whenProposalNotEnded(uint256 warp) external {
+    function testFuzz_shouldFail_whenProposalNotEnded(uint256 warp) external {
         warp = bound(warp, 0, settings.minDuration - 1);
         vm.warp(timestamp + warp);
 
@@ -1085,27 +875,12 @@ contract PWNTokenGovernancePlugin_Execute_Test is PWNTokenGovernancePlugin_Test 
         plugin.execute({ _proposalId: proposalId });
     }
 
-    function test_shouldFail_whenNoEarlyExecutionMode_whenSupportThresholdNotReached() external {
+    function test_shouldFail_whenSupportThresholdNotReached() external {
         _skipWaitingPeriod();
 
         bytes32 proposalSlot = PROPOSALS_SLOT.withMappingKey(proposalId);
         vm.store(address(plugin), proposalSlot.withArrayIndex(4), bytes32(uint256(pastTotalSupply / 10 + 1)));
         vm.store(address(plugin), proposalSlot.withArrayIndex(5), bytes32(uint256(pastTotalSupply / 10 + 1)));
-
-        vm.expectRevert(
-            abi.encodeWithSelector(PWNTokenGovernancePlugin.ProposalExecutionForbidden.selector, proposalId)
-        );
-        plugin.execute({ _proposalId: proposalId });
-    }
-
-    function testFuzz_shouldFail_whenEarlyExecutionMode_whenSupportThresholdNotReachedEarly(
-        uint256 _votingPower
-    ) external {
-        _votingPower = bound(_votingPower, 1, pastTotalSupply / 2);
-        _setVotingMode(proposalId, IPWNTokenGovernance.VotingMode.EarlyExecution);
-
-        bytes32 proposalSlot = PROPOSALS_SLOT.withMappingKey(proposalId);
-        vm.store(address(plugin), proposalSlot.withArrayIndex(4), bytes32(_votingPower));
 
         vm.expectRevert(
             abi.encodeWithSelector(PWNTokenGovernancePlugin.ProposalExecutionForbidden.selector, proposalId)

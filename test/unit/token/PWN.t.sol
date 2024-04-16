@@ -30,7 +30,6 @@ abstract contract PWN_Test is Base_Test {
     uint256 public votingReward = 20;
 
     IPWNTokenGovernance.ProposalParameters public proposalParameters = IPWNTokenGovernance.ProposalParameters({
-        votingMode: IPWNTokenGovernance.VotingMode.Standard,
         supportThreshold: 0,
         startDate: 0,
         endDate: 0,

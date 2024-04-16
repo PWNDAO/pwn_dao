@@ -8,12 +8,6 @@
         {
           "components": [
             {
-              "internalType": "enum IPWNTokenGovernance.VotingMode",
-              "name": "votingMode",
-              "type": "uint8",
-              "description": "A parameter to select the vote mode. In standard mode (0), early execution and vote replacement are disabled. In early execution mode (1), a proposal can be executed early before the end date if the vote outcome cannot mathematically change by more voters voting. In vote replacement mode (2), voters can change their vote multiple times and only the latest vote option is tallied."
-            },
-            {
               "internalType": "uint32",
               "name": "supportThreshold",
               "type": "uint32",

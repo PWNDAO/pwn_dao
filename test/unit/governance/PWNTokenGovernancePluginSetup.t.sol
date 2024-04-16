@@ -32,7 +32,6 @@ abstract contract PWNTokenGovernancePluginSetup_Test is Base_Test {
         pluginSetup = new PWNTokenGovernancePluginSetup();
 
         governanceSettings = PWNTokenGovernancePlugin.TokenGovernanceSettings({
-            votingMode: IPWNTokenGovernance.VotingMode.Standard,
             supportThreshold: 0,
             minParticipation: 0,
             minDuration: 1 hours,
@@ -81,12 +80,11 @@ contract PWNTokenGovernancePluginSetup_PrepareInstallation_Test is PWNTokenGover
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         Vm.Log memory log = logs[1];
-        assertEq(log.topics[0], keccak256("TokenGovernanceSettingsUpdated(uint8,uint32,uint32,uint64,uint256)"));
+        assertEq(log.topics[0], keccak256("TokenGovernanceSettingsUpdated(uint32,uint32,uint64,uint256)"));
         assertEq(
             keccak256(log.data),
             keccak256(
                 abi.encode(
-                    uint8(governanceSettings.votingMode),
                     governanceSettings.supportThreshold,
                     governanceSettings.minParticipation,
                     governanceSettings.minDuration,
@@ -236,7 +234,6 @@ contract PWNTokenGovernancePluginSetup_PrepareUninstallation_Test is PWNTokenGov
 contract PWNTokenGovernancePluginSetup_EncodeInstallationParams_Test is PWNTokenGovernancePluginSetup_Test {
 
     function testFuzz_shouldReturnEncodedParams(
-        uint8 _votingMode,
         uint32 _supportThreshold,
         uint32 _minParticipation,
         uint64 _minDuration,
@@ -245,7 +242,6 @@ contract PWNTokenGovernancePluginSetup_EncodeInstallationParams_Test is PWNToken
         address _votingToken,
         address _rewardToken
     ) external {
-        governanceSettings.votingMode = IPWNTokenGovernance.VotingMode(_votingMode % 3);
         governanceSettings.supportThreshold = _supportThreshold;
         governanceSettings.minParticipation = _minParticipation;
         governanceSettings.minDuration = _minDuration;
@@ -271,7 +267,6 @@ contract PWNTokenGovernancePluginSetup_EncodeInstallationParams_Test is PWNToken
 contract PWNTokenGovernancePluginSetup_DecodeInstallationParams_Test is PWNTokenGovernancePluginSetup_Test {
 
     function testFuzz_shouldReturnDecodedParams(
-        uint8 _votingMode,
         uint32 _supportThreshold,
         uint32 _minParticipation,
         uint64 _minDuration,
@@ -280,7 +275,6 @@ contract PWNTokenGovernancePluginSetup_DecodeInstallationParams_Test is PWNToken
         address _votingToken,
         address _rewardToken
     ) external {
-        governanceSettings.votingMode = IPWNTokenGovernance.VotingMode(_votingMode % 3);
         governanceSettings.supportThreshold = _supportThreshold;
         governanceSettings.minParticipation = _minParticipation;
         governanceSettings.minDuration = _minDuration;
@@ -294,7 +288,6 @@ contract PWNTokenGovernancePluginSetup_DecodeInstallationParams_Test is PWNToken
             address decodedRewardToken
         ) = pluginSetup.decodeInstallationParams(encodedParams);
 
-        assertEq(uint8(decodedGovernanceSettings.votingMode), _votingMode % 3);
         assertEq(decodedGovernanceSettings.supportThreshold, _supportThreshold);
         assertEq(decodedGovernanceSettings.minParticipation, _minParticipation);
         assertEq(decodedGovernanceSettings.minDuration, _minDuration);
