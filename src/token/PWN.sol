@@ -91,6 +91,21 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
 
 
     /*----------------------------------------------------------*|
+    |*  # ALLOWANCE                                             *|
+    |*----------------------------------------------------------*/
+
+    /// @inheritdoc ERC20
+    function increaseAllowance(address spender, uint256 addedValue) public override pure returns (bool) {
+        revert Error.IncreaseAllowanceNotSupported();
+    }
+
+    /// @inheritdoc ERC20
+    function decreaseAllowance(address spender, uint256 addedValue) public override pure returns (bool) {
+        revert Error.DecreaseAllowanceNotSupported();
+    }
+
+
+    /*----------------------------------------------------------*|
     |*  # MANAGE SUPPLY                                         *|
     |*----------------------------------------------------------*/
 

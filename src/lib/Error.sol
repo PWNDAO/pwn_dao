@@ -12,6 +12,8 @@ library Error {
     error ProposalRewardAlreadyClaimed();
     error ProposalRewardNotAssigned();
     error InvalidVotingReward();
+    error IncreaseAllowanceNotSupported();
+    error DecreaseAllowanceNotSupported();
 
     // PWNEpochClock
     error InitialEpochTimestampInFuture(uint256 currentTimestamp);

@@ -108,6 +108,27 @@ contract PWN_Constructor_Test is PWN_Test {
 
 
 /*----------------------------------------------------------*|
+|*  # ALLOWANCE                                             *|
+|*----------------------------------------------------------*/
+
+contract PWN_Allowance_Test is PWN_Test {
+
+    address spender = makeAddr("spender");
+
+    function test_shouldFailToCall_increaseAllowance() external {
+        vm.expectRevert(abi.encodeWithSelector(Error.IncreaseAllowanceNotSupported.selector));
+        pwnToken.increaseAllowance(spender, 1);
+    }
+
+    function test_shouldFailToCall_decreaseAllowance() external {
+        vm.expectRevert(abi.encodeWithSelector(Error.DecreaseAllowanceNotSupported.selector));
+        pwnToken.decreaseAllowance(spender, 1);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
 |*  # MINT                                                  *|
 |*----------------------------------------------------------*/
 
