@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-pragma solidity 0.8.18;
+pragma solidity 0.8.25;
 
 import { BitMaskLib } from "src/lib/BitMaskLib.sol";
 import { EpochPowerLib } from "src/lib/EpochPowerLib.sol";
