@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-pragma solidity 0.8.18;
+pragma solidity 0.8.25;
 
 import { IVotes } from "openzeppelin-contracts/contracts/governance/utils/IVotes.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";

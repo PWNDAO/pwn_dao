@@ -62,7 +62,6 @@ forge script script/PWN.governance.s.sol:Deploy \
             }),
             data: pluginSetup.encodeInstallationParams({
                 _governanceSettings: PWNTokenGovernancePlugin.TokenGovernanceSettings({
-                    votingMode: IPWNTokenGovernance.VotingMode.Standard,
                     supportThreshold: 500000, // 50%
                     minParticipation: 200000, // 20%
                     minDuration: 7 days,

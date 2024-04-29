@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-pragma solidity 0.8.18;
+pragma solidity 0.8.25;
 
 import { Ownable2Step } from "openzeppelin-contracts/contracts/access/Ownable2Step.sol";
 import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
@@ -87,6 +87,21 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
     /// @param _owner The owner address.
     constructor(address _owner) ERC20("PWN DAO", "PWN") {
         _transferOwnership(_owner);
+    }
+
+
+    /*----------------------------------------------------------*|
+    |*  # ALLOWANCE                                             *|
+    |*----------------------------------------------------------*/
+
+    /// @inheritdoc ERC20
+    function increaseAllowance(address /* spender */, uint256 /* addedValue */) public override pure returns (bool) {
+        revert Error.IncreaseAllowanceNotSupported();
+    }
+
+    /// @inheritdoc ERC20
+    function decreaseAllowance(address /* spender */, uint256 /* addedValue */) public override pure returns (bool) {
+        revert Error.DecreaseAllowanceNotSupported();
     }
 
 

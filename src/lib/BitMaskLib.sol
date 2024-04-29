@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.17;
 
 /// @notice Utility library for masking uints in bytes32.
 /// @dev The library is used to mask and type cast different size uints in bytes32.

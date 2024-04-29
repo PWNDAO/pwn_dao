@@ -9,6 +9,7 @@ pragma solidity 0.8.17;
 // - Remove `MAJORITY_VOTING_BASE_INTERFACE_ID` and `TOKEN_VOTING_INTERFACE_ID`
 // - Use epochs instead of block numbers
 // - Assign voting reward on proposal creation
+// - Remove `VotingMode` functionality and use only Standard by default
 
 // solhint-enable max-line-length
 
@@ -27,88 +28,9 @@ import { IPWNTokenGovernance } from "./IPWNTokenGovernance.sol";
 import { IPWNEpochClock } from "src/interfaces/IPWNEpochClock.sol";
 import { IRewardToken } from "src/interfaces/IRewardToken.sol";
 
-// solhint-disable max-line-length
-
 /// @title PWN Token Governance Plugin
 /// @notice The implementation of token governance plugin.
-///
-/// ### Parameterization
-///
-/// We define two parameters
-/// $$\texttt{support} = \frac{N_\text{yes}}{N_\text{yes} + N_\text{no}} \in [0,1]$$
-/// and
-/// $$\texttt{participation} = \frac{N_\text{yes} + N_\text{no} + N_\text{abstain}}{N_\text{total}} \in [0,1],$$
-/// where $N_\text{yes}$, $N_\text{no}$, and $N_\text{abstain}$ are the yes, no, and abstain votes that have been cast and $N_\text{total}$ is the total voting power available at proposal creation time.
-///
-/// #### Limit Values: Support Threshold & Minimum Participation
-///
-/// Two limit values are associated with these parameters and decide if a proposal execution should be possible: $\texttt{supportThreshold} \in [0,1]$ and $\texttt{minParticipation} \in [0,1]$.
-///
-/// For threshold values, $>$ comparison is used. This **does not** include the threshold value. E.g., for $\texttt{supportThreshold} = 50\%$, the criterion is fulfilled if there is at least one more yes than no votes ($N_\text{yes} = N_\text{no} + 1$).
-/// For minimum values, $\ge{}$ comparison is used. This **does** include the minimum participation value. E.g., for $\texttt{minParticipation} = 40\%$ and $N_\text{total} = 10$, the criterion is fulfilled if 4 out of 10 votes were casted.
-///
-/// Majority voting implies that the support threshold is set with
-/// $$\texttt{supportThreshold} \ge 50\% .$$
-/// However, this is not enforced by the contract code and developers can make unsafe parameters and only the frontend will warn about bad parameter settings.
-///
-/// ### Execution Criteria
-///
-/// After the vote is closed, two criteria decide if the proposal passes.
-///
-/// #### The Support Criterion
-///
-/// For a proposal to pass, the required ratio of yes and no votes must be met:
-/// $$(1- \texttt{supportThreshold}) \cdot N_\text{yes} > \texttt{supportThreshold} \cdot N_\text{no}.$$
-/// Note, that the inequality yields the simple majority voting condition for $\texttt{supportThreshold}=\frac{1}{2}$.
-///
-/// #### The Participation Criterion
-///
-/// For a proposal to pass, the minimum voting power must have been cast:
-/// $$N_\text{yes} + N_\text{no} + N_\text{abstain} \ge \texttt{minVotingPower},$$
-/// where $\texttt{minVotingPower} = \texttt{minParticipation} \cdot N_\text{total}$.
-///
-/// ### Vote Replacement Execution
-///
-/// The contract allows votes to be replaced. Voters can vote multiple times and only the latest voteOption is tallied.
-///
-/// ### Early Execution
-///
-/// This contract allows a proposal to be executed early, iff the vote outcome cannot change anymore by more people voting. Accordingly, vote replacement and early execution are /// mutually exclusive options.
-/// The outcome cannot change anymore iff the support threshold is met even if all remaining votes are no votes. We call this number the worst-case number of no votes and define it as
-///
-/// $$N_\text{no, worst-case} = N_\text{no} + \texttt{remainingVotes}$$
-///
-/// where
-///
-/// $$\texttt{remainingVotes} = N_\text{total}-\underbrace{(N_\text{yes}+N_\text{no}+N_\text{abstain})}_{\text{turnout}}.$$
-///
-/// We can use this quantity to calculate the worst-case support that would be obtained if all remaining votes are casted with no:
-///
-/// $$
-/// \begin{align*}
-///   \texttt{worstCaseSupport}
-///   &= \frac{N_\text{yes}}{N_\text{yes} + (N_\text{no, worst-case})} \\[3mm]
-///   &= \frac{N_\text{yes}}{N_\text{yes} + (N_\text{no} + \texttt{remainingVotes})} \\[3mm]
-///   &= \frac{N_\text{yes}}{N_\text{yes} +  N_\text{no} + N_\text{total} - (N_\text{yes} + N_\text{no} + N_\text{abstain})} \\[3mm]
-///   &= \frac{N_\text{yes}}{N_\text{total} - N_\text{abstain}}
-/// \end{align*}
-/// $$
-///
-/// In analogy, we can modify [the support criterion](#the-support-criterion) from above to allow for early execution:
-///
-/// $$
-/// \begin{align*}
-///   (1 - \texttt{supportThreshold}) \cdot N_\text{yes}
-///   &> \texttt{supportThreshold} \cdot  N_\text{no, worst-case} \\[3mm]
-///   &> \texttt{supportThreshold} \cdot (N_\text{no} + \texttt{remainingVotes}) \\[3mm]
-///   &> \texttt{supportThreshold} \cdot (N_\text{no} + N_\text{total}-(N_\text{yes}+N_\text{no}+N_\text{abstain})) \\[3mm]
-///   &> \texttt{supportThreshold} \cdot (N_\text{total} - N_\text{yes} - N_\text{abstain})
-/// \end{align*}
-/// $$
-///
-/// Accordingly, early execution is possible when the vote is open, the modified support criterion, and the particicpation criterion are met.
 /// @dev This contract implements the `IPWNTokenGovernance` interface.
-// solhint-enable max-line-length
 contract PWNTokenGovernancePlugin is
     IPWNTokenGovernance,
     IMembership,
@@ -138,11 +60,6 @@ contract PWNTokenGovernancePlugin is
     IRewardToken public rewardToken;
 
     /// @notice A container for the token governance settings that will be applied as parameters on proposal creation.
-    /// @param votingMode A parameter to select the vote mode.
-    /// In standard mode (0), early execution and vote replacement are disabled.
-    /// In early execution mode (1), a proposal can be executed early before the end date if the vote outcome cannot
-    /// mathematically change by more voters voting. In vote replacement mode (2), voters can change their vote
-    /// multiple times and only the latest vote option is tallied.
     /// @param supportThreshold The support threshold value.
     /// Its value has to be in the interval [0, 10^6] defined by `RATIO_BASE = 10**6`.
     /// @param minParticipation The minimum participation value.
@@ -150,7 +67,6 @@ contract PWNTokenGovernancePlugin is
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     /// @param minProposerVotingPower The minimum voting power required to create a proposal.
     struct TokenGovernanceSettings {
-        VotingMode votingMode;
         uint32 supportThreshold;
         uint32 minParticipation;
         uint64 minDuration;
@@ -199,13 +115,11 @@ contract PWNTokenGovernancePlugin is
     );
 
     /// @notice Emitted when the token governance settings are updated.
-    /// @param votingMode A parameter to select the vote mode.
     /// @param supportThreshold The support threshold value.
     /// @param minParticipation The minimum participation value.
     /// @param minDuration The minimum duration of the proposal vote in seconds.
     /// @param minProposerVotingPower The minimum voting power required to create a proposal.
     event TokenGovernanceSettingsUpdated(
-        VotingMode votingMode,
         uint32 supportThreshold,
         uint32 minParticipation,
         uint64 minDuration,
@@ -284,8 +198,7 @@ contract PWNTokenGovernancePlugin is
         uint256 _allowFailureMap,
         uint64 _startDate,
         uint64 _endDate,
-        VoteOption _voteOption,
-        bool _tryEarlyExecution
+        VoteOption _voteOption
     ) external returns (uint256 proposalId) {
         // check that `_msgSender` has enough voting power
         {
@@ -322,7 +235,6 @@ contract PWNTokenGovernancePlugin is
         proposal_.parameters.startDate = _startDate;
         proposal_.parameters.endDate = _endDate;
         proposal_.parameters.snapshotEpoch = snapshotEpoch.toUint64();
-        proposal_.parameters.votingMode = votingMode();
         proposal_.parameters.supportThreshold = supportThreshold();
         proposal_.parameters.minVotingPower = _applyRatioCeiled(totalVotingPower_, minParticipation());
 
@@ -342,19 +254,19 @@ contract PWNTokenGovernancePlugin is
         rewardToken.assignProposalReward(proposalId);
 
         if (_voteOption != VoteOption.None) {
-            vote(proposalId, _voteOption, _tryEarlyExecution);
+            vote(proposalId, _voteOption);
         }
     }
 
     /// @inheritdoc IPWNTokenGovernance
-    function vote(uint256 _proposalId, VoteOption _voteOption, bool _tryEarlyExecution) public {
+    function vote(uint256 _proposalId, VoteOption _voteOption) public {
         address _voter = _msgSender();
 
         (bool canVote_, uint256 votingPower) = _canVote(_proposalId, _voter, _voteOption);
         if (!canVote_) {
             revert VoteCastForbidden({ proposalId: _proposalId, account: _voter, voteOption: _voteOption });
         }
-        _vote(_proposalId, _voteOption, _voter, votingPower, _tryEarlyExecution);
+        _vote(_proposalId, _voteOption, _voter, votingPower);
     }
 
     /// @inheritdoc IPWNTokenGovernance
@@ -397,7 +309,6 @@ contract PWNTokenGovernancePlugin is
     function isSupportThresholdReached(uint256 _proposalId) public view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        // The code below implements the formula of the support criterion explained in the top of this file.
         // `(1 - supportThreshold) * N_yes > supportThreshold *  N_no`
         return
             (RATIO_BASE - proposal_.parameters.supportThreshold) * proposal_.tally.yes >
@@ -405,26 +316,9 @@ contract PWNTokenGovernancePlugin is
     }
 
     /// @inheritdoc IPWNTokenGovernance
-    function isSupportThresholdReachedEarly(uint256 _proposalId) public view returns (bool) {
-        Proposal storage proposal_ = proposals[_proposalId];
-
-        uint256 noVotesWorstCase = totalVotingPower(proposal_.parameters.snapshotEpoch) -
-            proposal_.tally.yes -
-            proposal_.tally.abstain;
-
-        // The code below implements the formula of the early execution support criterion explained
-        // in the top of this file.
-        // `(1 - supportThreshold) * N_yes > supportThreshold *  N_no,worst-case`
-        return
-            (RATIO_BASE - proposal_.parameters.supportThreshold) * proposal_.tally.yes >
-            proposal_.parameters.supportThreshold * noVotesWorstCase;
-    }
-
-    /// @inheritdoc IPWNTokenGovernance
     function isMinParticipationReached(uint256 _proposalId) public view returns (bool) {
         Proposal storage proposal_ = proposals[_proposalId];
 
-        // The code below implements the formula of the participation criterion explained in the top of this file.
         // `N_yes + N_no + N_abstain >= minVotingPower = minParticipation * N_total`
         return
             proposal_.tally.yes + proposal_.tally.no + proposal_.tally.abstain >=
@@ -482,11 +376,6 @@ contract PWNTokenGovernancePlugin is
     /// @inheritdoc IPWNTokenGovernance
     function minProposerVotingPower() public view returns (uint256) {
         return governanceSettings.minProposerVotingPower;
-    }
-
-    /// @inheritdoc IPWNTokenGovernance
-    function votingMode() public view returns (VotingMode) {
-        return governanceSettings.votingMode;
     }
 
 
@@ -558,21 +447,14 @@ contract PWNTokenGovernancePlugin is
             return (false, 0);
         }
 
+        // the voter has already voted
+        if (proposal_.voters[_account] != VoteOption.None) {
+            return (false, 0);
+        }
+
         // the voter has no voting power
         uint256 votingPower = votingToken.getPastVotes(_account, proposal_.parameters.snapshotEpoch);
-        if (votingPower == 0) {
-            return (false, 0);
-        }
-
-        // the voter has already voted but vote replacment is not allowed
-        if (
-            proposal_.voters[_account] != VoteOption.None &&
-            proposal_.parameters.votingMode != VotingMode.VoteReplacement
-        ) {
-            return (false, 0);
-        }
-
-        return (true, votingPower);
+        return (votingPower > 0 ? true : false, votingPower);
     }
 
     /// @notice Internal implementation.
@@ -580,21 +462,9 @@ contract PWNTokenGovernancePlugin is
         uint256 _proposalId,
         VoteOption _voteOption,
         address _voter,
-        uint256 _votingPower,
-        bool _tryEarlyExecution
+        uint256 _votingPower
     ) internal {
         Proposal storage proposal_ = proposals[_proposalId];
-
-        VoteOption state = proposal_.voters[_voter];
-
-        // if voter had previously voted, decrease count
-        if (state == VoteOption.Yes) {
-            proposal_.tally.yes = proposal_.tally.yes - _votingPower;
-        } else if (state == VoteOption.No) {
-            proposal_.tally.no = proposal_.tally.no - _votingPower;
-        } else if (state == VoteOption.Abstain) {
-            proposal_.tally.abstain = proposal_.tally.abstain - _votingPower;
-        }
 
         // write the updated/new vote for the voter
         if (_voteOption == VoteOption.Yes) {
@@ -613,10 +483,6 @@ contract PWNTokenGovernancePlugin is
             voteOption: _voteOption,
             votingPower: _votingPower
         });
-
-        if (_tryEarlyExecution && _canExecute(_proposalId)) {
-            _execute(_proposalId);
-        }
     }
 
     /// @notice Internal function to check if a proposal can be executed. It assumes the queried proposal exists.
@@ -632,18 +498,10 @@ contract PWNTokenGovernancePlugin is
         }
 
         if (_isProposalOpen(proposal_)) {
-            // Early execution
-            if (proposal_.parameters.votingMode != VotingMode.EarlyExecution) {
-                return false;
-            }
-            if (!isSupportThresholdReachedEarly(_proposalId)) {
-                return false;
-            }
-        } else {
-            // Normal execution
-            if (!isSupportThresholdReached(_proposalId)) {
-                return false;
-            }
+            return false;
+        }
+        if (!isSupportThresholdReached(_proposalId)) {
+            return false;
         }
         if (!isMinParticipationReached(_proposalId)) {
             return false;
@@ -673,8 +531,7 @@ contract PWNTokenGovernancePlugin is
 
         return
             proposal_.parameters.startDate <= currentTime &&
-            currentTime < proposal_.parameters.endDate &&
-            !proposal_.executed;
+            currentTime < proposal_.parameters.endDate;
     }
 
     /// @notice Internal function to update the plugin-wide governance settings.
@@ -706,7 +563,6 @@ contract PWNTokenGovernancePlugin is
         governanceSettings = _governanceSettings;
 
         emit TokenGovernanceSettingsUpdated({
-            votingMode: _governanceSettings.votingMode,
             supportThreshold: _governanceSettings.supportThreshold,
             minParticipation: _governanceSettings.minParticipation,
             minDuration: _governanceSettings.minDuration,

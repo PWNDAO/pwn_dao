@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-pragma solidity 0.8.18;
+pragma solidity 0.8.25;
 
 library Error {
 
@@ -12,6 +12,8 @@ library Error {
     error ProposalRewardAlreadyClaimed();
     error ProposalRewardNotAssigned();
     error InvalidVotingReward();
+    error IncreaseAllowanceNotSupported();
+    error DecreaseAllowanceNotSupported();
 
     // PWNEpochClock
     error InitialEpochTimestampInFuture(uint256 currentTimestamp);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-pragma solidity 0.8.18;
+pragma solidity 0.8.25;
 
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
@@ -30,7 +30,6 @@ abstract contract PWN_Test is Base_Test {
     uint256 public votingReward = 20;
 
     IPWNTokenGovernance.ProposalParameters public proposalParameters = IPWNTokenGovernance.ProposalParameters({
-        votingMode: IPWNTokenGovernance.VotingMode.Standard,
         supportThreshold: 0,
         startDate: 0,
         endDate: 0,
@@ -103,6 +102,27 @@ contract PWN_Constructor_Test is PWN_Test {
         pwnToken = new PWN(_owner);
 
         assertEq(pwnToken.owner(), _owner);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # ALLOWANCE                                             *|
+|*----------------------------------------------------------*/
+
+contract PWN_Allowance_Test is PWN_Test {
+
+    address spender = makeAddr("spender");
+
+    function test_shouldFailToCall_increaseAllowance() external {
+        vm.expectRevert(abi.encodeWithSelector(Error.IncreaseAllowanceNotSupported.selector));
+        pwnToken.increaseAllowance(spender, 1);
+    }
+
+    function test_shouldFailToCall_decreaseAllowance() external {
+        vm.expectRevert(abi.encodeWithSelector(Error.DecreaseAllowanceNotSupported.selector));
+        pwnToken.decreaseAllowance(spender, 1);
     }
 
 }

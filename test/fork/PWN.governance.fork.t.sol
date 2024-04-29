@@ -87,7 +87,6 @@ contract PWNGovernance_ForkTest is Base_Test {
             }),
             data: tokenPluginSetup.encodeInstallationParams({
                 _governanceSettings: PWNTokenGovernancePlugin.TokenGovernanceSettings({
-                    votingMode: IPWNTokenGovernance.VotingMode.Standard,
                     supportThreshold: 500000, // 50%
                     minParticipation: 200000, // 20%
                     minDuration: 3 days,
@@ -210,13 +209,12 @@ contract PWNGovernance_ForkTest is Base_Test {
             _allowFailureMap: 0,
             _startDate: 0,
             _endDate: 0,
-            _voteOption: IPWNTokenGovernance.VoteOption.Abstain,
-            _tryEarlyExecution: false
+            _voteOption: IPWNTokenGovernance.VoteOption.Abstain
         });
 
         // vote on the proposal
         vm.prank(voter);
-        tokenGovernance.vote(proposalId, IPWNTokenGovernance.VoteOption.Yes, false);
+        tokenGovernance.vote(proposalId, IPWNTokenGovernance.VoteOption.Yes);
 
         // execute the proposal
         vm.expectCall(pwnToken, abi.encodeWithSignature("mint(uint256)", 100));
