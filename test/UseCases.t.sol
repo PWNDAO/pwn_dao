@@ -41,8 +41,10 @@ contract UseCases is Base_Test {
         vm.store(address(vePWN), bytes32(0), bytes32(0)); // workaround to enable initializers
         vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock));
 
-        vm.prank(dao);
+        vm.startPrank(dao);
         stPWN.enableTransfers();
+        pwnToken.enableTransfers();
+        vm.stopPrank();
 
         // fund staker address
         _fundStaker(staker, 1000 ether);

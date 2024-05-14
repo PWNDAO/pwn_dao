@@ -14,9 +14,11 @@ abstract contract PWN_Test is Base_Test {
     using SlotComputingLib for bytes32;
 
     bytes32 public constant TOTAL_SUPPLY_SLOT = bytes32(uint256(4));
-    bytes32 public constant OWNER_MINTED_AMOUNT_SLOT = bytes32(uint256(7));
-    bytes32 public constant VOTING_REWARDS_SLOT = bytes32(uint256(8));
-    bytes32 public constant PROPOSAL_REWARDS_SLOT = bytes32(uint256(9));
+    bytes32 public constant TRANSFER_ENABLED_SLOT = bytes32(uint256(7));
+    bytes32 public constant TRANSFER_ALLOWLIST_SLOT = bytes32(uint256(8));
+    bytes32 public constant OWNER_MINTED_AMOUNT_SLOT = bytes32(uint256(9));
+    bytes32 public constant VOTING_REWARDS_SLOT = bytes32(uint256(10));
+    bytes32 public constant PROPOSAL_REWARDS_SLOT = bytes32(uint256(11));
 
     PWN public pwnToken;
 
@@ -66,6 +68,9 @@ abstract contract PWN_Test is Base_Test {
         );
 
         pwnToken = new PWN(owner);
+
+        vm.prank(owner);
+        pwnToken.enableTransfers();
 
         vm.store(address(pwnToken), TOTAL_SUPPLY_SLOT, bytes32(uint256(100_000_000 ether)));
         vm.store(address(pwnToken), VOTING_REWARDS_SLOT.withMappingKey(votingContract), bytes32(votingReward));
@@ -186,6 +191,72 @@ contract PWN_Burn_Test is PWN_Test {
 
         bytes32 ownerMintedAmountValue = vm.load(address(pwnToken), OWNER_MINTED_AMOUNT_SLOT);
         assertEq(uint256(ownerMintedAmountValue), ownerMintedAmount);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # ENABLE TRANSFER                                       *|
+|*----------------------------------------------------------*/
+
+contract PWN_EnableTransfers_Test is PWN_Test {
+
+    function setUp() override public virtual {
+        super.setUp();
+
+        // Reset transfer enabled flag
+        vm.store(address(pwnToken), TRANSFER_ENABLED_SLOT, bytes32(0));
+    }
+
+
+    function testFuzz_shouldFail_whenCallerNotOwner(address caller) external {
+        vm.assume(caller != owner);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(caller);
+        pwnToken.enableTransfers();
+    }
+
+    function test_shouldFail_whenTransferAlreadyEnabled() external {
+        vm.store(address(pwnToken), TRANSFER_ENABLED_SLOT, bytes32(uint256(1)));
+
+        vm.expectRevert(abi.encodeWithSelector(Error.TransfersAlreadyEnabled.selector));
+        vm.prank(owner);
+        pwnToken.enableTransfers();
+    }
+
+    function test_shouldStorageTransferEnabledFlag() external {
+        vm.prank(owner);
+        pwnToken.enableTransfers();
+
+        assertTrue(pwnToken.transfersEnabled());
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # SET TRANSFER ALLOWLIST                                *|
+|*----------------------------------------------------------*/
+
+contract PWN_SetTransferAllowlist_Test is PWN_Test {
+    using SlotComputingLib for bytes32;
+
+    function testFuzz_shouldFail_whenCallerNotOwner(address caller) external {
+        vm.assume(caller != owner);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(caller);
+        pwnToken.setTransferAllowlist(makeAddr("allowedAddr"), true);
+    }
+
+    function testFuzz_shouldSetTransferAllowlist(address allowedAddr, bool isAllowed) external {
+        vm.prank(owner);
+        pwnToken.setTransferAllowlist(allowedAddr, isAllowed);
+
+        bytes32 isAllowedValue = vm.load(address(pwnToken), TRANSFER_ALLOWLIST_SLOT.withMappingKey(allowedAddr));
+        assertEq(isAllowed, uint256(isAllowedValue) == 1 ? true : false);
     }
 
 }
@@ -506,6 +577,89 @@ contract PWN_ClaimProposalReward_Test is PWN_Test {
 
         vm.prank(voter);
         pwnToken.claimProposalReward(votingContract, proposalId);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # TRANSFER CALLBACK                                     *|
+|*----------------------------------------------------------*/
+
+contract PWN_TransferCallback_Test is PWN_Test {
+
+    function setUp() override public {
+        super.setUp();
+
+        vm.startPrank(owner);
+        pwnToken.mint(1 ether);
+        pwnToken.setTransferAllowlist(owner, true);
+        vm.stopPrank();
+
+        // Reset transfer enabled flag
+        vm.store(address(pwnToken), TRANSFER_ENABLED_SLOT, bytes32(0));
+    }
+
+
+    function test_shouldAllowMint() external {
+        vm.prank(owner);
+        pwnToken.mint(1 ether);
+    }
+
+    function test_shouldAllowBurn() external {
+        vm.prank(owner);
+        pwnToken.burn(1 ether);
+    }
+
+    function testFuzz_shouldAllowTransfer_whenTransfersEnabled(address caller) external {
+        vm.assume(caller != owner && caller != address(0));
+
+        vm.startPrank(owner);
+        pwnToken.enableTransfers();
+        pwnToken.transfer(caller, 1 ether);
+        vm.stopPrank();
+
+        vm.prank(caller);
+        pwnToken.transfer(owner, 1 ether);
+    }
+
+    function testFuzz_shouldAllowTransfer_whenTransfersDisabled_whenAddrInAllowlist_whenCallerOwner(address caller) external {
+        vm.assume(caller != owner && caller != address(0));
+
+        vm.startPrank(owner);
+        pwnToken.setTransferAllowlist(caller, true);
+        pwnToken.transfer(caller, 1 ether);
+        vm.stopPrank();
+
+        vm.prank(caller);
+        pwnToken.transfer(owner, 1 ether);
+    }
+
+    function testFuzz_shouldAllowTransfer_whenTransfersDisabled_whenAddrInAllowlist_whenCallerOperator(address caller) external {
+        vm.assume(caller != owner && caller != address(0));
+        address from = makeAddr("from");
+
+        vm.startPrank(owner);
+        pwnToken.setTransferAllowlist(caller, true);
+        pwnToken.transfer(from, 1 ether);
+        vm.stopPrank();
+
+        vm.prank(from);
+        pwnToken.approve(caller, 1 ether);
+
+        vm.prank(caller);
+        pwnToken.transferFrom(from, owner, 1 ether);
+    }
+
+    function testFuzz_shouldBlockTransfer_whenTransfersDisabled_whenAddrNotInAllowlist(address caller) external {
+        vm.assume(caller != owner && caller != address(0));
+
+        vm.prank(owner);
+        pwnToken.transfer(caller, 1 ether);
+
+        vm.expectRevert(abi.encodeWithSelector(Error.TransfersDisabled.selector));
+        vm.prank(caller);
+        pwnToken.transfer(owner, 1 ether);
     }
 
 }

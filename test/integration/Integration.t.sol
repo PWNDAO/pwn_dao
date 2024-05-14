@@ -45,8 +45,10 @@ abstract contract Integration_Test is Base_Test {
 
         vePWN.initialize(address(pwnToken), address(stPWN), address(epochClock));
 
-        vm.prank(dao);
+        vm.startPrank(dao);
         stPWN.enableTransfers();
+        pwnToken.enableTransfers();
+        vm.stopPrank();
 
         // fund staker address
         _fundStaker(staker, defaultFundAmount);

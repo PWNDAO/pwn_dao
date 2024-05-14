@@ -20,7 +20,6 @@ library Error {
 
     // StakedPWN
     error CallerNotSupplyManager();
-    error TransfersDisabled();
     error TransfersAlreadyEnabled();
 
     // VoteEscrowedPWN.Base
@@ -44,5 +43,8 @@ library Error {
     error NothingToIncrease();
     error WithrawalBeforeLockUpEnd();
     error CallerNotStakedPWNContract();
+
+    // PWN & StakedPWN
+    error TransfersDisabled();
 
 }
