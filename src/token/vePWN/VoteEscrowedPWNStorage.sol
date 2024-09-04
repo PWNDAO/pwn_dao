@@ -51,6 +51,15 @@ contract VoteEscrowedPWNStorage is Initializable {
     /// @notice The stake for a stake id.
     mapping(uint256 stakeId => Stake) public stakes;
 
+    struct StakesInEpoch {
+        uint16 epoch;
+        // stake ids are incremented by 1
+        // if 1000 new ids are added every second, it will take 8878 years to overflow
+        uint48[] ids;
+    }
+    /// @notice The list of stakes to which a beneficiary is entitled in an epoch.
+    mapping(address => StakesInEpoch[]) public beneficiaryOfStakes;
+
 
     /*----------------------------------------------------------*|
     |*  # TOTAL POWER                                           *|

@@ -39,10 +39,12 @@ library Error {
     error InvalidAmount();
     error InvalidLockUpPeriod();
     error NotStakeOwner();
+    error NotStakeBeneficiary();
     error LockUpPeriodMismatch();
     error NothingToIncrease();
     error WithrawalBeforeLockUpEnd();
     error CallerNotStakedPWNContract();
+    error ClaimStakePowerFromSelf();
 
     // PWN & StakedPWN
     error TransfersDisabled();

@@ -147,10 +147,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint104 originalAmount = originalStake.amount;
         uint8 originalLockUpEpochs = originalStake.lockUpEpochs;
 
-        // original stake must be owned by the caller
-        if (stakedPWN.ownerOf(stakeId) != staker) {
-            revert Error.NotStakeOwner();
-        }
+        // staker must be original stake owner and beneficiary
+        _checkIsStakeOwner(staker, stakeId);
+        _checkIsStakeBeneficiary(staker, stakeId);
+
         // split amount must be greater than 0
         if (splitAmount == 0) {
             revert Error.InvalidAmount();
@@ -165,7 +165,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
 
         // delete original stake
-        _deleteStake(stakeId);
+        _deleteStake(staker, stakeId);
 
         // create new stakes
         newStakeId1 = _createStake(
@@ -191,13 +191,12 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint16 finalEpoch2 = stake2.initialEpoch + stake2.lockUpEpochs;
         uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
 
-        // both stakes must be owned by the caller
-        if (stakedPWN.ownerOf(stakeId1) != staker) {
-            revert Error.NotStakeOwner();
-        }
-        if (stakedPWN.ownerOf(stakeId2) != staker) {
-            revert Error.NotStakeOwner();
-        }
+        // staker must be stake owner and beneficiary of both
+        _checkIsStakeOwner(staker, stakeId1);
+        _checkIsStakeOwner(staker, stakeId2);
+        _checkIsStakeBeneficiary(staker, stakeId1);
+        _checkIsStakeBeneficiary(staker, stakeId2);
+
         // the first stake lockup end must be greater than or equal to the second stake lockup end
         // both stake lockup ends must be greater than the current epoch
         if (finalEpoch1 < finalEpoch2 || finalEpoch1 <= newInitialEpoch) {
@@ -217,8 +216,8 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
 
         // delete old stakes
-        _deleteStake(stakeId1);
-        _deleteStake(stakeId2);
+        _deleteStake(staker, stakeId1);
+        _deleteStake(staker, stakeId2);
 
         // create new stake
         uint104 newAmount = stake1.amount + stake2.amount;
@@ -244,10 +243,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         address staker = msg.sender;
         Stake storage stake = stakes[stakeId];
 
-        // stake must be owned by the caller
-        if (stakedPWN.ownerOf(stakeId) != staker) {
-            revert Error.NotStakeOwner();
-        }
+        // staker must be stake owner and beneficiary
+        _checkIsStakeOwner(staker, stakeId);
+        _checkIsStakeBeneficiary(staker, stakeId);
+
         // additional amount or additional epochs must be greater than 0
         if (additionalAmount == 0 && additionalEpochs == 0) {
             revert Error.NothingToIncrease();
@@ -293,7 +292,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
 
         // delete original stake
-        _deleteStake(stakeId);
+        _deleteStake(staker, stakeId);
 
         // create new stake
         newStakeId = _createStake(staker, newInitialEpoch, newAmount, newLockUpEpochs);
@@ -316,23 +315,49 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         address staker = msg.sender;
         Stake storage stake = stakes[stakeId];
 
-        // stake must be owned by the caller
-        if (stakedPWN.ownerOf(stakeId) != staker) {
-            revert Error.NotStakeOwner();
-        }
+        // staker must be stake owner and beneficiary
+        _checkIsStakeOwner(staker, stakeId);
+        _checkIsStakeBeneficiary(staker, stakeId);
+
+        // Note: Even though the stake is not granting any power,
+        // the caller must be the beneficiary to correctly update the stake list.
+
         // stake must be unlocked
         if (stake.initialEpoch + stake.lockUpEpochs > epochClock.currentEpoch()) {
             revert Error.WithrawalBeforeLockUpEnd();
         }
 
         // delete stake
-        _deleteStake(stakeId);
+        _deleteStake(staker, stakeId);
 
         // transfer pwn tokens to the staker
         pwnToken.transfer(staker, stake.amount);
 
         // emit event
         emit StakeWithdrawn(stakeId, staker, stake.amount);
+    }
+
+
+    /// @notice Claims a stake power for a caller.
+    /// @param stakeId Id of the stake to claim power for.
+    /// @param oldStaker The address which is the current stake power beneficiary.
+    function claimStakePower(uint256 stakeId, address oldStaker) external {
+        address staker = msg.sender;
+
+        // cannot claim stake power from self, its power is already counted
+        if (staker == oldStaker) {
+            revert Error.ClaimStakePowerFromSelf();
+        }
+
+        // staker must be stake owner
+        _checkIsStakeOwner(staker, stakeId);
+
+        // old staker must be stake beneficiary
+        _checkIsStakeBeneficiary(oldStaker, stakeId);
+
+        // remove token from old owner first to avoid duplicates in case of self claim
+        _removeStakeFromBeneficiary(oldStaker, stakeId);
+        _addStakeToBeneficiary(staker, stakeId);
     }
 
 
@@ -352,11 +377,13 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         stake.lockUpEpochs = lockUpEpochs;
 
         stakedPWN.mint(staker, newStakeId);
+        _addStakeToBeneficiary(staker, newStakeId);
     }
 
     /// @dev Burn stPWN token, but keepts the stake data for historical power calculations
-    function _deleteStake(uint256 stakeId) internal {
+    function _deleteStake(address staker, uint256 stakeId) internal {
         stakedPWN.burn(stakeId);
+        _removeStakeFromBeneficiary(staker, stakeId);
     }
 
     /// @dev Update total power changes for a given amount and lockup
@@ -376,6 +403,77 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
                 power: _powerDecrease(_amount, remainingLockup)
             });
         }
+    }
+
+    function _checkIsStakeOwner(address staker, uint256 stakeId) internal view {
+        if (stakedPWN.ownerOf(stakeId) != staker) {
+            revert Error.NotStakeOwner();
+        }
+    }
+
+    function _checkIsStakeBeneficiary(address staker, uint256 stakeId) internal view {
+        StakesInEpoch[] storage stakesInEpochs = beneficiaryOfStakes[staker];
+        StakesInEpoch storage currentStakes = stakesInEpochs[stakesInEpochs.length - 1];
+        uint256 index = _findIdInList(currentStakes.ids, stakeId);
+        if (index == currentStakes.ids.length) {
+            revert Error.NotStakeBeneficiary();
+        }
+    }
+
+    function _addStakeToBeneficiary(address staker, uint256 stakeId) internal {
+        uint16 epoch = epochClock.currentEpoch() + 1;
+        StakesInEpoch[] storage stakesInEpochs = beneficiaryOfStakes[staker];
+        StakesInEpoch storage stakesInNextEpoch;
+
+        if (stakesInEpochs.length == 0) {
+            stakesInNextEpoch = stakesInEpochs.push();
+            stakesInNextEpoch.epoch = epoch;
+        } else {
+            StakesInEpoch storage stakesInLatestEpoch = stakesInEpochs[stakesInEpochs.length - 1];
+            if (stakesInLatestEpoch.epoch == epoch) {
+                stakesInNextEpoch = stakesInLatestEpoch;
+            } else {
+                stakesInNextEpoch = stakesInEpochs.push();
+                stakesInNextEpoch.epoch = epoch;
+                stakesInNextEpoch.ids = stakesInLatestEpoch.ids;
+            }
+        }
+        stakesInNextEpoch.ids.push(SafeCast.toUint48(stakeId));
+    }
+
+    function _removeStakeFromBeneficiary(address owner, uint256 tokenId) internal {
+        uint16 epoch = epochClock.currentEpoch() + 1;
+        StakesInEpoch[] storage stakesInEpochs = beneficiaryOfStakes[owner];
+        StakesInEpoch storage stakesInLatestEpoch = stakesInEpochs[stakesInEpochs.length - 1];
+
+        if (stakesInLatestEpoch.epoch == epoch) {
+            _removeIdFromList(stakesInLatestEpoch.ids, tokenId);
+        } else {
+            StakesInEpoch storage stakesInNextEpoch = stakesInEpochs.push();
+            stakesInNextEpoch.epoch = epoch;
+            stakesInNextEpoch.ids = stakesInLatestEpoch.ids;
+            _removeIdFromList(stakesInNextEpoch.ids, tokenId);
+        }
+    }
+
+    function _removeIdFromList(uint48[] storage ids, uint256 tokenId) private {
+        uint256 length = ids.length;
+        uint256 index = _findIdInList(ids, tokenId);
+        if (index < length) {
+            ids[index] = ids[length - 1];
+            ids.pop();
+        }
+    }
+
+    function _findIdInList(uint48[] storage ids, uint256 id) private view returns (uint256) {
+        uint256 length = ids.length;
+        for (uint256 i; i < length;) {
+            if (ids[i] == id) {
+                return i;
+            }
+            unchecked { ++i; }
+        }
+        return length;
     }
 
 }

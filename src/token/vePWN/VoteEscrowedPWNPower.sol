@@ -90,7 +90,7 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     /// @inheritdoc VoteEscrowedPWNBase
     function stakerPowerAt(address staker, uint256 epoch) override virtual public view returns (uint256) {
         uint16 _epoch = SafeCast.toUint16(epoch);
-        uint256[] memory stakeIds = stakedPWN.ownedTokenIdsAt(staker, _epoch);
+        uint256[] memory stakeIds = beneficiaryOfStakesAt(staker, _epoch);
         uint256 stakesLength = stakeIds.length;
         int104 power;
         for (uint256 i; i < stakesLength;) {
@@ -117,6 +117,38 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
             amount: SafeCast.toInt104(int256(uint256(stake.amount))),
             lockUpEpochs: stake.lockUpEpochs - uint8(epoch - stake.initialEpoch)
         });
+    }
+
+    /// @notice Get the list of stake ids the staker is a beneficiary of in an epoch.
+    /// @param staker The address of the stakes beneficiary.
+    /// @param epoch The epoch.
+    /// @return ids The list of stake ids the staker is a beneficiary of in the epoch.
+    function beneficiaryOfStakesAt(address staker, uint16 epoch) public view returns (uint256[] memory) {
+        StakesInEpoch[] storage stakesInEpoch = beneficiaryOfStakes[staker];
+        // no owned stakes
+        if (stakesInEpoch.length == 0) {
+            return new uint256[](0);
+        }
+        // first owned stake is in the future
+        if (epoch < stakesInEpoch[0].epoch) {
+            return new uint256[](0);
+        }
+
+        // find change epoch
+        uint256 changeIndex = stakesInEpoch.length - 1;
+        while (stakesInEpoch[changeIndex].epoch > epoch) {
+            changeIndex--;
+        }
+
+        // collect ids as uint256
+        uint256 length = stakesInEpoch[changeIndex].ids.length;
+        uint256[] memory ids = new uint256[](length);
+        for (uint256 i; i < length;) {
+            ids[i] = stakesInEpoch[changeIndex].ids[i];
+            unchecked { ++i; }
+        }
+
+        return ids;
     }
 
 
