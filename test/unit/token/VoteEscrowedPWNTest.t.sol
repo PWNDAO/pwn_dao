@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 
-import { VoteEscrowedPWNHarness } from "test/harness/VoteEscrowedPWNHarness.sol";
+import { VoteEscrowedPWNHarness, StakesInEpoch } from "test/harness/VoteEscrowedPWNHarness.sol";
 import { Base_Test } from "test/Base.t.sol";
 
 abstract contract VoteEscrowedPWN_Test is Base_Test {
@@ -11,7 +11,8 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
 
     uint8 public constant EPOCHS_IN_YEAR = 13;
     bytes32 public constant STAKES_SLOT = bytes32(uint256(4));
-    bytes32 public constant LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT = bytes32(uint256(5));
+    bytes32 public constant BENEFICIARY_OF_STAKES = bytes32(uint256(5));
+    bytes32 public constant LAST_CALCULATED_TOTAL_POWER_EPOCH_SLOT = bytes32(uint256(6));
 
     VoteEscrowedPWNHarness public vePWN;
 
@@ -22,20 +23,12 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
 
     uint256 public currentEpoch = 420;
 
-    // solhint-disable-next-line var-name-mixedcase
-    mapping(uint16 => uint256[]) public helper_ownedTokenIdsAt;
-
     function setUp() public virtual {
         vm.mockCall(epochClock, abi.encodeWithSignature("currentEpoch()"), abi.encode(currentEpoch));
         vm.mockCall(pwnToken, abi.encodeWithSignature("transfer(address,uint256)"), abi.encode(true));
         vm.mockCall(pwnToken, abi.encodeWithSignature("transferFrom(address,address,uint256)"), abi.encode(true));
         vm.mockCall(stakedPWN, abi.encodeWithSignature("mint(address,uint256)"), abi.encode(0));
         vm.mockCall(stakedPWN, abi.encodeWithSignature("burn(uint256)"), abi.encode(0));
-        vm.mockCall(
-            address(stakedPWN),
-            abi.encodeWithSignature("ownedTokenIdsAt(address,uint16)"),
-            abi.encode(helper_ownedTokenIdsAt[0])
-        );
 
         vePWN = new VoteEscrowedPWNHarness();
         vm.store(address(vePWN), bytes32(0), bytes32(0)); // workaround to enable initializers
@@ -148,20 +141,72 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
     function _mockStake(
         address _staker, uint256 _stakeId, uint16 _initialEpoch, uint8 _lockUpEpochs, uint104 _amount
     ) internal returns (TestPowerChangeEpoch[] memory powerChanges) {
-        vm.mockCall(
-            address(stakedPWN),
-            abi.encodeWithSignature("ownerOf(uint256)", _stakeId),
-            abi.encode(_staker)
-        );
+        return _mockStake(_staker, _stakeId, _initialEpoch, _lockUpEpochs, _amount, true);
+    }
+
+    function _mockStake(
+        address _staker, uint256 _stakeId, uint16 _initialEpoch, uint8 _lockUpEpochs, uint104 _amount, bool _mockBeneficiary
+    ) internal returns (TestPowerChangeEpoch[] memory powerChanges) {
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", _stakeId), abi.encode(_staker));
         _storeStake(_stakeId, _initialEpoch, _lockUpEpochs, _amount);
-        helper_ownedTokenIdsAt[_initialEpoch].push(_stakeId);
-        vm.mockCall(
-            address(stakedPWN),
-            abi.encodeWithSignature("ownedTokenIdsAt(address,uint16)", _staker, _initialEpoch),
-            abi.encode(helper_ownedTokenIdsAt[_initialEpoch])
-        );
         powerChanges = _createPowerChangesArray(_initialEpoch, _lockUpEpochs, _amount);
         _storeTotalPowerChanges(powerChanges);
+        if (_mockBeneficiary) {
+            _mockStakeBeneficiary(_staker, _stakeId, _initialEpoch);
+        }
+    }
+
+    function _mockTwoStakes(
+        address _staker,
+        uint256 _stakeId1, uint256 _stakeId2,
+        uint16 _initialEpoch1, uint16 _initialEpoch2,
+        uint8 _lockUpEpochs1, uint8 _lockUpEpochs2,
+        uint104 _amount1, uint104 _amount2
+    ) internal returns (TestPowerChangeEpoch[] memory powerChanges1, TestPowerChangeEpoch[] memory powerChanges2) {
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", _stakeId1), abi.encode(_staker));
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", _stakeId2), abi.encode(_staker));
+        _storeStake(_stakeId1, _initialEpoch1, _lockUpEpochs1, _amount1);
+        _storeStake(_stakeId2, _initialEpoch2, _lockUpEpochs2, _amount2);
+        powerChanges1 = _createPowerChangesArray(_initialEpoch1, _lockUpEpochs1, _amount1);
+        powerChanges2 = _createPowerChangesArray(_initialEpoch2, _lockUpEpochs2, _amount2);
+        _storeTotalPowerChanges(powerChanges1);
+        _storeTotalPowerChanges(powerChanges2);
+
+        vePWN.workaround_addStakeToBeneficiary(
+            _staker, _makeStakesInEpoch(_initialEpoch1, _initialEpoch2, _stakeId1, _stakeId2)
+        );
+    }
+
+    function _makeStakesInEpoch(
+        uint16 _epoch1, uint16 _epoch2, uint256 _stakeId1, uint256 _stakeId2
+    ) private pure returns (StakesInEpoch[] memory) {
+        bool sameEpoch = _epoch1 == _epoch2;
+        bool sorted = _epoch1 <= _epoch2;
+        StakesInEpoch[] memory stakesInEpochs = new StakesInEpoch[](sameEpoch ? 1 : 2);
+        uint48[] memory ids = new uint48[](sameEpoch ? 2 : 1);
+        ids[0] = uint48(sorted ? _stakeId1 : _stakeId2);
+        if (sameEpoch) {
+            ids[1] = uint48(sorted ? _stakeId2 : _stakeId1);
+        }
+        stakesInEpochs[0].epoch = sorted ? _epoch1 : _epoch2;
+        stakesInEpochs[0].ids = ids;
+        if (!sameEpoch) {
+            ids = new uint48[](2);
+            ids[0] = uint48(_stakeId1);
+            ids[1] = uint48(_stakeId2);
+            stakesInEpochs[1].epoch = sorted ? _epoch2 : _epoch1;
+            stakesInEpochs[1].ids = ids;
+        }
+        return stakesInEpochs;
+    }
+
+    function _mockStakeBeneficiary(address _staker, uint256 _stakeId, uint16 _epoch) internal {
+        StakesInEpoch[] memory stakesInEpochs = new StakesInEpoch[](1);
+        uint48[] memory ids = new uint48[](1);
+        ids[0] = uint48(_stakeId);
+        stakesInEpochs[0].epoch = _epoch;
+        stakesInEpochs[0].ids = ids;
+        vePWN.workaround_addStakeToBeneficiary(_staker, stakesInEpochs);
     }
 
     function _storeStake(uint256 _stakeId, uint16 _initialEpoch, uint8 _lockUpEpochs, uint104 _amount) internal {

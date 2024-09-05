@@ -325,20 +325,24 @@ contract Integration_vePWN_Power_Test is Integration_Test {
 
 
 /*----------------------------------------------------------*|
-|*  # STAKED PWN                                            *|
+|*  # VOTE ESCROWED PWN - POWER TRANSFER                    *|
 |*----------------------------------------------------------*/
 
-contract Integration_stPWN_Test is Integration_Test {
+contract Integration_vePWN_PowerTransfer_Test is Integration_Test {
 
     /// forge-config: default.fuzz.runs = 512
     function testFuzz_transferStake_whenNotInInitialEpoch(uint256 amount, uint256 lockUpEpochs) external {
         (amount, lockUpEpochs) = _boundAmountAndLockUp(amount, lockUpEpochs);
         uint256 stakeId = _createStake(amount, lockUpEpochs);
         address otherStaker = makeAddr("otherStaker");
-        _warpEpochs(1);
 
         vm.prank(staker);
         stPWN.transferFrom(staker, otherStaker, stakeId);
+
+        _warpEpochs(1);
+
+        vm.prank(otherStaker);
+        vePWN.claimStakePower(stakeId, staker);
 
         uint256 power = _powerFor(amount, lockUpEpochs);
         assertEq(stPWN.ownerOf(stakeId), otherStaker);
@@ -361,6 +365,9 @@ contract Integration_stPWN_Test is Integration_Test {
         vm.prank(staker);
         stPWN.transferFrom(staker, otherStaker, stakeId);
 
+        vm.prank(otherStaker);
+        vePWN.claimStakePower(stakeId, staker);
+
         assertEq(stPWN.ownerOf(stakeId), otherStaker);
         assertEq(vePWN.balanceOf(staker), 0);
         assertEq(vePWN.balanceOf(otherStaker), 0);
@@ -381,6 +388,8 @@ contract Integration_stPWN_Test is Integration_Test {
 
         vm.prank(staker);
         stPWN.transferFrom(staker, otherStaker, stakeId);
+        vm.prank(otherStaker);
+        vePWN.claimStakePower(stakeId, staker);
 
         assertEq(stPWN.ownerOf(stakeId), otherStaker);
         assertEq(vePWN.balanceOf(staker), 0);

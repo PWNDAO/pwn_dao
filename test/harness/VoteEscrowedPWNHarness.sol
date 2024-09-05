@@ -2,7 +2,7 @@
 pragma solidity 0.8.25;
 
 import { EpochPowerLib } from "src/lib/EpochPowerLib.sol";
-import { VoteEscrowedPWN } from "src/token/VoteEscrowedPWN.sol";
+import { VoteEscrowedPWN, StakesInEpoch } from "src/token/VoteEscrowedPWN.sol";
 
 // solhint-disable foundry-test-functions
 contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
@@ -20,6 +20,10 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
 
     function exposed_powerDecrease(int104 amount, uint8 remainingLockup) external pure returns (int104) {
         return _powerDecrease(amount, remainingLockup);
+    }
+
+    function exposed_beneficiaryOfStakes(address staker) external view returns (StakesInEpoch[] memory) {
+        return beneficiaryOfStakes[staker];
     }
 
     function exposed_makeName(uint256 stakeId) external pure returns (string memory) {
@@ -54,7 +58,21 @@ contract VoteEscrowedPWNHarness is VoteEscrowedPWN {
         return _makePowerChanges(powerChanges);
     }
 
+
     // workaround
+
+    /// @dev Should be used only once per test.
+    function workaround_addStakeToBeneficiary(address staker, StakesInEpoch[] memory stakesInEpochs) external {
+        StakesInEpoch[] storage _stakesInEpochs = beneficiaryOfStakes[staker];
+        for (uint256 i; i < stakesInEpochs.length; ++i) {
+            StakesInEpoch storage _stakesInEpoch = _stakesInEpochs.push();
+            _stakesInEpoch.epoch = stakesInEpochs[i].epoch;
+            uint48[] storage ids = _stakesInEpoch.ids;
+            for (uint256 j; j < stakesInEpochs[i].ids.length; ++j) {
+                ids.push(stakesInEpochs[i].ids[j]);
+            }
+        }
+    }
 
     function workaround_getTotalEpochPower(uint256 epoch) external view returns (int104) {
         return TOTAL_POWER_NAMESPACE.getEpochPower(epoch);

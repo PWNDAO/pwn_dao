@@ -7,7 +7,7 @@ import { BitMaskLib } from "src/lib/BitMaskLib.sol";
 import { Error } from "src/lib/Error.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
 
-import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
+import { VoteEscrowedPWN_Test, StakesInEpoch } from "./VoteEscrowedPWNTest.t.sol";
 
 // solhint-disable-next-line no-empty-blocks
 abstract contract VoteEscrowedPWN_Stake_Test is VoteEscrowedPWN_Test {}
@@ -170,6 +170,17 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
         vePWN.splitStake(stakeId, amount / 2);
     }
 
+    function test_shouldFail_whenCallerNotStakeBeneficiary() external {
+        address otherStaker = makeAddr("otherStaker");
+        _mockStake(otherStaker, stakeId, initialEpoch, lockUpEpochs, uint104(amount), false);
+
+        vm.mockCall(stakedPWN, abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(otherStaker));
+
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeBeneficiary.selector));
+        vm.prank(otherStaker);
+        vePWN.splitStake(stakeId, amount / 2);
+    }
+
     function testFuzz_shouldFail_whenInvalidSplitAmount(uint256 splitAmount) external {
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vm.prank(staker);
@@ -319,11 +330,30 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         vePWN.mergeStakes(stakeId1, stakeId2);
     }
 
+    function test_shouldFail_whenCallerNotFirstStakeBeneficiary() external {
+        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount, false);
+        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount);
+
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeBeneficiary.selector));
+        vm.prank(staker);
+        vePWN.mergeStakes(stakeId1, stakeId2);
+    }
+
+    function test_shouldFail_whenCallerNotSecondStakeBeneficiary() external {
+        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount);
+        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount, false);
+
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeBeneficiary.selector));
+        vm.prank(staker);
+        vePWN.mergeStakes(stakeId1, stakeId2);
+    }
+
     function testFuzz_shouldFail_whenFirstLockUpSmallerThanSecond(uint256 seed) external {
         uint8 lockUpEpochs1 = uint8(bound(seed, 1, 10 * EPOCHS_IN_YEAR - 1));
         uint8 lockUpEpochs2 = uint8(bound(seed, lockUpEpochs1 + 1, 10 * EPOCHS_IN_YEAR));
-        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs1, amount);
-        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs2, amount);
+        _mockTwoStakes(
+            staker, stakeId1, stakeId2, initialEpoch, initialEpoch, lockUpEpochs1, lockUpEpochs2, amount, amount
+        );
 
         vm.expectRevert(abi.encodeWithSelector(Error.LockUpPeriodMismatch.selector));
         vm.prank(staker);
@@ -332,8 +362,9 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
 
     function testFuzz_shouldFail_whenBothStakesLockupEnded(uint8 _lockUpEpochs) external {
         lockUpEpochs = uint8(bound(_lockUpEpochs, 1, 21));
-        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount);
-        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount);
+        _mockTwoStakes(
+            staker, stakeId1, stakeId2, initialEpoch, initialEpoch, lockUpEpochs, lockUpEpochs, amount, amount
+        );
 
         vm.expectRevert(abi.encodeWithSelector(Error.LockUpPeriodMismatch.selector));
         vm.prank(staker);
@@ -358,9 +389,9 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         // assume different power changes epochs
         vm.assume(finalEpoch1 % EPOCHS_IN_YEAR != finalEpoch2 % EPOCHS_IN_YEAR);
 
-        _mockStake(staker, stakeId1, initialEpoch1, lockUpEpochs1, amount1);
-        TestPowerChangeEpoch[] memory powerChanges2 =
-            _mockStake(staker, stakeId2, initialEpoch2, lockUpEpochs2, amount2);
+        (, TestPowerChangeEpoch[] memory powerChanges2) = _mockTwoStakes(
+            staker, stakeId1, stakeId2, initialEpoch1, initialEpoch2, lockUpEpochs1, lockUpEpochs2, amount1, amount2
+        );
 
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
@@ -389,10 +420,9 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
             _initialEpoch1, _initialEpoch2, _lockUpEpochs1, _lockUpEpochs2, _amount1, _amount2
         );
 
-        TestPowerChangeEpoch[] memory powerChanges1 =
-            _mockStake(staker, stakeId1, initialEpoch1, lockUpEpochs1, amount1);
-        TestPowerChangeEpoch[] memory powerChanges2 =
-            _mockStake(staker, stakeId2, initialEpoch2, lockUpEpochs2, amount2);
+        (TestPowerChangeEpoch[] memory powerChanges1, TestPowerChangeEpoch[] memory powerChanges2) = _mockTwoStakes(
+            staker, stakeId1, stakeId2, initialEpoch1, initialEpoch2, lockUpEpochs1, lockUpEpochs2, amount1, amount2
+        );
 
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
@@ -435,8 +465,9 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
     }
 
     function test_shouldNotDeleteOriginalStakes() external {
-        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount);
-        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount);
+        _mockTwoStakes(
+            staker, stakeId1, stakeId2, initialEpoch, initialEpoch, lockUpEpochs, lockUpEpochs, amount, amount
+        );
 
         vm.prank(staker);
         vePWN.mergeStakes(stakeId1, stakeId2);
@@ -452,8 +483,9 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
     }
 
     function test_shouldBurnOriginalStakedPWNTokens() external {
-        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount);
-        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount);
+        _mockTwoStakes(
+            staker, stakeId1, stakeId2, initialEpoch, initialEpoch, lockUpEpochs, lockUpEpochs, amount, amount
+        );
 
         vm.expectCall(stakedPWN, abi.encodeWithSignature("burn(uint256)", stakeId1));
         vm.expectCall(stakedPWN, abi.encodeWithSignature("burn(uint256)", stakeId2));
@@ -468,8 +500,9 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         ));
         uint104 amount1 = uint104(_boundAmount(_amount1));
         uint104 amount2 = uint104(_boundAmount(_amount2));
-        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount1);
-        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount2);
+        _mockTwoStakes(
+            staker, stakeId1, stakeId2, initialEpoch, initialEpoch, lockUpEpochs, lockUpEpochs, amount1, amount2
+        );
 
         uint256 newStakeId = vePWN.lastStakeId() + 1;
         vm.expectCall(
@@ -493,8 +526,9 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         uint8 newLockUpEpochs = lockUpEpochs - uint8(currentEpoch + 1 - initialEpoch);
         uint104 amount1 = uint104(_boundAmount(_amount1));
         uint104 amount2 = uint104(_boundAmount(_amount2));
-        _mockStake(staker, stakeId1, initialEpoch, lockUpEpochs, amount1);
-        _mockStake(staker, stakeId2, initialEpoch, lockUpEpochs, amount2);
+        _mockTwoStakes(
+            staker, stakeId1, stakeId2, initialEpoch, initialEpoch, lockUpEpochs, lockUpEpochs, amount1, amount2
+        );
 
         vm.expectEmit();
         emit StakeMerged(stakeId1, stakeId2, staker, amount1 + amount2, newLockUpEpochs, vePWN.lastStakeId() + 1);
@@ -567,7 +601,17 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         vePWN.increaseStake(stakeId, additionalAmount, additionalEpochs);
     }
 
+    function test_shouldFail_whenCallerNotStakeBeneficiary() external {
+        _mockStake(staker, stakeId, initialEpoch, lockUpEpochs, uint104(amount), false);
+
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeBeneficiary.selector));
+        vm.prank(staker);
+        vePWN.increaseStake(stakeId, additionalAmount, additionalEpochs);
+    }
+
     function test_shouldFail_whenNothingToIncrease() external {
+        _mockStake(staker, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
+
         vm.expectRevert(abi.encodeWithSelector(Error.NothingToIncrease.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, 0, 0);
@@ -829,6 +873,14 @@ contract VoteEscrowedPWN_Stake_WithdrawStake_Test is VoteEscrowedPWN_Stake_Test 
         vePWN.withdrawStake(stakeId);
     }
 
+    function test_shouldFail_whenCallerIsNotStakeOwner() external {
+        _mockStake(staker, stakeId + 1, initialEpoch, lockUpEpochs, uint104(amount), false);
+
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeBeneficiary.selector));
+        vm.prank(staker);
+        vePWN.withdrawStake(stakeId + 1);
+    }
+
     function testFuzz_shouldFail_whenStillLock(uint256 _currentEpoch) external {
         currentEpoch = bound(_currentEpoch, 1, 139);
         vm.mockCall(epochClock, abi.encodeWithSignature("currentEpoch()"), abi.encode(currentEpoch));
@@ -902,6 +954,154 @@ contract VoteEscrowedPWN_Stake_WithdrawStake_Test is VoteEscrowedPWN_Stake_Test 
 
         vm.prank(staker);
         vePWN.withdrawStake(stakeId);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # CLAIM STAKE POWER                                     *|
+|*----------------------------------------------------------*/
+
+contract VoteEscrowedPWN_Stake_ClaimStakePower_Test is VoteEscrowedPWN_Stake_Test  {
+
+    uint256 public amount = 100 ether;
+    uint256 public stakeId = 69;
+    uint16 public initialEpoch = 400;
+    uint8 public lockUpEpochs = 13;
+    address public currentBeneficiary = makeAddr("currentBeneficiary");
+
+
+    function test_shouldFail_whenCallerIsCurrentBeneficiary() external {
+        _mockStake(currentBeneficiary, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(staker));
+
+        vm.expectRevert(abi.encodeWithSelector(Error.ClaimStakePowerFromSelf.selector));
+        vm.prank(staker);
+        vePWN.claimStakePower(stakeId, staker);
+    }
+
+    function testFuzz_shouldFail_whenCallerNotStakeOwner(address caller) external {
+        vm.assume(caller != staker);
+
+        _mockStake(currentBeneficiary, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(staker));
+
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeOwner.selector));
+        vm.prank(caller);
+        vePWN.claimStakePower(stakeId, currentBeneficiary);
+    }
+
+    function test_shouldFail_whenProvidedAddressNotStakeBeneficiary() external {
+        _mockStake(currentBeneficiary, stakeId, initialEpoch, lockUpEpochs, uint104(amount), false);
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(staker));
+
+        vm.expectRevert(abi.encodeWithSelector(Error.NotStakeBeneficiary.selector));
+        vm.prank(staker);
+        vePWN.claimStakePower(stakeId, currentBeneficiary);
+    }
+
+    function test_shouldRemoveStakeFromCurrentBeneficiary_whenSameEpoch() external {
+        _mockStake(currentBeneficiary, stakeId, uint16(currentEpoch + 1), lockUpEpochs, uint104(amount));
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(staker));
+
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(currentBeneficiary);
+        assertEq(stakesInEpochs.length, 1);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch + 1);
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[0].ids[0], stakeId);
+
+        vm.prank(staker);
+        vePWN.claimStakePower(stakeId, currentBeneficiary);
+
+        stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(currentBeneficiary);
+        assertEq(stakesInEpochs.length, 1);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch + 1);
+        assertEq(stakesInEpochs[0].ids.length, 0);
+    }
+
+    function test_shouldRemoveStakeFromCurrentBeneficiary_whenNotSameEpoch() external {
+        _mockStake(currentBeneficiary, stakeId, uint16(currentEpoch), lockUpEpochs, uint104(amount));
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(staker));
+
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(currentBeneficiary);
+        assertEq(stakesInEpochs.length, 1);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch);
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[0].ids[0], stakeId);
+
+        vm.prank(staker);
+        vePWN.claimStakePower(stakeId, currentBeneficiary);
+
+        stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(currentBeneficiary);
+        assertEq(stakesInEpochs.length, 2);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch);
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[1].epoch, currentEpoch + 1);
+        assertEq(stakesInEpochs[1].ids.length, 0);
+    }
+
+    function test_shouldAddStakeToNewBeneficiary_whenFirstStake() external {
+        _mockStake(currentBeneficiary, stakeId, uint16(currentEpoch + 1), lockUpEpochs, uint104(amount));
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(staker));
+
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 0);
+
+        vm.prank(staker);
+        vePWN.claimStakePower(stakeId, currentBeneficiary);
+
+        stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 1);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch + 1);
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[0].ids[0], stakeId);
+    }
+
+    function test_shouldAddStakeToNewBeneficiary_whenSameEpoch() external {
+        _mockStake(currentBeneficiary, stakeId, uint16(currentEpoch + 1), lockUpEpochs, uint104(amount));
+        _mockStake(staker, stakeId + 1, uint16(currentEpoch + 1), lockUpEpochs, uint104(amount));
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(staker));
+
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 1);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch + 1);
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[0].ids[0], stakeId + 1);
+
+        vm.prank(staker);
+        vePWN.claimStakePower(stakeId, currentBeneficiary);
+
+        stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 1);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch + 1);
+        assertEq(stakesInEpochs[0].ids.length, 2);
+        assertEq(stakesInEpochs[0].ids[0], stakeId + 1);
+        assertEq(stakesInEpochs[0].ids[1], stakeId);
+    }
+
+    function test_shouldAddStakeToNewBeneficiary_whenNotSameEpoch() external {
+        _mockStake(currentBeneficiary, stakeId, uint16(currentEpoch), lockUpEpochs, uint104(amount));
+        _mockStake(staker, stakeId + 1, uint16(currentEpoch), lockUpEpochs, uint104(amount));
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(staker));
+
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 1);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch);
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[0].ids[0], stakeId + 1);
+
+        vm.prank(staker);
+        vePWN.claimStakePower(stakeId, currentBeneficiary);
+
+        stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 2);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch);
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[1].epoch, currentEpoch + 1);
+        assertEq(stakesInEpochs[1].ids.length, 2);
+        assertEq(stakesInEpochs[1].ids[0], stakeId + 1);
+        assertEq(stakesInEpochs[1].ids[1], stakeId);
     }
 
 }
