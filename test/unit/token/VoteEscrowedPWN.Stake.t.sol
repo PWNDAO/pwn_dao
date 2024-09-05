@@ -971,6 +971,11 @@ contract VoteEscrowedPWN_Stake_ClaimStakePower_Test is VoteEscrowedPWN_Stake_Tes
     uint8 public lockUpEpochs = 13;
     address public currentBeneficiary = makeAddr("currentBeneficiary");
 
+    event StakePowerClaimed(
+        uint256 indexed stakeId,
+        address indexed originalBeneficiary,
+        address indexed newBeneficiary
+    );
 
     function test_shouldFail_whenCallerIsCurrentBeneficiary() external {
         _mockStake(currentBeneficiary, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
@@ -1102,6 +1107,18 @@ contract VoteEscrowedPWN_Stake_ClaimStakePower_Test is VoteEscrowedPWN_Stake_Tes
         assertEq(stakesInEpochs[1].ids.length, 2);
         assertEq(stakesInEpochs[1].ids[0], stakeId + 1);
         assertEq(stakesInEpochs[1].ids[1], stakeId);
+    }
+
+    function test_shouldEmit_StakePowerClaimed() external {
+        _mockStake(currentBeneficiary, stakeId, uint16(currentEpoch), lockUpEpochs, uint104(amount));
+        _mockStake(staker, stakeId + 1, uint16(currentEpoch), lockUpEpochs, uint104(amount));
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", stakeId), abi.encode(staker));
+
+        vm.expectEmit();
+        emit StakePowerClaimed(stakeId, currentBeneficiary, staker);
+
+        vm.prank(staker);
+        vePWN.claimStakePower(stakeId, currentBeneficiary);
     }
 
 }

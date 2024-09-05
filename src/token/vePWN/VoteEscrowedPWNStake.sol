@@ -88,6 +88,16 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint256 amount
     );
 
+    /// @notice Emitted when a stake power is claimed.
+    /// @param stakeId The id of the stake.
+    /// @param originalBeneficiary The original stake power beneficiary.
+    /// @param newBeneficiary The new stake power beneficiary.
+    event StakePowerClaimed(
+        uint256 indexed stakeId,
+        address indexed originalBeneficiary,
+        address indexed newBeneficiary
+    );
+
 
     /*----------------------------------------------------------*|
     |*  # STAKE MANAGEMENT                                      *|
@@ -358,6 +368,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         // remove token from current beneficiary first to avoid duplicates in case of self claim
         _removeStakeFromBeneficiary(currentBeneficiary, stakeId);
         _addStakeToBeneficiary(staker, stakeId);
+
+        // emit event
+        emit StakePowerClaimed(stakeId, currentBeneficiary, staker);
     }
 
 
