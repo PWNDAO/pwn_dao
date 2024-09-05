@@ -413,6 +413,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
     function _checkIsStakeBeneficiary(address staker, uint256 stakeId) internal view {
         StakesInEpoch[] storage stakesInEpochs = beneficiaryOfStakes[staker];
+        if (stakesInEpochs.length == 0) {
+            revert Error.NotStakeBeneficiary();
+        }
+
         StakesInEpoch storage currentStakes = stakesInEpochs[stakesInEpochs.length - 1];
         uint256 index = _findIdInList(currentStakes.ids, stakeId);
         if (index == currentStakes.ids.length) {
