@@ -24,7 +24,13 @@ contract VoteEscrowedPWN_Stake_CreateStake_Test is VoteEscrowedPWN_Stake_Test {
     uint256 public amount = 1e18;
     uint8 public lockUpEpochs = 13;
 
-    event StakeCreated(uint256 indexed stakeId, address indexed staker, uint256 amount, uint256 lockUpEpochs);
+    event StakeCreated(
+        uint256 indexed stakeId,
+        address indexed staker,
+        address indexed beneficiary,
+        uint256 amount,
+        uint256 lockUpEpochs
+    );
 
 
     function test_shouldFail_whenInvalidAmount() external {
@@ -106,7 +112,7 @@ contract VoteEscrowedPWN_Stake_CreateStake_Test is VoteEscrowedPWN_Stake_Test {
 
     function test_shouldEmit_StakeCreated() external {
         vm.expectEmit();
-        emit StakeCreated(vePWN.lastStakeId() + 1, staker, amount, lockUpEpochs);
+        emit StakeCreated(vePWN.lastStakeId() + 1, staker, staker, amount, lockUpEpochs);
 
         vm.prank(staker);
         vePWN.createStake({ amount: amount, lockUpEpochs: lockUpEpochs });
@@ -126,6 +132,81 @@ contract VoteEscrowedPWN_Stake_CreateStake_Test is VoteEscrowedPWN_Stake_Test {
 
         vm.prank(staker);
         vePWN.createStake({ amount: amount, lockUpEpochs: lockUpEpochs });
+    }
+
+    function test_shouldAddStakeToBeneficiary() external {
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 0);
+
+        vm.prank(staker);
+        vePWN.createStake({ amount: amount, lockUpEpochs: lockUpEpochs });
+
+        stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 1);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch + 1);
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[0].ids[0], vePWN.lastStakeId());
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # CREATE STAKE ON BEHALF OF                             *|
+|*----------------------------------------------------------*/
+
+contract VoteEscrowedPWN_Stake_CreateStakeOnBehalfOf_Test is VoteEscrowedPWN_Stake_Test {
+
+    address public stakeManager = makeAddr("stakeManager");
+    address public beneficiary = makeAddr("beneficiary");
+    uint256 public amount = 1e18;
+    uint8 public lockUpEpochs = 13;
+
+    event StakeCreated(
+        uint256 indexed stakeId,
+        address indexed staker,
+        address indexed beneficiary,
+        uint256 amount,
+        uint256 lockUpEpochs
+    );
+
+
+    function test_shouldTransferPWNTokensFromCaller() external {
+        vm.expectCall(
+            pwnToken, abi.encodeWithSignature("transferFrom(address,address,uint256)", stakeManager, address(vePWN), amount)
+        );
+
+        vm.prank(stakeManager);
+        vePWN.createStakeOnBehalfOf({ staker: staker, beneficiary: beneficiary, amount: amount, lockUpEpochs: lockUpEpochs });
+    }
+
+    function test_shouldMintStakedPWNTokenToStaker() external {
+        vm.expectCall(stakedPWN, abi.encodeWithSignature("mint(address,uint256)", staker, vePWN.lastStakeId() + 1));
+
+        vm.prank(stakeManager);
+        vePWN.createStakeOnBehalfOf({ staker: staker, beneficiary: beneficiary, amount: amount, lockUpEpochs: lockUpEpochs });
+    }
+
+    function test_shouldAddStakeToBeneficiary() external {
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(beneficiary);
+        assertEq(stakesInEpochs.length, 0);
+
+        vm.prank(stakeManager);
+        vePWN.createStakeOnBehalfOf({ staker: staker, beneficiary: beneficiary, amount: amount, lockUpEpochs: lockUpEpochs });
+
+        stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(beneficiary);
+        assertEq(stakesInEpochs.length, 1);
+        assertEq(stakesInEpochs[0].epoch, currentEpoch + 1);
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[0].ids[0], vePWN.lastStakeId());
+    }
+
+    function test_shouldEmit_StakeCreated() external {
+        vm.expectEmit();
+        emit StakeCreated(vePWN.lastStakeId() + 1, staker, beneficiary, amount, lockUpEpochs);
+
+        vm.prank(stakeManager);
+        vePWN.createStakeOnBehalfOf({ staker: staker, beneficiary: beneficiary, amount: amount, lockUpEpochs: lockUpEpochs });
     }
 
 }
@@ -246,6 +327,21 @@ contract VoteEscrowedPWN_Stake_SplitStake_Test is VoteEscrowedPWN_Stake_Test {
 
         vm.prank(staker);
         vePWN.splitStake(stakeId, amount / 4);
+    }
+
+    function test_shouldUpdateStakesOfBeneficiary() external {
+        vm.prank(staker);
+        (uint256 newStakeId1, uint256 newStakeId2) = vePWN.splitStake(stakeId, amount / 4);
+
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 2);
+        // old stakes
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[0].ids[0], stakeId);
+        // new stakes
+        assertEq(stakesInEpochs[1].ids.length, 2);
+        assertEq(stakesInEpochs[1].ids[0], newStakeId1);
+        assertEq(stakesInEpochs[1].ids[1], newStakeId2);
     }
 
     function test_shouldReturnNewStakedPWNTokenIds() external {
@@ -517,6 +613,25 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         assertEq(stakeValue.maskUint16(0), currentEpoch + 1, "initialEpoch mismatch"); // initialEpoch
         assertEq(stakeValue.maskUint8(16), newLockUpEpochs, "lockUpEpochs mismatch"); // lockUpEpochs
         assertEq(stakeValue.maskUint104(16 + 8), amount1 + amount2, "amount mismatch"); // amount
+    }
+
+    function test_shouldUpdateStakesOfBeneficiary() external {
+        _mockTwoStakes(
+            staker, stakeId1, stakeId2, initialEpoch, initialEpoch, lockUpEpochs, lockUpEpochs, amount, amount
+        );
+
+        vm.prank(staker);
+        uint256 newStakeId = vePWN.mergeStakes(stakeId1, stakeId2);
+
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 2);
+        // old stakes
+        assertEq(stakesInEpochs[0].ids.length, 2);
+        assertEq(stakesInEpochs[0].ids[0], stakeId1);
+        assertEq(stakesInEpochs[0].ids[1], stakeId2);
+        // new stakes
+        assertEq(stakesInEpochs[1].ids.length, 1);
+        assertEq(stakesInEpochs[1].ids[0], newStakeId);
     }
 
     function testFuzz_shouldEmit_StakeMerged(uint256 _lockUpEpochs, uint256 _amount1, uint256 _amount2) external {
@@ -805,6 +920,22 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         vePWN.increaseStake(stakeId, additionalAmount, additionalEpochs);
     }
 
+    function test_shouldUpdateStakesOfBeneficiary() external {
+        _mockStake(staker, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
+
+        vm.prank(staker);
+        uint256 newStakeId = vePWN.increaseStake(stakeId, additionalAmount, additionalEpochs);
+
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 2);
+        // old stakes
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[0].ids[0], stakeId);
+        // new stakes
+        assertEq(stakesInEpochs[1].ids.length, 1);
+        assertEq(stakesInEpochs[1].ids[0], newStakeId);
+    }
+
     function testFuzz_shouldTransferAdditionalPWNTokens(uint256 _additionalAmount) external {
         _mockStake(staker, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
 
@@ -945,6 +1076,19 @@ contract VoteEscrowedPWN_Stake_WithdrawStake_Test is VoteEscrowedPWN_Stake_Test 
 
         vm.prank(staker);
         vePWN.withdrawStake(stakeId);
+    }
+
+    function test_shouldUpdateStakesOfBeneficiary() external {
+        vm.prank(staker);
+        vePWN.withdrawStake(stakeId);
+
+        StakesInEpoch[] memory stakesInEpochs = vePWN.exposed_beneficiaryOfStakes(staker);
+        assertEq(stakesInEpochs.length, 2);
+        // old stakes
+        assertEq(stakesInEpochs[0].ids.length, 1);
+        assertEq(stakesInEpochs[0].ids[0], stakeId);
+        // new stakes
+        assertEq(stakesInEpochs[1].ids.length, 0);
     }
 
     function test_shouldTransferPWNTokenToStaker() external {

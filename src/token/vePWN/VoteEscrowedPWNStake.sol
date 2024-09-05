@@ -19,11 +19,13 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @notice Emitted when a stake is created.
     /// @param stakeId The id of the created stake.
     /// @param staker The staker address.
+    /// @param beneficiary The beneficiary address.
     /// @param amount The amount of PWN tokens staked.
     /// @param lockUpEpochs The number of epochs the stake is locked up for.
     event StakeCreated(
         uint256 indexed stakeId,
         address indexed staker,
+        address indexed beneficiary,
         uint256 amount,
         uint256 lockUpEpochs
     );
@@ -107,8 +109,22 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @dev Mints stPWN token and transfers PWN tokens to the contract.
     /// @param amount Amount of PWN tokens to stake. Needs to be divisible by 100.
     /// @param lockUpEpochs Number of epochs to lock up the stake for. Needs to be in <13;65> + {130} epochs.
+    /// @return Id of the created stake.
+    function createStake(uint256 amount, uint256 lockUpEpochs) external returns (uint256) {
+        return createStakeOnBehalfOf(msg.sender, msg.sender, amount, lockUpEpochs);
+    }
+
+    /// @notice Creates a new stake on behalf of a staker.
+    /// @dev Mints stPWN token and transfers PWN tokens to the contract.
+    /// @param staker Address that will be the owner of the StakedPWN token.
+    /// @param beneficiary Address that will be the beneficiary of the stake power.
+    /// @param amount Amount of PWN tokens to stake. Needs to be divisible by 100.
+    /// @param lockUpEpochs Number of epochs to lock up the stake for. Needs to be in <13;65> + {130} epochs.
     /// @return stakeId Id of the created stake.
-    function createStake(uint256 amount, uint256 lockUpEpochs) external returns (uint256 stakeId) {
+    function createStakeOnBehalfOf(address staker, address beneficiary, uint256 amount, uint256 lockUpEpochs)
+        public
+        returns (uint256 stakeId)
+    {
         // max stake of total initial supply (100M) with decimals 1e26 < max uint88 (3e26)
         if (amount < 100 || amount > type(uint88).max) {
             revert Error.InvalidAmount();
@@ -125,20 +141,25 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
             revert Error.InvalidLockUpPeriod();
         }
 
-        address staker = msg.sender;
         uint16 initialEpoch = epochClock.currentEpoch() + 1;
 
         // store power changes
         _updateTotalPower(uint104(amount), initialEpoch, uint8(lockUpEpochs), true);
 
         // create new stake
-        stakeId = _createStake(staker, initialEpoch, uint104(amount), uint8(lockUpEpochs));
+        stakeId = _createStake({
+            owner: staker,
+            beneficiary: beneficiary,
+            initialEpoch: initialEpoch,
+            amount: uint104(amount),
+            lockUpEpochs: uint8(lockUpEpochs)
+        });
 
         // transfer pwn token
-        pwnToken.transferFrom(staker, address(this), amount);
+        pwnToken.transferFrom(msg.sender, address(this), amount);
 
         // emit event
-        emit StakeCreated(stakeId, staker, amount, lockUpEpochs);
+        emit StakeCreated(stakeId, staker, beneficiary, amount, lockUpEpochs);
     }
 
     /// @notice Splits a stake for a caller.
@@ -178,10 +199,20 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         _deleteStake(staker, stakeId);
 
         // create new stakes
-        newStakeId1 = _createStake(
-            staker, originalInitialEpoch, originalAmount - uint104(splitAmount), originalLockUpEpochs
-        );
-        newStakeId2 = _createStake(staker, originalInitialEpoch, uint104(splitAmount), originalLockUpEpochs);
+        newStakeId1 = _createStake({
+            owner: staker,
+            beneficiary: staker,
+            initialEpoch: originalInitialEpoch,
+            amount: originalAmount - uint104(splitAmount),
+            lockUpEpochs: originalLockUpEpochs
+        });
+        newStakeId2 = _createStake({
+            owner: staker,
+            beneficiary: staker,
+            initialEpoch: originalInitialEpoch,
+            amount: uint104(splitAmount),
+            lockUpEpochs: originalLockUpEpochs
+        });
 
         // emit event
         emit StakeSplit(stakeId, staker, originalAmount - uint104(splitAmount), splitAmount, newStakeId1, newStakeId2);
@@ -231,7 +262,13 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
         // create new stake
         uint104 newAmount = stake1.amount + stake2.amount;
-        newStakeId = _createStake(staker, newInitialEpoch, newAmount, newLockUpEpochs);
+        newStakeId = _createStake({
+            owner: staker,
+            beneficiary: staker,
+            initialEpoch: newInitialEpoch,
+            amount: newAmount,
+            lockUpEpochs: newLockUpEpochs
+        });
 
         // emit event
         emit StakeMerged(stakeId1, stakeId2, staker, newAmount, newLockUpEpochs, newStakeId);
@@ -305,7 +342,13 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         _deleteStake(staker, stakeId);
 
         // create new stake
-        newStakeId = _createStake(staker, newInitialEpoch, newAmount, newLockUpEpochs);
+        newStakeId = _createStake({
+            owner: staker,
+            beneficiary: staker,
+            initialEpoch: newInitialEpoch,
+            amount: newAmount,
+            lockUpEpochs: newLockUpEpochs
+        });
 
         // transfer additional PWN tokens
         if (additionalAmount > 0) {
@@ -379,7 +422,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     |*----------------------------------------------------------*/
 
     /// @dev Store stake data, mint stPWN token and return new stake id
-    function _createStake(address staker, uint16 initialEpoch, uint104 amount, uint8 lockUpEpochs)
+    function _createStake(address owner, address beneficiary, uint16 initialEpoch, uint104 amount, uint8 lockUpEpochs)
         internal
         returns (uint256 newStakeId)
     {
@@ -389,8 +432,8 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         stake.amount = amount;
         stake.lockUpEpochs = lockUpEpochs;
 
-        stakedPWN.mint(staker, newStakeId);
-        _addStakeToBeneficiary(staker, newStakeId);
+        stakedPWN.mint(owner, newStakeId);
+        _addStakeToBeneficiary(beneficiary, newStakeId);
     }
 
     /// @dev Burn stPWN token, but keepts the stake data for historical power calculations
@@ -437,9 +480,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
     }
 
-    function _addStakeToBeneficiary(address staker, uint256 stakeId) internal {
+    function _addStakeToBeneficiary(address beneficiary, uint256 stakeId) internal {
         uint16 epoch = epochClock.currentEpoch() + 1;
-        StakesInEpoch[] storage stakesInEpochs = beneficiaryOfStakes[staker];
+        StakesInEpoch[] storage stakesInEpochs = beneficiaryOfStakes[beneficiary];
         StakesInEpoch storage stakesInNextEpoch;
 
         if (stakesInEpochs.length == 0) {
@@ -458,9 +501,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         stakesInNextEpoch.ids.push(SafeCast.toUint48(stakeId));
     }
 
-    function _removeStakeFromBeneficiary(address owner, uint256 tokenId) internal {
+    function _removeStakeFromBeneficiary(address beneficiary, uint256 tokenId) internal {
         uint16 epoch = epochClock.currentEpoch() + 1;
-        StakesInEpoch[] storage stakesInEpochs = beneficiaryOfStakes[owner];
+        StakesInEpoch[] storage stakesInEpochs = beneficiaryOfStakes[beneficiary];
         StakesInEpoch storage stakesInLatestEpoch = stakesInEpochs[stakesInEpochs.length - 1];
 
         if (stakesInLatestEpoch.epoch == epoch) {
