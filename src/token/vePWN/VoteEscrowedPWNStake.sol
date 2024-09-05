@@ -340,23 +340,23 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
     /// @notice Claims a stake power for a caller.
     /// @param stakeId Id of the stake to claim power for.
-    /// @param oldStaker The address which is the current stake power beneficiary.
-    function claimStakePower(uint256 stakeId, address oldStaker) external {
+    /// @param currentBeneficiary The address which is the current stake power beneficiary.
+    function claimStakePower(uint256 stakeId, address currentBeneficiary) external {
         address staker = msg.sender;
 
         // cannot claim stake power from self, its power is already counted
-        if (staker == oldStaker) {
+        if (staker == currentBeneficiary) {
             revert Error.ClaimStakePowerFromSelf();
         }
 
         // staker must be stake owner
         _checkIsStakeOwner(staker, stakeId);
 
-        // old staker must be stake beneficiary
-        _checkIsStakeBeneficiary(oldStaker, stakeId);
+        // check current beneficiary
+        _checkIsStakeBeneficiary(currentBeneficiary, stakeId);
 
-        // remove token from old owner first to avoid duplicates in case of self claim
-        _removeStakeFromBeneficiary(oldStaker, stakeId);
+        // remove token from current beneficiary first to avoid duplicates in case of self claim
+        _removeStakeFromBeneficiary(currentBeneficiary, stakeId);
         _addStakeToBeneficiary(staker, stakeId);
     }
 
