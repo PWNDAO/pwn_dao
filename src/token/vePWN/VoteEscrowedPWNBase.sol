@@ -6,7 +6,7 @@ import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC
 import { IERC6372 } from "openzeppelin-contracts/contracts/interfaces/IERC6372.sol";
 
 import { Error } from "src/lib/Error.sol";
-import { VoteEscrowedPWNStorage } from "./VoteEscrowedPWNStorage.sol";
+import { VoteEscrowedPWNStorage, StakesInEpoch } from "./VoteEscrowedPWNStorage.sol";
 
 /// @title VoteEscrowedPWNBase
 /// @notice Base contract for the vote-escrowed PWN token.

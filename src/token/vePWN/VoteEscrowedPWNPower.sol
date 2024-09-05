@@ -5,7 +5,7 @@ import { SafeCast } from "openzeppelin-contracts/contracts/utils/math/SafeCast.s
 
 import { EpochPowerLib } from "src/lib/EpochPowerLib.sol";
 import { Error } from "src/lib/Error.sol";
-import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
+import { VoteEscrowedPWNBase, StakesInEpoch } from "./VoteEscrowedPWNBase.sol";
 
 /// @title VoteEscrowedPWNPower
 /// @notice Contract for the vote-escrowed PWN token implementing power functions.
