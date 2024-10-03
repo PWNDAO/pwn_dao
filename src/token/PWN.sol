@@ -262,7 +262,7 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
     /// @dev The token transfer is allowed only if the transfers are enabled.
     function _beforeTokenTransfer(
         address from, address to, uint256 /* amount */
-    ) override view internal {
+    ) override internal view {
         // Note: filter mints and burns from require condition
         if (!transfersEnabled && !transferAllowlist[_msgSender()] && from != address(0) && to != address(0)) {
             revert Error.TransfersDisabled();
