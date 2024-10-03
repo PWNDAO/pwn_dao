@@ -106,7 +106,6 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     |*----------------------------------------------------------*/
 
     /// @notice Creates a new stake for a caller.
-    /// @dev Mints stPWN token and transfers PWN tokens to the contract.
     /// @param amount Amount of PWN tokens to stake. Needs to be divisible by 100.
     /// @param lockUpEpochs Number of epochs to lock up the stake for. Needs to be in <13;65> + {130} epochs.
     /// @return Id of the created stake.
@@ -115,7 +114,6 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     }
 
     /// @notice Creates a new stake on behalf of a staker.
-    /// @dev Mints stPWN token and transfers PWN tokens to the contract.
     /// @param staker Address that will be the owner of the StakedPWN token.
     /// @param beneficiary Address that will be the beneficiary of the stake power.
     /// @param amount Amount of PWN tokens to stake. Needs to be divisible by 100.

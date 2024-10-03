@@ -31,6 +31,11 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     |*  # STAKE POWER                                           *|
     |*----------------------------------------------------------*/
 
+    /// @notice Compute powers in epochs for given stake parameters.
+    /// @param initialEpoch The initial epoch of the stake power.
+    /// @param amount The amount of PWN tokens to stake.
+    /// @param lockUpEpochs The number of epochs the stake is locked up.
+    /// @return powers The list of powers in epochs for the stake parameters.
     function stakePowers(uint256 initialEpoch, uint256 amount, uint256 lockUpEpochs)
         external
         pure
