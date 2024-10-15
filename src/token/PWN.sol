@@ -259,7 +259,7 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
     |*----------------------------------------------------------*/
 
     /// @notice Hook that is called before any token transfer.
-    /// @dev The token transfer is allowed only if the transfers are enabled.
+    /// @dev The token transfer is allowed only if the transfers are enabled or caller is whitelisted.
     function _beforeTokenTransfer(
         address from, address to, uint256 /* amount */
     ) override internal view {
