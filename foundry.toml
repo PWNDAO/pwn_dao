@@ -1,4 +1,5 @@
 [profile.default]
+ignored_error_codes = [5815]
 
 [rpc_endpoints]
 ethereum = "${ETHEREUM_URL}"
