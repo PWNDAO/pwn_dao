@@ -56,7 +56,7 @@ contract VoteEscrowedPWNStorage is Initializable {
         // uint128 __padding;
     }
     /// @notice The stake for a stake id.
-    mapping(uint256 stakeId => Stake) public stakes;
+    mapping(uint256 stakeId => Stake) internal _stakes;
 
     /// @notice The list of stakes to which a beneficiary is entitled in an epoch.
     mapping(address => StakesInEpoch[]) public beneficiaryOfStakes;

@@ -251,9 +251,11 @@ contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWN_Test {
     function testFuzzHelper_storeStake(
         uint256 _stakeId, uint16 _initialEpoch, uint8 _lockUpEpochs, uint104 _amount
     ) external {
+        _initialEpoch = uint16(bound(_initialEpoch, 1, type(uint16).max / 2));
+
         _storeStake(_stakeId, _initialEpoch, _lockUpEpochs, _amount);
 
-        (uint16 initialEpoch, uint8 lockUpEpochs, uint104 amount) = vePWN.stakes(_stakeId);
+        (uint16 initialEpoch, uint8 lockUpEpochs,,, uint104 amount) = vePWN.getStake(_stakeId);
         assertEq(_initialEpoch, initialEpoch);
         assertEq(_lockUpEpochs, lockUpEpochs);
         assertEq(_amount, amount);

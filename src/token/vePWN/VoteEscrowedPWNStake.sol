@@ -171,7 +171,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         returns (uint256 newStakeId1, uint256 newStakeId2)
     {
         address staker = msg.sender;
-        Stake storage originalStake = stakes[stakeId];
+        Stake storage originalStake = _stakes[stakeId];
         uint16 originalInitialEpoch = originalStake.initialEpoch;
         uint104 originalAmount = originalStake.amount;
         uint8 originalLockUpEpochs = originalStake.lockUpEpochs;
@@ -224,8 +224,8 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @return newStakeId Id of the new merged stake.
     function mergeStakes(uint256 stakeId1, uint256 stakeId2) external returns (uint256 newStakeId) {
         address staker = msg.sender;
-        Stake storage stake1 = stakes[stakeId1];
-        Stake storage stake2 = stakes[stakeId2];
+        Stake storage stake1 = _stakes[stakeId1];
+        Stake storage stake2 = _stakes[stakeId2];
         uint16 finalEpoch1 = stake1.initialEpoch + stake1.lockUpEpochs;
         uint16 finalEpoch2 = stake2.initialEpoch + stake2.lockUpEpochs;
         uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
@@ -286,11 +286,11 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         returns (uint256 newStakeId)
     {
         address staker = msg.sender;
-        Stake storage stake = stakes[stakeId];
 
         // staker must be stake owner and beneficiary
         _checkIsStakeOwner(staker, stakeId);
         _checkIsStakeBeneficiary(staker, stakeId);
+        Stake storage stake = _stakes[stakeId];
 
         // additional amount or additional epochs must be greater than 0
         if (additionalAmount == 0 && additionalEpochs == 0) {
@@ -364,7 +364,6 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @param stakeId Id of the stake to withdraw.
     function withdrawStake(uint256 stakeId) external {
         address staker = msg.sender;
-        Stake storage stake = stakes[stakeId];
 
         // staker must be stake owner and beneficiary
         _checkIsStakeOwner(staker, stakeId);
@@ -372,6 +371,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
         // Note: Even though the stake is not granting any power,
         // the caller must be the beneficiary to correctly update the stake list.
+        Stake storage stake = _stakes[stakeId];
 
         // stake must be unlocked
         if (stake.initialEpoch + stake.lockUpEpochs > epochClock.currentEpoch()) {
@@ -416,6 +416,39 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
 
     /*----------------------------------------------------------*|
+    |*  # GETTERS                                               *|
+    |*----------------------------------------------------------*/
+
+    /// @notice Returns the stake data for a given stake id.
+    /// @param stakeId Id of the stake.
+    /// @return initialEpoch The epoch from which the stake starts.
+    /// @return lockUpEpochs The number of epochs the stake is locked up for.
+    /// @return remainingEpochs The number of epochs remaining until the stake is unlocked.
+    /// @return currentMultiplier The current power multiplier for the stake.
+    /// @return amount The amount of PWN tokens staked.
+    function getStake(uint256 stakeId) external view returns (
+        uint16 initialEpoch,
+        uint8 lockUpEpochs,
+        uint8 remainingEpochs,
+        uint8 currentMultiplier,
+        uint104 amount
+    ) {
+        Stake storage stake = _stakes[stakeId];
+        uint16 currentEpoch = epochClock.currentEpoch();
+
+        initialEpoch = stake.initialEpoch;
+        lockUpEpochs = stake.lockUpEpochs;
+        if (initialEpoch + lockUpEpochs >= currentEpoch) {
+            remainingEpochs = uint8(initialEpoch + lockUpEpochs - currentEpoch);
+        }
+        if (initialEpoch <= currentEpoch && remainingEpochs > 0) {
+            currentMultiplier = uint8(uint104(_power(100, remainingEpochs)));
+        }
+        amount = stake.amount;
+    }
+
+
+    /*----------------------------------------------------------*|
     |*  # HELPERS                                               *|
     |*----------------------------------------------------------*/
 
@@ -425,7 +458,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         returns (uint256 newStakeId)
     {
         newStakeId = ++lastStakeId;
-        Stake storage stake = stakes[newStakeId];
+        Stake storage stake = _stakes[newStakeId];
         stake.initialEpoch = initialEpoch;
         stake.amount = amount;
         stake.lockUpEpochs = lockUpEpochs;

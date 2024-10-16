@@ -101,7 +101,7 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
         for (uint256 i; i < stakesLength;) {
             // sum up all stake powers
             power += _stakePowerAt({
-                stake: stakes[stakeIds[i]],
+                stake: _stakes[stakeIds[i]],
                 epoch: _epoch
             });
 
