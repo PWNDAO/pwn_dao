@@ -90,11 +90,11 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint256 amount
     );
 
-    /// @notice Emitted when a stake power is claimed.
+    /// @notice Emitted when a stake power is delegated.
     /// @param stakeId The id of the stake.
     /// @param originalBeneficiary The original stake power beneficiary.
     /// @param newBeneficiary The new stake power beneficiary.
-    event StakePowerClaimed(
+    event StakePowerDelegated(
         uint256 indexed stakeId,
         address indexed originalBeneficiary,
         address indexed newBeneficiary
@@ -388,30 +388,28 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         emit StakeWithdrawn(stakeId, staker, stake.amount);
     }
 
-
-    /// @notice Claims a stake power for a caller.
+    /// @notice Delegate a stake power to another address.
+    /// @dev Caller must be the stake owner.
     /// @param stakeId Id of the stake to claim power for.
     /// @param currentBeneficiary The address which is the current stake power beneficiary.
-    function claimStakePower(uint256 stakeId, address currentBeneficiary) external {
+    /// @param newBeneficiary The address which will be the new stake power beneficiary.
+    function delegateStakePower(uint256 stakeId, address currentBeneficiary, address newBeneficiary) external {
         address staker = msg.sender;
 
-        // cannot claim stake power from self, its power is already counted
-        if (staker == currentBeneficiary) {
-            revert Error.ClaimStakePowerFromSelf();
+        // power already delegated to the new beneficiary
+        if (currentBeneficiary == newBeneficiary) {
+            revert Error.SameBeneficiary();
         }
 
         // staker must be stake owner
         _checkIsStakeOwner(staker, stakeId);
 
-        // check current beneficiary
-        _checkIsStakeBeneficiary(currentBeneficiary, stakeId);
-
-        // remove token from current beneficiary first to avoid duplicates in case of self claim
-        _removeStakeFromBeneficiary(currentBeneficiary, stakeId);
-        _addStakeToBeneficiary(staker, stakeId);
+        // remove token from current beneficiary first to avoid duplicates
+        _removeStakeFromBeneficiary(stakeId, currentBeneficiary);
+        _addStakeToBeneficiary(stakeId, newBeneficiary);
 
         // emit event
-        emit StakePowerClaimed(stakeId, currentBeneficiary, staker);
+        emit StakePowerDelegated(stakeId, currentBeneficiary, newBeneficiary);
     }
 
 
@@ -511,7 +509,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
     }
 
-    function _addStakeToBeneficiary(address beneficiary, uint256 stakeId) internal {
+    function _addStakeToBeneficiary(uint256 stakeId, address beneficiary) internal {
         uint16 epoch = epochClock.currentEpoch() + 1;
         StakesInEpoch[] storage stakesInEpochs = beneficiaryOfStakes[beneficiary];
         StakesInEpoch storage stakesInNextEpoch;
@@ -532,28 +530,37 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         stakesInNextEpoch.ids.push(SafeCast.toUint48(stakeId));
     }
 
-    function _removeStakeFromBeneficiary(address beneficiary, uint256 tokenId) internal {
+    /// @dev Would revert if the stake is not found.
+    function _removeStakeFromBeneficiary(uint256 stakeId, address beneficiary) internal {
         uint16 epoch = epochClock.currentEpoch() + 1;
         StakesInEpoch[] storage stakesInEpochs = beneficiaryOfStakes[beneficiary];
+
+        if (stakesInEpochs.length == 0) {
+            revert Error.StakeNotFound(stakeId);
+        }
+
         StakesInEpoch storage stakesInLatestEpoch = stakesInEpochs[stakesInEpochs.length - 1];
 
         if (stakesInLatestEpoch.epoch == epoch) {
-            _removeIdFromList(stakesInLatestEpoch.ids, tokenId);
+            _removeIdFromList(stakesInLatestEpoch.ids, stakeId);
         } else {
             StakesInEpoch storage stakesInNextEpoch = stakesInEpochs.push();
             stakesInNextEpoch.epoch = epoch;
             stakesInNextEpoch.ids = stakesInLatestEpoch.ids;
-            _removeIdFromList(stakesInNextEpoch.ids, tokenId);
+            _removeIdFromList(stakesInNextEpoch.ids, stakeId);
         }
     }
 
     function _removeIdFromList(uint48[] storage ids, uint256 tokenId) private {
         uint256 length = ids.length;
         uint256 index = _findIdInList(ids, tokenId);
-        if (index < length) {
-            ids[index] = ids[length - 1];
-            ids.pop();
+
+        if (index == length) {
+            revert Error.StakeNotFound(tokenId);
         }
+
+        ids[index] = ids[length - 1];
+        ids.pop();
     }
 
     function _findIdInList(uint48[] storage ids, uint256 id) private view returns (uint256) {

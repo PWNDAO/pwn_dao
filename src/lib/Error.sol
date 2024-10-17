@@ -44,7 +44,8 @@ library Error {
     error NothingToIncrease();
     error WithrawalBeforeLockUpEnd();
     error CallerNotStakedPWNContract();
-    error ClaimStakePowerFromSelf();
+    error SameBeneficiary();
+    error StakeNotFound(uint256 stakeId);
 
     // PWN & StakedPWN
     error TransfersDisabled();
