@@ -27,6 +27,9 @@ contract StakedPWN is Ownable2Step, ERC721 {
     /// @notice The flag that enables token transfers.
     bool public transfersEnabled;
 
+    /// @notice The list of addresses that are allowed to transfer tokens even before the transfers are enabled.
+    mapping (address addr => bool allowed) public transferAllowlist;
+
 
     /*----------------------------------------------------------*|
     |*  # MODIFIERS                                             *|
@@ -90,6 +93,12 @@ contract StakedPWN is Ownable2Step, ERC721 {
         transfersEnabled = true;
     }
 
+    /// @notice Enable or disable token transfers for a specific address.
+    /// @dev Only the owner can call this function.
+    function setTransferAllowlist(address addr, bool isAllowed) external onlyOwner {
+        transferAllowlist[addr] = isAllowed;
+    }
+
 
     /*----------------------------------------------------------*|
     |*  # METADATA                                              *|
@@ -108,13 +117,12 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*----------------------------------------------------------*/
 
     /// @notice Hook that is called before any token transfer.
-    /// @dev The token transfer is allowed only if the transfers are enabled.
-    /// The token ownership is updated in the `_ownedTokensInEpochs` mapping.
+    /// @dev The token transfer is allowed only if the transfers are enabled or caller is whitelisted.
     function _beforeTokenTransfer(
         address from, address to, uint256 /* firstTokenId */, uint256 /* batchSize */
     ) override internal {
         // filter mints and burns from require condition
-        if (!transfersEnabled && from != address(0) && to != address(0)) {
+        if (!transfersEnabled && !transferAllowlist[_msgSender()] && from != address(0) && to != address(0)) {
             revert Error.TransfersDisabled();
         }
     }

@@ -14,7 +14,7 @@ abstract contract StakedPWN_Test is Base_Test {
     bytes32 public constant OWNERS_SLOT = bytes32(uint256(4));
     bytes32 public constant BALANCES_SLOT = bytes32(uint256(5));
     bytes32 public constant TRANSFERS_ENABLED_SLOT = bytes32(uint256(8));
-    bytes32 public constant OWNED_TOKENS_IN_EPOCHS = bytes32(uint256(9));
+    bytes32 public constant TRANSFER_ALLOWLIST_SLOT = bytes32(uint256(9));
 
     StakedPWN public stakedPWN;
 
@@ -179,6 +179,32 @@ contract StakedPWN_EnableTransfer_Test is StakedPWN_Test {
 
 
 /*----------------------------------------------------------*|
+|*  # SET TRANSFER ALLOWLIST                                *|
+|*----------------------------------------------------------*/
+
+contract StakedPWN_SetTransferAllowlist_Test is StakedPWN_Test {
+    using SlotComputingLib for bytes32;
+
+    function testFuzz_shouldFail_whenCallerNotOwner(address caller) external {
+        vm.assume(caller != owner);
+
+        vm.expectRevert("Ownable: caller is not the owner");
+        vm.prank(caller);
+        stakedPWN.setTransferAllowlist(makeAddr("allowedAddr"), true);
+    }
+
+    function testFuzz_shouldSetTransferAllowlist(address allowedAddr, bool isAllowed) external {
+        vm.prank(owner);
+        stakedPWN.setTransferAllowlist(allowedAddr, isAllowed);
+
+        bytes32 isAllowedValue = vm.load(address(stakedPWN), TRANSFER_ALLOWLIST_SLOT.withMappingKey(allowedAddr));
+        assertEq(isAllowed, uint256(isAllowedValue) == 1 ? true : false);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
 |*  # METADATA                                              *|
 |*----------------------------------------------------------*/
 
@@ -204,21 +230,67 @@ contract StakedPWN_Metadata_Test is StakedPWN_Test {
 
 contract StakedPWN_Transfer_Test is StakedPWN_Test {
 
-    function setUp() override public {
-        super.setUp();
-        vm.store(address(stakedPWN), TRANSFERS_ENABLED_SLOT, bytes32(uint256(1)));
+    address public to = makeAddr("to");
+    uint256 public tokenId = 42;
+
+
+    function test_shouldAllowMint_whenTransferDisabled() external {
+        vm.prank(supplyManager);
+        stakedPWN.mint(to, tokenId);
     }
 
-    function testFuzz_shouldFail_whenTransfersNotEnabled(address from, address to, uint256 tokenId)
-        external
-        checkAddress(from)
-        checkAddress(to)
-    {
-        vm.store(address(stakedPWN), TRANSFERS_ENABLED_SLOT, bytes32(0));
-        _mockToken(from, tokenId);
+    function test_shouldAllowBurn_whenTransferDisabled() external {
+        _mockToken(to, tokenId);
+
+        vm.prank(supplyManager);
+        stakedPWN.burn(tokenId);
+    }
+
+    function test_shouldFail_whenTransfersNotEnabled_whenAddrNotInAllowlist(address caller) external {
+        _mockToken(caller, tokenId);
 
         vm.expectRevert(abi.encodeWithSelector(Error.TransfersDisabled.selector));
+        vm.prank(caller);
+        stakedPWN.transferFrom(caller, to, tokenId);
+    }
+
+    function testFuzz_shouldAllowTransfer_whenTransfersEnabled(address caller) external {
+        vm.assume(caller != owner && caller != address(0));
+
+        _mockToken(caller, tokenId);
+
+        vm.prank(owner);
+        stakedPWN.enableTransfers();
+
+        vm.prank(caller);
+        stakedPWN.transferFrom(caller, to, tokenId);
+    }
+
+    function testFuzz_shouldAllowTransfer_whenTransfersDisabled_whenAddrInAllowlist_whenCallerOwner(address caller) external {
+        vm.assume(caller != owner && caller != address(0));
+
+        _mockToken(caller, tokenId);
+
+        vm.prank(owner);
+        stakedPWN.setTransferAllowlist(caller, true);
+
+        vm.prank(caller);
+        stakedPWN.transferFrom(caller, to, tokenId);
+    }
+
+    function testFuzz_shouldAllowTransfer_whenTransfersDisabled_whenAddrInAllowlist_whenCallerOperator(address caller) external {
+        vm.assume(caller != owner && caller != address(0));
+
+        address from = makeAddr("from");
+        _mockToken(from, tokenId);
+
+        vm.prank(owner);
+        stakedPWN.setTransferAllowlist(caller, true);
+
         vm.prank(from);
+        stakedPWN.approve(caller, tokenId);
+
+        vm.prank(caller);
         stakedPWN.transferFrom(from, to, tokenId);
     }
 
