@@ -90,7 +90,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint256 amount
     );
 
-    /// @notice Emitted when a stake power is delegated.
+    /// @notice Emitted whenever stake power is transferred between beneficiaries.
+    /// @dev When a stake is created, the `originalBeneficiary` is address(0).
+    /// When a stake is deleted, the `newBeneficiary` is address(0).
     /// @param stakeId The id of the stake.
     /// @param originalBeneficiary The original stake power beneficiary.
     /// @param newBeneficiary The new stake power beneficiary.
@@ -162,11 +164,13 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
 
     /// @notice Splits a stake for a caller.
     /// @dev Burns an original stPWN token and mints two new ones.
+    /// The beneficiary of the new stake is the stake owner.
     /// @param stakeId Id of the stake to split.
+    /// @param stakeBeneficiary Address that is the current beneficiary of the stake.
     /// @param splitAmount Amount of PWN tokens to split into a first new stake.
     /// @return newStakeId1 Id of the first new stake.
     /// @return newStakeId2 Id of the second new stake.
-    function splitStake(uint256 stakeId, uint256 splitAmount)
+    function splitStake(uint256 stakeId, address stakeBeneficiary, uint256 splitAmount)
         external
         returns (uint256 newStakeId1, uint256 newStakeId2)
     {
@@ -175,10 +179,6 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint16 originalInitialEpoch = originalStake.initialEpoch;
         uint104 originalAmount = originalStake.amount;
         uint8 originalLockUpEpochs = originalStake.lockUpEpochs;
-
-        // staker must be original stake owner and beneficiary
-        _checkIsStakeOwner(staker, stakeId);
-        _checkIsStakeBeneficiary(staker, stakeId);
 
         // split amount must be greater than 0
         if (splitAmount == 0) {
@@ -194,7 +194,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
 
         // delete original stake
-        _deleteStake(staker, stakeId);
+        _deleteStake({ owner: staker, beneficiary: stakeBeneficiary, stakeId: stakeId });
 
         // create new stakes
         newStakeId1 = _createStake({
@@ -219,22 +219,22 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @notice Merges two stakes for a caller.
     /// @dev Burns both stPWN tokens and mints a new one.
     /// Aligns stakes lockups. First stake lockup must be longer than or equal to the second one.
+    /// The beneficiary of the new stake is the stake owner.
     /// @param stakeId1 Id of the first stake to merge.
+    /// @param stakeBeneficiary1 Address that is the current beneficiary of the first stake.
     /// @param stakeId2 Id of the second stake to merge.
+    /// @param stakeBeneficiary2 Address that is the current beneficiary of the second stake.
     /// @return newStakeId Id of the new merged stake.
-    function mergeStakes(uint256 stakeId1, uint256 stakeId2) external returns (uint256 newStakeId) {
+    function mergeStakes(uint256 stakeId1, address stakeBeneficiary1, uint256 stakeId2, address stakeBeneficiary2)
+        external
+        returns (uint256 newStakeId)
+    {
         address staker = msg.sender;
         Stake storage stake1 = _stakes[stakeId1];
         Stake storage stake2 = _stakes[stakeId2];
         uint16 finalEpoch1 = stake1.initialEpoch + stake1.lockUpEpochs;
         uint16 finalEpoch2 = stake2.initialEpoch + stake2.lockUpEpochs;
         uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
-
-        // staker must be stake owner and beneficiary of both
-        _checkIsStakeOwner(staker, stakeId1);
-        _checkIsStakeOwner(staker, stakeId2);
-        _checkIsStakeBeneficiary(staker, stakeId1);
-        _checkIsStakeBeneficiary(staker, stakeId2);
 
         // the first stake lockup end must be greater than or equal to the second stake lockup end
         // both stake lockup ends must be greater than the current epoch
@@ -255,8 +255,8 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
 
         // delete old stakes
-        _deleteStake(staker, stakeId1);
-        _deleteStake(staker, stakeId2);
+        _deleteStake({ owner: staker, beneficiary: stakeBeneficiary1, stakeId: stakeId1 });
+        _deleteStake({ owner: staker, beneficiary: stakeBeneficiary2, stakeId: stakeId2 });
 
         // create new stake
         uint104 newAmount = stake1.amount + stake2.amount;
@@ -277,19 +277,17 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// If the stakes lockup ended, `additionalEpochs` will be added from the next epoch.
     /// The sum of `lockUpEpochs` and `additionalEpochs` must be in <13;65> + {130}.
     /// Expecting PWN token approval for the contract if `additionalAmount` > 0.
+    /// The beneficiary of the new stake is the stake owner.
     /// @param stakeId Id of the stake to increase.
+    /// @param stakeBeneficiary Address that is the current beneficiary of the stake.
     /// @param additionalAmount Amount of PWN tokens to increase the stake by.
     /// @param additionalEpochs Number of epochs to add to exisitng stake lockup.
     /// @return newStakeId Id of the new stake.
-    function increaseStake(uint256 stakeId, uint256 additionalAmount, uint256 additionalEpochs)
+    function increaseStake(uint256 stakeId, address stakeBeneficiary, uint256 additionalAmount, uint256 additionalEpochs)
         external
         returns (uint256 newStakeId)
     {
         address staker = msg.sender;
-
-        // staker must be stake owner and beneficiary
-        _checkIsStakeOwner(staker, stakeId);
-        _checkIsStakeBeneficiary(staker, stakeId);
         Stake storage stake = _stakes[stakeId];
 
         // additional amount or additional epochs must be greater than 0
@@ -337,7 +335,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
 
         // delete original stake
-        _deleteStake(staker, stakeId);
+        _deleteStake({ owner: staker, beneficiary: stakeBeneficiary, stakeId: stakeId });
 
         // create new stake
         newStakeId = _createStake({
@@ -362,15 +360,9 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     /// @notice Withdraws a stake for a caller.
     /// @dev Burns stPWN token and transfers PWN tokens to the caller.
     /// @param stakeId Id of the stake to withdraw.
-    function withdrawStake(uint256 stakeId) external {
+    /// @param stakeBeneficiary Address that is the current beneficiary of the stake.
+    function withdrawStake(uint256 stakeId, address stakeBeneficiary) external {
         address staker = msg.sender;
-
-        // staker must be stake owner and beneficiary
-        _checkIsStakeOwner(staker, stakeId);
-        _checkIsStakeBeneficiary(staker, stakeId);
-
-        // Note: Even though the stake is not granting any power,
-        // the caller must be the beneficiary to correctly update the stake list.
         Stake storage stake = _stakes[stakeId];
 
         // stake must be unlocked
@@ -379,7 +371,7 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         }
 
         // delete stake
-        _deleteStake(staker, stakeId);
+        _deleteStake({ owner: staker, beneficiary: stakeBeneficiary, stakeId: stakeId });
 
         // transfer pwn tokens to the staker
         pwnToken.transfer(staker, stake.amount);
@@ -462,13 +454,17 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         stake.lockUpEpochs = lockUpEpochs;
 
         stakedPWN.mint(owner, newStakeId);
-        _addStakeToBeneficiary(beneficiary, newStakeId);
+        _addStakeToBeneficiary(newStakeId, beneficiary);
+        emit StakePowerDelegated(newStakeId, address(0), beneficiary);
     }
 
-    /// @dev Burn stPWN token, but keepts the stake data for historical power calculations
-    function _deleteStake(address staker, uint256 stakeId) internal {
+    /// @dev Burn stPWN token, but keepts the stake data for historical power calculations.
+    ///      Staker must be the stake owner and beneficiary.
+    function _deleteStake(address owner, address beneficiary, uint256 stakeId) internal {
+        _checkIsStakeOwner(owner, stakeId);
+        _removeStakeFromBeneficiary(stakeId, beneficiary);
         stakedPWN.burn(stakeId);
-        _removeStakeFromBeneficiary(staker, stakeId);
+        emit StakePowerDelegated(stakeId, beneficiary, address(0));
     }
 
     /// @dev Update total power changes for a given amount and lockup

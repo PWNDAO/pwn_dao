@@ -141,19 +141,17 @@ abstract contract VoteEscrowedPWN_Test is Base_Test {
     function _mockStake(
         address _staker, uint256 _stakeId, uint16 _initialEpoch, uint8 _lockUpEpochs, uint104 _amount
     ) internal returns (TestPowerChangeEpoch[] memory powerChanges) {
-        return _mockStake(_staker, _stakeId, _initialEpoch, _lockUpEpochs, _amount, true);
+        return _mockStake(_staker, _staker, _stakeId, _initialEpoch, _lockUpEpochs, _amount);
     }
 
     function _mockStake(
-        address _staker, uint256 _stakeId, uint16 _initialEpoch, uint8 _lockUpEpochs, uint104 _amount, bool _mockBeneficiary
+        address _staker, address _beneficiary, uint256 _stakeId, uint16 _initialEpoch, uint8 _lockUpEpochs, uint104 _amount
     ) internal returns (TestPowerChangeEpoch[] memory powerChanges) {
-        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", _stakeId), abi.encode(_staker));
         _storeStake(_stakeId, _initialEpoch, _lockUpEpochs, _amount);
         powerChanges = _createPowerChangesArray(_initialEpoch, _lockUpEpochs, _amount);
         _storeTotalPowerChanges(powerChanges);
-        if (_mockBeneficiary) {
-            _mockStakeBeneficiary(_staker, _stakeId, _initialEpoch);
-        }
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", _stakeId), abi.encode(_staker));
+        _mockStakeBeneficiary(_beneficiary, _stakeId, _initialEpoch);
     }
 
     function _mockTwoStakes(

@@ -159,7 +159,7 @@ contract Integration_vePWN_Stake_Test is Integration_Test {
         _warpEpochs(waitingEpochs);
         vm.startPrank(staker);
         pwnToken.approve(address(vePWN), increaseAmount);
-        uint256 newStakeId = vePWN.increaseStake(stakeId, increaseAmount, increaseEpochs);
+        uint256 newStakeId = vePWN.increaseStake(stakeId, staker, increaseAmount, increaseEpochs);
         vm.stopPrank();
 
         vm.expectRevert();
@@ -176,7 +176,7 @@ contract Integration_vePWN_Stake_Test is Integration_Test {
 
         _warpEpochs(lockUpEpochs + 1);
         vm.prank(staker);
-        vePWN.withdrawStake(stakeId);
+        vePWN.withdrawStake(stakeId, staker);
 
         vm.expectRevert();
         stPWN.ownerOf(stakeId);
@@ -210,7 +210,7 @@ contract Integration_vePWN_Stake_Test is Integration_Test {
 
         _warpEpochs(delayMerge);
         vm.prank(staker);
-        uint256 newStakeId = vePWN.mergeStakes(stakeId1, stakeId2);
+        uint256 newStakeId = vePWN.mergeStakes(stakeId1, staker, stakeId2, staker);
 
         vm.expectRevert();
         stPWN.ownerOf(stakeId1);
@@ -233,7 +233,7 @@ contract Integration_vePWN_Stake_Test is Integration_Test {
 
         _warpEpochs(delaySplit);
         vm.prank(staker);
-        (uint256 newStakeId1, uint256 newStakeId2) = vePWN.splitStake(stakeId, splitAmount);
+        (uint256 newStakeId1, uint256 newStakeId2) = vePWN.splitStake(stakeId, staker, splitAmount);
 
         vm.expectRevert();
         stPWN.ownerOf(stakeId);
@@ -266,7 +266,7 @@ contract Integration_vePWN_Power_Test is Integration_Test {
         _warpEpochs(defaultLockUpEpochs / 2);
 
         vm.prank(staker);
-        vePWN.splitStake({ stakeId: stakeId, splitAmount: defaultFundAmount / 4 });
+        vePWN.splitStake({ stakeId: stakeId, stakeBeneficiary: staker, splitAmount: defaultFundAmount / 4 });
 
         uint16 currentEpoch = epochClock.currentEpoch();
         for (uint256 i; i < defaultLockUpEpochs / 2; ++i) {
@@ -283,7 +283,7 @@ contract Integration_vePWN_Power_Test is Integration_Test {
         _warpEpochs(defaultLockUpEpochs / 2);
 
         vm.prank(staker);
-        vePWN.mergeStakes({ stakeId1: stakeId, stakeId2: stakeId2 });
+        vePWN.mergeStakes({ stakeId1: stakeId, stakeBeneficiary1: staker, stakeId2: stakeId2, stakeBeneficiary2: staker });
 
         uint16 currentEpoch = epochClock.currentEpoch();
         for (uint256 i; i < defaultLockUpEpochs / 2; ++i) {
@@ -297,7 +297,7 @@ contract Integration_vePWN_Power_Test is Integration_Test {
         _warpEpochs(defaultLockUpEpochs / 2);
 
         vm.prank(staker);
-        vePWN.increaseStake({ stakeId: stakeId, additionalAmount: 0, additionalEpochs: 20 });
+        vePWN.increaseStake({ stakeId: stakeId, stakeBeneficiary: staker, additionalAmount: 0, additionalEpochs: 20 });
 
         uint16 currentEpoch = epochClock.currentEpoch();
         for (uint256 i; i < defaultLockUpEpochs / 2; ++i) {
@@ -311,7 +311,7 @@ contract Integration_vePWN_Power_Test is Integration_Test {
         _warpEpochs(defaultLockUpEpochs + 1);
 
         vm.prank(staker);
-        vePWN.withdrawStake(stakeId);
+        vePWN.withdrawStake(stakeId, staker);
 
         uint16 currentEpoch = epochClock.currentEpoch();
         for (uint256 i; i < defaultLockUpEpochs; ++i) {
@@ -342,7 +342,7 @@ contract Integration_vePWN_PowerTransfer_Test is Integration_Test {
         _warpEpochs(1);
 
         vm.prank(otherStaker);
-        vePWN.claimStakePower(stakeId, staker);
+        vePWN.delegateStakePower(stakeId, staker, otherStaker);
 
         uint256 power = _powerFor(amount, lockUpEpochs);
         assertEq(stPWN.ownerOf(stakeId), otherStaker);
@@ -366,7 +366,7 @@ contract Integration_vePWN_PowerTransfer_Test is Integration_Test {
         stPWN.transferFrom(staker, otherStaker, stakeId);
 
         vm.prank(otherStaker);
-        vePWN.claimStakePower(stakeId, staker);
+        vePWN.delegateStakePower(stakeId, staker, otherStaker);
 
         assertEq(stPWN.ownerOf(stakeId), otherStaker);
         assertEq(vePWN.balanceOf(staker), 0);
@@ -389,7 +389,7 @@ contract Integration_vePWN_PowerTransfer_Test is Integration_Test {
         vm.prank(staker);
         stPWN.transferFrom(staker, otherStaker, stakeId);
         vm.prank(otherStaker);
-        vePWN.claimStakePower(stakeId, staker);
+        vePWN.delegateStakePower(stakeId, staker, otherStaker);
 
         assertEq(stPWN.ownerOf(stakeId), otherStaker);
         assertEq(vePWN.balanceOf(staker), 0);
