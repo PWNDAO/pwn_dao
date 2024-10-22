@@ -253,6 +253,7 @@ contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWN_Test {
         _initialEpoch = uint16(bound(_initialEpoch, 1, type(uint16).max / 2));
 
         _storeStake(_stakeId, _initialEpoch, _lockUpEpochs, _amount);
+        vm.mockCall(address(stakedPWN), abi.encodeWithSignature("ownerOf(uint256)", _stakeId), abi.encode(staker));
 
         VoteEscrowedPWNStake.StakeData memory stake = vePWN.getStake(_stakeId);
         assertEq(stake.initialEpoch, _initialEpoch);
