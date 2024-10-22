@@ -6,6 +6,7 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { BitMaskLib } from "src/lib/BitMaskLib.sol";
 import { Error } from "src/lib/Error.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
+import { VoteEscrowedPWNStake } from "src/token/vePWN/VoteEscrowedPWNStake.sol";
 
 import { VoteEscrowedPWN_Test, StakesInEpoch } from "./VoteEscrowedPWNTest.t.sol";
 
@@ -1470,6 +1471,7 @@ contract VoteEscrowedPWN_Stake_DelegateStakePower_Test is VoteEscrowedPWN_Stake_
 
 }
 
+
 /*----------------------------------------------------------*|
 |*  # GET STAKE                                             *|
 |*----------------------------------------------------------*/
@@ -1485,43 +1487,82 @@ contract VoteEscrowedPWN_Stake_GetStake_Test is VoteEscrowedPWN_Stake_Test {
     function test_shouldReturnStakeData() external {
         _mockStake(staker, stakeId, initialEpoch, lockUpEpochs, amount);
 
-        (
-            uint16 _initialEpoch,
-            uint8 _lockUpEpochs,
-            uint8 _remainingEpochs,
-            uint8 _currentMultiplier,
-            uint104 _amount
-        ) = vePWN.getStake(stakeId);
+        VoteEscrowedPWNStake.StakeData memory stake = vePWN.getStake(stakeId);
 
-        assertEq(_initialEpoch, initialEpoch);
-        assertEq(_lockUpEpochs, lockUpEpochs);
-        assertEq(_remainingEpochs, 40); // currentEpoch == 420
-        assertEq(_currentMultiplier, 150); // currentEpoch == 420
-        assertEq(_amount, amount);
+        assertEq(stake.stakeId, stakeId);
+        assertEq(stake.owner, staker);
+        assertEq(stake.initialEpoch, initialEpoch);
+        assertEq(stake.lockUpEpochs, lockUpEpochs);
+        assertEq(stake.remainingEpochs, 40); // currentEpoch == 420
+        assertEq(stake.currentMultiplier, 150); // currentEpoch == 420
+        assertEq(stake.amount, amount);
     }
 
     function test_shouldReturnRemainingEpochsHigherThanLockup_whenStakeHaveNotStarted() external {
         _mockStake(staker, stakeId, uint16(currentEpoch + 1), lockUpEpochs, amount);
 
-        (,,uint8 _remainingEpochs,,) = vePWN.getStake(stakeId);
+        VoteEscrowedPWNStake.StakeData memory stake = vePWN.getStake(stakeId);
 
-        assertEq(_remainingEpochs, lockUpEpochs + 1);
+        assertEq(stake.remainingEpochs, lockUpEpochs + 1);
     }
 
     function test_shouldReturnZeroMultiplier_whenStakeHaveNotStarted() external {
         _mockStake(staker, stakeId, uint16(currentEpoch + 1), lockUpEpochs, amount);
 
-        (,,,uint8 _currentMultiplier,) = vePWN.getStake(stakeId);
+        VoteEscrowedPWNStake.StakeData memory stake = vePWN.getStake(stakeId);
 
-        assertEq(_currentMultiplier, 0);
+        assertEq(stake.currentMultiplier, 0);
     }
 
     function test_shouldReturnZeroMultiplier_whenStakeExpired() external {
         _mockStake(staker, stakeId, uint16(currentEpoch - lockUpEpochs), lockUpEpochs, amount);
 
-        (,,,uint8 _currentMultiplier,) = vePWN.getStake(stakeId);
+        VoteEscrowedPWNStake.StakeData memory stake = vePWN.getStake(stakeId);
 
-        assertEq(_currentMultiplier, 0);
+        assertEq(stake.currentMultiplier, 0);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # GET STAKES                                             *|
+|*----------------------------------------------------------*/
+
+contract VoteEscrowedPWN_Stake_GetStakes_Test is VoteEscrowedPWN_Stake_Test {
+
+    uint16 initialEpoch = 400;
+    uint8 lockUpEpochs = 60;
+    uint104 amount = 100 ether;
+    uint256[] stakeIds;
+
+    function setUp() override public {
+        super.setUp();
+
+        stakeIds = new uint256[](2);
+        stakeIds[0] = 70;
+        stakeIds[1] = 92;
+    }
+
+
+    function test_shouldReturnStakeData() external {
+        for (uint256 i; i < stakeIds.length; ++i) {
+            _mockStake(staker, stakeIds[i], initialEpoch, lockUpEpochs, amount);
+        }
+
+        VoteEscrowedPWNStake.StakeData[] memory stakes = vePWN.getStakes(stakeIds);
+
+        assertEq(stakes.length, stakeIds.length);
+        for (uint256 i; i < stakes.length; ++i) {
+            VoteEscrowedPWNStake.StakeData memory stake = stakes[i];
+            assertEq(stake.stakeId, stakeIds[i]);
+            assertEq(stake.owner, staker);
+            assertEq(stake.initialEpoch, initialEpoch);
+            assertEq(stake.lockUpEpochs, lockUpEpochs);
+            assertEq(stake.remainingEpochs, 40); // currentEpoch == 420
+            assertEq(stake.currentMultiplier, 150); // currentEpoch == 420
+            assertEq(stake.amount, amount);
+        }
     }
 
 }

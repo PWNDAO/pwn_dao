@@ -2,6 +2,7 @@
 pragma solidity 0.8.25;
 
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
+import { VoteEscrowedPWNStake } from "src/token/vePWN/VoteEscrowedPWNStake.sol";
 
 import { VoteEscrowedPWNHarness, StakesInEpoch } from "test/harness/VoteEscrowedPWNHarness.sol";
 import { Base_Test } from "test/Base.t.sol";
@@ -253,10 +254,10 @@ contract VoteEscrowedPWN_Helpers_Test is VoteEscrowedPWN_Test {
 
         _storeStake(_stakeId, _initialEpoch, _lockUpEpochs, _amount);
 
-        (uint16 initialEpoch, uint8 lockUpEpochs,,, uint104 amount) = vePWN.getStake(_stakeId);
-        assertEq(_initialEpoch, initialEpoch);
-        assertEq(_lockUpEpochs, lockUpEpochs);
-        assertEq(_amount, amount);
+        VoteEscrowedPWNStake.StakeData memory stake = vePWN.getStake(_stakeId);
+        assertEq(stake.initialEpoch, _initialEpoch);
+        assertEq(stake.lockUpEpochs, _lockUpEpochs);
+        assertEq(stake.amount, _amount);
     }
 
 }

@@ -409,32 +409,50 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
     |*  # GETTERS                                               *|
     |*----------------------------------------------------------*/
 
+    /// @notice Stake data structure.
+    /// @param stakeId The id of the stake.
+    /// @param owner The address of the stake owner. It is also the owner of the stPWN token.
+    /// @param initialEpoch The epoch from which the stake starts.
+    /// @param lockUpEpochs The number of epochs the stake is locked up for.
+    /// @param remainingEpochs The number of epochs remaining until the stake is unlocked.
+    /// @param currentMultiplier The current power multiplier for the stake.
+    /// @param amount The amount of PWN tokens staked.
+    struct StakeData {
+        uint256 stakeId;
+        address owner;
+        uint16 initialEpoch;
+        uint8 lockUpEpochs;
+        uint8 remainingEpochs;
+        uint8 currentMultiplier;
+        uint104 amount;
+    }
+
     /// @notice Returns the stake data for a given stake id.
     /// @param stakeId Id of the stake.
-    /// @return initialEpoch The epoch from which the stake starts.
-    /// @return lockUpEpochs The number of epochs the stake is locked up for.
-    /// @return remainingEpochs The number of epochs remaining until the stake is unlocked.
-    /// @return currentMultiplier The current power multiplier for the stake.
-    /// @return amount The amount of PWN tokens staked.
-    function getStake(uint256 stakeId) external view returns (
-        uint16 initialEpoch,
-        uint8 lockUpEpochs,
-        uint8 remainingEpochs,
-        uint8 currentMultiplier,
-        uint104 amount
-    ) {
+    /// @return stakeData The stake data.
+    function getStake(uint256 stakeId) public view returns (StakeData memory stakeData) {
         Stake storage stake = _stakes[stakeId];
         uint16 currentEpoch = epochClock.currentEpoch();
 
-        initialEpoch = stake.initialEpoch;
-        lockUpEpochs = stake.lockUpEpochs;
-        if (initialEpoch + lockUpEpochs >= currentEpoch) {
-            remainingEpochs = uint8(initialEpoch + lockUpEpochs - currentEpoch);
+        stakeData.stakeId = stakeId;
+        stakeData.owner = stakedPWN.ownerOf(stakeId);
+        stakeData.initialEpoch = stake.initialEpoch;
+        stakeData.lockUpEpochs = stake.lockUpEpochs;
+        stakeData.remainingEpochs = (stakeData.initialEpoch + stakeData.lockUpEpochs >= currentEpoch)
+            ? uint8(stakeData.initialEpoch + stakeData.lockUpEpochs - currentEpoch) : 0;
+        stakeData.currentMultiplier = (stakeData.initialEpoch <= currentEpoch && stakeData.remainingEpochs > 0)
+            ? uint8(uint104(_power(100, stakeData.remainingEpochs))) : 0;
+        stakeData.amount = stake.amount;
+    }
+
+    /// @notice Returns the stake data for a given list of stake ids.
+    /// @param stakeIds List of stake ids.
+    /// @return stakeData Array of stake data.
+    function getStakes(uint256[] calldata stakeIds) external view returns (StakeData[] memory stakeData) {
+        stakeData = new StakeData[](stakeIds.length);
+        for (uint256 i; i < stakeIds.length; ++i) {
+            stakeData[i] = getStake(stakeIds[i]);
         }
-        if (initialEpoch <= currentEpoch && remainingEpochs > 0) {
-            currentMultiplier = uint8(uint104(_power(100, remainingEpochs)));
-        }
-        amount = stake.amount;
     }
 
 
