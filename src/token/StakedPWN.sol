@@ -27,14 +27,8 @@ contract StakedPWN is Ownable2Step, ERC721 {
     /// @notice The flag that enables token transfers.
     bool public transfersEnabled;
 
-    /// The list of token ids owned by an address in an epoch.
-    struct OwnedTokensInEpoch {
-        uint16 epoch;
-        // stake ids are incremented by 1
-        // if 1000 new ids are added every second, it will take 8878 years to overflow
-        uint48[] ids;
-    }
-    mapping(address => OwnedTokensInEpoch[]) internal _ownedTokensInEpochs;
+    /// @notice The list of addresses that are allowed to transfer tokens even before the transfers are enabled.
+    mapping (address addr => bool allowed) public transferAllowlist;
 
 
     /*----------------------------------------------------------*|
@@ -99,46 +93,10 @@ contract StakedPWN is Ownable2Step, ERC721 {
         transfersEnabled = true;
     }
 
-
-    /*----------------------------------------------------------*|
-    |*  # TOKEN OWNERSHIP                                       *|
-    |*----------------------------------------------------------*/
-
-    /// @notice Returns the list of token ids owned by an address.
-    /// @param owner The address of the token owner.
-    function ownedTokensInEpochs(address owner) external view returns (OwnedTokensInEpoch[] memory) {
-        return _ownedTokensInEpochs[owner];
-    }
-
-    /// @notice Returns the list of token ids owned by an address in an epoch.
-    /// @param owner The address of the token owner.
-    /// @param epoch The epoch.
-    function ownedTokenIdsAt(address owner, uint16 epoch) external view returns (uint256[] memory) {
-        OwnedTokensInEpoch[] storage ownedTokenIds = _ownedTokensInEpochs[owner];
-        // no owned tokens
-        if (ownedTokenIds.length == 0) {
-            return new uint256[](0);
-        }
-        // first owned tokens are in the future
-        if (epoch < ownedTokenIds[0].epoch) {
-            return new uint256[](0);
-        }
-
-        // find ownership change epoch
-        uint256 changeIndex = ownedTokenIds.length - 1;
-        while (ownedTokenIds[changeIndex].epoch > epoch) {
-            changeIndex--;
-        }
-
-        // collect ids as uint256
-        uint256 length = ownedTokenIds[changeIndex].ids.length;
-        uint256[] memory ids = new uint256[](length);
-        for (uint256 i; i < length;) {
-            ids[i] = ownedTokenIds[changeIndex].ids[i];
-            unchecked { ++i; }
-        }
-
-        return ids;
+    /// @notice Enable or disable token transfers for a specific address.
+    /// @dev Only the owner can call this function.
+    function setTransferAllowlist(address addr, bool isAllowed) external onlyOwner {
+        transferAllowlist[addr] = isAllowed;
     }
 
 
@@ -159,69 +117,13 @@ contract StakedPWN is Ownable2Step, ERC721 {
     |*----------------------------------------------------------*/
 
     /// @notice Hook that is called before any token transfer.
-    /// @dev The token transfer is allowed only if the transfers are enabled.
-    /// The token ownership is updated in the `_ownedTokensInEpochs` mapping.
+    /// @dev The token transfer is allowed only if the transfers are enabled or caller is whitelisted.
     function _beforeTokenTransfer(
-        address from, address to, uint256 firstTokenId, uint256 /* batchSize */
+        address from, address to, uint256 /* firstTokenId */, uint256 /* batchSize */
     ) override internal {
         // filter mints and burns from require condition
-        if (!transfersEnabled && from != address(0) && to != address(0)) {
+        if (!transfersEnabled && !transferAllowlist[_msgSender()] && from != address(0) && to != address(0)) {
             revert Error.TransfersDisabled();
-        }
-
-        uint16 epoch = epochClock.currentEpoch() + 1;
-        // remove token from old owner first to avoid duplicates in case of self transfer
-        if (from != address(0)) {
-            _removeIdFromOwner(from, firstTokenId, epoch);
-        }
-        if (to != address(0)) {
-            _addIdToOwner(to, firstTokenId, epoch);
-        }
-    }
-
-    function _addIdToOwner(address owner, uint256 tokenId, uint16 epoch) internal {
-        OwnedTokensInEpoch[] storage ownedTokenIdsList = _ownedTokensInEpochs[owner];
-        OwnedTokensInEpoch storage ownedTokenIds;
-
-        if (ownedTokenIdsList.length == 0) {
-            ownedTokenIds = ownedTokenIdsList.push();
-            ownedTokenIds.epoch = epoch;
-        } else {
-            OwnedTokensInEpoch storage lastOwnedTokenIds = ownedTokenIdsList[ownedTokenIdsList.length - 1];
-            if (lastOwnedTokenIds.epoch == epoch) {
-                ownedTokenIds = lastOwnedTokenIds;
-            } else {
-                ownedTokenIds = ownedTokenIdsList.push();
-                ownedTokenIds.epoch = epoch;
-                ownedTokenIds.ids = lastOwnedTokenIds.ids;
-            }
-        }
-        ownedTokenIds.ids.push(uint48(tokenId));
-    }
-
-    function _removeIdFromOwner(address owner, uint256 tokenId, uint16 epoch) internal {
-        OwnedTokensInEpoch[] storage ownedTokenIdsList = _ownedTokensInEpochs[owner];
-        OwnedTokensInEpoch storage lastOwnedTokenIds = ownedTokenIdsList[ownedTokenIdsList.length - 1];
-
-        if (lastOwnedTokenIds.epoch == epoch) {
-            _removeIdFromList(lastOwnedTokenIds.ids, tokenId);
-        } else {
-            OwnedTokensInEpoch storage ownedTokenIds = ownedTokenIdsList.push();
-            ownedTokenIds.epoch = epoch;
-            ownedTokenIds.ids = lastOwnedTokenIds.ids;
-            _removeIdFromList(ownedTokenIds.ids, tokenId);
-        }
-    }
-
-    function _removeIdFromList(uint48[] storage ids, uint256 tokenId) private {
-        uint256 length = ids.length;
-        for (uint256 i; i < length;) {
-            if (ids[i] == tokenId) {
-                ids[i] = ids[length - 1];
-                ids.pop();
-                return;
-            }
-            unchecked { ++i; }
         }
     }
 

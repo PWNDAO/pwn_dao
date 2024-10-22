@@ -28,6 +28,12 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
     /// @notice The denominator of the voting reward.
     uint256 public constant VOTING_REWARD_DENOMINATOR = 10000;
 
+    /// @notice The flag that enables token transfers.
+    bool public transfersEnabled;
+
+    /// @notice The list of addresses that are allowed to transfer tokens even before the transfers are enabled.
+    mapping (address addr => bool allowed) public transferAllowlist;
+
     /// @notice Amount of tokens already minted by the owner.
     uint256 public mintedSupply;
 
@@ -132,6 +138,26 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
 
 
     /*----------------------------------------------------------*|
+    |*  # TRANSFER SWITCH                                       *|
+    |*----------------------------------------------------------*/
+
+    /// @notice Enables token transfers.
+    /// @dev Only the owner can enable transfers.
+    function enableTransfers() external onlyOwner {
+        if (transfersEnabled) {
+            revert Error.TransfersAlreadyEnabled();
+        }
+        transfersEnabled = true;
+    }
+
+    /// @notice Enable or disable token transfers for a specific address.
+    /// @dev Only the owner can call this function.
+    function setTransferAllowlist(address addr, bool isAllowed) external onlyOwner {
+        transferAllowlist[addr] = isAllowed;
+    }
+
+
+    /*----------------------------------------------------------*|
     |*  # VOTING REWARDS                                        *|
     |*----------------------------------------------------------*/
 
@@ -172,12 +198,25 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
         }
     }
 
+    /// @notice Claims rewards for voting in multiple proposals.
+    /// @dev The reward can be claimed only if the caller has voted.
+    /// It doesn't matter if the caller voted yes, no or abstained.
+    /// @param votingContract The voting contract address.
+    /// @param proposalIds The list of proposal id to claim the reward for.
+    function claimProposalRewardBatch(address votingContract, uint256[] calldata proposalIds) external {
+        uint256 length = proposalIds.length;
+        for (uint256 i; i < length;) {
+            claimProposalReward(votingContract, proposalIds[i]);
+            unchecked { ++i; }
+        }
+    }
+
     /// @notice Claims the reward for voting in a proposal.
     /// @dev The reward can be claimed only if the caller has voted.
     /// It doesn't matter if the caller voted yes, no or abstained.
     /// @param votingContract The voting contract address.
     /// @param proposalId The proposal id.
-    function claimProposalReward(address votingContract, uint256 proposalId) external {
+    function claimProposalReward(address votingContract, uint256 proposalId) public {
         if (votingContract == address(0)) {
             revert Error.ZeroVotingContract();
         }
@@ -186,7 +225,7 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
         ProposalReward storage proposalReward = proposalRewards[votingContract][proposalId];
         uint256 assignedReward = proposalReward.reward;
         if (assignedReward == 0) {
-            revert Error.ProposalRewardNotAssigned();
+            revert Error.ProposalRewardNotAssigned({ proposalId: proposalId });
         }
 
         IPWNTokenGovernance _votingContract = IPWNTokenGovernance(votingContract);
@@ -198,7 +237,7 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
 
         // check that the proposal has been executed
         if (!executed) {
-            revert Error.ProposalNotExecuted();
+            revert Error.ProposalNotExecuted({ proposalId: proposalId });
         }
 
         // check that the caller has voted
@@ -209,7 +248,7 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
 
         // check that the reward has not been claimed yet
         if (proposalReward.claimed[voter]) {
-            revert Error.ProposalRewardAlreadyClaimed();
+            revert Error.ProposalRewardAlreadyClaimed({ proposalId: proposalId });
         }
 
         // store that the reward has been claimed
@@ -225,6 +264,22 @@ contract PWN is Ownable2Step, ERC20, IRewardToken {
         _mint(voter, voterReward);
 
         emit ProposalRewardClaimed(votingContract, proposalId, voter, voterReward);
+    }
+
+
+    /*----------------------------------------------------------*|
+    |*  # TRANSFER CALLBACK                                     *|
+    |*----------------------------------------------------------*/
+
+    /// @notice Hook that is called before any token transfer.
+    /// @dev The token transfer is allowed only if the transfers are enabled or caller is whitelisted.
+    function _beforeTokenTransfer(
+        address from, address to, uint256 /* amount */
+    ) override internal view {
+        // Note: filter mints and burns from require condition
+        if (!transfersEnabled && !transferAllowlist[_msgSender()] && from != address(0) && to != address(0)) {
+            revert Error.TransfersDisabled();
+        }
     }
 
 }

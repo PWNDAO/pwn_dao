@@ -7,6 +7,13 @@ import { PWN } from "src/token/PWN.sol";
 import { StakedPWN } from "src/token/StakedPWN.sol";
 import { PWNEpochClock } from "src/PWNEpochClock.sol";
 
+struct StakesInEpoch {
+    uint16 epoch;
+    // stake ids are incremented by 1
+    // if 1000 new ids are added every second, it will take 8878 years to overflow
+    uint48[] ids;
+}
+
 /// @title VoteEscrowedPWNStorage.
 /// @notice Storage contract holding all state variables used by VoteEscrowedPWN.
 contract VoteEscrowedPWNStorage is Initializable {
@@ -49,7 +56,10 @@ contract VoteEscrowedPWNStorage is Initializable {
         // uint128 __padding;
     }
     /// @notice The stake for a stake id.
-    mapping(uint256 stakeId => Stake) public stakes;
+    mapping(uint256 stakeId => Stake) internal _stakes;
+
+    /// @notice The list of stakes to which a beneficiary is entitled in an epoch.
+    mapping(address => StakesInEpoch[]) public beneficiaryOfStakes;
 
 
     /*----------------------------------------------------------*|

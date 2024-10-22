@@ -5,7 +5,7 @@ import { SafeCast } from "openzeppelin-contracts/contracts/utils/math/SafeCast.s
 
 import { EpochPowerLib } from "src/lib/EpochPowerLib.sol";
 import { Error } from "src/lib/Error.sol";
-import { VoteEscrowedPWNBase } from "./VoteEscrowedPWNBase.sol";
+import { VoteEscrowedPWNBase, StakesInEpoch } from "./VoteEscrowedPWNBase.sol";
 
 /// @title VoteEscrowedPWNPower
 /// @notice Contract for the vote-escrowed PWN token implementing power functions.
@@ -31,6 +31,11 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     |*  # STAKE POWER                                           *|
     |*----------------------------------------------------------*/
 
+    /// @notice Compute powers in epochs for given stake parameters.
+    /// @param initialEpoch The initial epoch of the stake power.
+    /// @param amount The amount of PWN tokens to stake.
+    /// @param lockUpEpochs The number of epochs the stake is locked up.
+    /// @return powers The list of powers in epochs for the stake parameters.
     function stakePowers(uint256 initialEpoch, uint256 amount, uint256 lockUpEpochs)
         external
         pure
@@ -90,13 +95,13 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     /// @inheritdoc VoteEscrowedPWNBase
     function stakerPowerAt(address staker, uint256 epoch) override virtual public view returns (uint256) {
         uint16 _epoch = SafeCast.toUint16(epoch);
-        uint256[] memory stakeIds = stakedPWN.ownedTokenIdsAt(staker, _epoch);
+        uint256[] memory stakeIds = beneficiaryOfStakesAt(staker, _epoch);
         uint256 stakesLength = stakeIds.length;
         int104 power;
         for (uint256 i; i < stakesLength;) {
             // sum up all stake powers
             power += _stakePowerAt({
-                stake: stakes[stakeIds[i]],
+                stake: _stakes[stakeIds[i]],
                 epoch: _epoch
             });
 
@@ -117,6 +122,38 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
             amount: SafeCast.toInt104(int256(uint256(stake.amount))),
             lockUpEpochs: stake.lockUpEpochs - uint8(epoch - stake.initialEpoch)
         });
+    }
+
+    /// @notice Get the list of stake ids the staker is a beneficiary of in an epoch.
+    /// @param staker The address of the stakes beneficiary.
+    /// @param epoch The epoch.
+    /// @return ids The list of stake ids the staker is a beneficiary of in the epoch.
+    function beneficiaryOfStakesAt(address staker, uint16 epoch) public view returns (uint256[] memory) {
+        StakesInEpoch[] storage stakesInEpoch = beneficiaryOfStakes[staker];
+        // no owned stakes
+        if (stakesInEpoch.length == 0) {
+            return new uint256[](0);
+        }
+        // first owned stake is in the future
+        if (epoch < stakesInEpoch[0].epoch) {
+            return new uint256[](0);
+        }
+
+        // find change epoch
+        uint256 changeIndex = stakesInEpoch.length - 1;
+        while (stakesInEpoch[changeIndex].epoch > epoch) {
+            changeIndex--;
+        }
+
+        // collect ids as uint256
+        uint256 length = stakesInEpoch[changeIndex].ids.length;
+        uint256[] memory ids = new uint256[](length);
+        for (uint256 i; i < length;) {
+            ids[i] = stakesInEpoch[changeIndex].ids[i];
+            unchecked { ++i; }
+        }
+
+        return ids;
     }
 
 

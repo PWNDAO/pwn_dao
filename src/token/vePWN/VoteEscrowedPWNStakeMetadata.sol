@@ -106,7 +106,7 @@ abstract contract VoteEscrowedPWNStakeMetadata is VoteEscrowedPWNBase, IStakedPW
     function _computeAttributes(uint256 stakeId) internal view returns (MetadataAttributes memory attributes) {
         attributes.stakeOwner = stakedPWN.ownerOf(stakeId);
 
-        Stake memory stake = stakes[stakeId];
+        Stake memory stake = _stakes[stakeId];
         int104 amount104 = int104(stake.amount);
         attributes.stakedAmount.amount = uint256(uint104(amount104));
         attributes.stakedAmount.decimals = 18;

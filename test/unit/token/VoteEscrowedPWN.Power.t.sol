@@ -3,7 +3,7 @@ pragma solidity 0.8.25;
 
 import { Error } from "src/lib/Error.sol";
 import { SlotComputingLib } from "src/lib/SlotComputingLib.sol";
-import { VoteEscrowedPWN } from "src/token/VoteEscrowedPWN.sol";
+import { VoteEscrowedPWN, StakesInEpoch } from "src/token/VoteEscrowedPWN.sol";
 
 import { VoteEscrowedPWN_Test } from "./VoteEscrowedPWNTest.t.sol";
 
@@ -178,12 +178,17 @@ contract VoteEscrowedPWN_Power_StakerPowerAt_Test is VoteEscrowedPWN_Power_Test 
         stakes = bound(stakes, 1, 100);
         amountSeed = bound(amountSeed, 1, type(uint256).max - stakes);
         uint104 totalAmount;
+        StakesInEpoch[] memory stakesInEpochs = new StakesInEpoch[](1);
+        stakesInEpochs[0].epoch = uint16(currentEpoch);
+        stakesInEpochs[0].ids = new uint48[](stakes);
         for (uint256 i; i < stakes; ++i) {
             uint256 iSeed = uint256(keccak256(abi.encode(amountSeed + i)));
             uint104 amount = uint104(_boundAmount(iSeed) / stakes);
             totalAmount += amount;
-            _mockStake(staker, i, uint16(currentEpoch), 13, amount);
+            _mockStake(staker, i + 1, uint16(currentEpoch), 13, amount);
+            stakesInEpochs[0].ids[i] = uint48(i + 1);
         }
+        vePWN.workaround_addStakeToBeneficiary(staker, stakesInEpochs);
 
         uint256 power = vePWN.stakerPowerAt(staker, currentEpoch);
 
@@ -218,6 +223,78 @@ contract VoteEscrowedPWN_Power_StakerPowers_Test is VoteEscrowedPWN_Power_Test {
         for (uint256 i; i < powers.length; ++i) {
             assertEq(powers[i], expectedPowers[i]);
         }
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
+|*  # BENEFICIARY OF STAKES AT                              *|
+|*----------------------------------------------------------*/
+
+contract StakedPWN_BeneficiaryOfStakesAt_Test is VoteEscrowedPWN_Power_Test {
+
+    function testFuzz_shouldReturnEmpty_whenNoStakes(uint16 epoch) external {
+        // don't mock tokens
+
+        uint256[] memory ids = vePWN.beneficiaryOfStakesAt(staker, epoch);
+
+        assertEq(ids.length, 0);
+    }
+
+    function testFuzz_shouldReturnEmpty_whenEpochBeforeFirstStake(uint256 epoch) external {
+        uint16 _epoch = uint16(bound(epoch, 1, currentEpoch));
+        _mockStakeBeneficiary(staker, 1, _epoch);
+
+        uint256[] memory ids = vePWN.beneficiaryOfStakesAt(staker, _epoch - 1);
+
+        assertEq(ids.length, 0);
+    }
+
+    function test_shouldReturnListOfStakesForBeneficiary() external {
+        uint16[] memory epochs = new uint16[](3);
+        epochs[0] = 1;
+        epochs[1] = 10;
+        epochs[2] = 20;
+
+        StakesInEpoch[] memory stakesInEpochs = new StakesInEpoch[](3);
+        uint48[] memory _ids = new uint48[](1);
+        _ids[0] = 1;
+        stakesInEpochs[0] = StakesInEpoch(epochs[0], _ids);
+        _ids = new uint48[](2);
+        _ids[0] = 1;
+        _ids[1] = 2;
+        stakesInEpochs[1] = StakesInEpoch(epochs[1], _ids);
+        _ids = new uint48[](3);
+        _ids[0] = 1;
+        _ids[1] = 2;
+        _ids[2] = 3;
+        stakesInEpochs[2] = StakesInEpoch(epochs[2], _ids);
+        vePWN.workaround_addStakeToBeneficiary(staker, stakesInEpochs);
+
+        uint256[] memory ids = vePWN.beneficiaryOfStakesAt(staker, 1);
+        assertEq(ids.length, 1);
+        assertEq(ids[0], 1);
+
+        ids = vePWN.beneficiaryOfStakesAt(staker, 9);
+        assertEq(ids.length, 1);
+        assertEq(ids[0], 1);
+
+        ids = vePWN.beneficiaryOfStakesAt(staker, 10);
+        assertEq(ids.length, 2);
+        assertEq(ids[0], 1);
+        assertEq(ids[1], 2);
+
+        ids = vePWN.beneficiaryOfStakesAt(staker, 14);
+        assertEq(ids.length, 2);
+        assertEq(ids[0], 1);
+        assertEq(ids[1], 2);
+
+        ids = vePWN.beneficiaryOfStakesAt(staker, 21);
+        assertEq(ids.length, 3);
+        assertEq(ids[0], 1);
+        assertEq(ids[1], 2);
+        assertEq(ids[2], 3);
     }
 
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity 0.8.25;
 
-import { VoteEscrowedPWNBase } from "src/token/vePWN/VoteEscrowedPWNBase.sol";
+import { VoteEscrowedPWNBase, StakesInEpoch } from "src/token/vePWN/VoteEscrowedPWNBase.sol";
 import { VoteEscrowedPWNStake } from "src/token/vePWN/VoteEscrowedPWNStake.sol";
 import { VoteEscrowedPWNStakeMetadata } from "src/token/vePWN/VoteEscrowedPWNStakeMetadata.sol";
 import { VoteEscrowedPWNPower } from "src/token/vePWN/VoteEscrowedPWNPower.sol";

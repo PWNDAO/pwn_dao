@@ -7,10 +7,10 @@ library Error {
     error MintableSupplyExceeded();
     error ZeroVotingContract();
     error VotingRewardNotSet();
-    error ProposalNotExecuted();
+    error ProposalNotExecuted(uint256 proposalId);
     error CallerHasNotVoted();
-    error ProposalRewardAlreadyClaimed();
-    error ProposalRewardNotAssigned();
+    error ProposalRewardAlreadyClaimed(uint256 proposalId);
+    error ProposalRewardNotAssigned(uint256 proposalId);
     error InvalidVotingReward();
     error IncreaseAllowanceNotSupported();
     error DecreaseAllowanceNotSupported();
@@ -20,7 +20,6 @@ library Error {
 
     // StakedPWN
     error CallerNotSupplyManager();
-    error TransfersDisabled();
     error TransfersAlreadyEnabled();
 
     // VoteEscrowedPWN.Base
@@ -40,9 +39,15 @@ library Error {
     error InvalidAmount();
     error InvalidLockUpPeriod();
     error NotStakeOwner();
+    error NotStakeBeneficiary();
     error LockUpPeriodMismatch();
     error NothingToIncrease();
     error WithrawalBeforeLockUpEnd();
     error CallerNotStakedPWNContract();
+    error SameBeneficiary();
+    error StakeNotFound(uint256 stakeId);
+
+    // PWN & StakedPWN
+    error TransfersDisabled();
 
 }
