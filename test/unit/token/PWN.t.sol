@@ -406,6 +406,157 @@ contract PWN_AssignProposalReward_Test is PWN_Test {
 
 
 /*----------------------------------------------------------*|
+|*  # CLAIM PROPOSAL REWARD BATCH                           *|
+|*----------------------------------------------------------*/
+
+contract PWN_ClaimProposalRewardBatch_Test is PWN_Test {
+    using SlotComputingLib for bytes32;
+
+    event ProposalRewardClaimed(
+        address indexed votingContract,
+        uint256 indexed proposalId,
+        address indexed voter,
+        uint256 voterReward
+    );
+
+    uint256 public reward = 100 ether;
+    uint256[] public proposalIds;
+
+    function setUp() override public {
+        super.setUp();
+
+        proposalIds = new uint256[](3);
+        proposalIds[0] = 1;
+        proposalIds[1] = 2;
+        proposalIds[2] = 3;
+
+        for (uint256 i; i < proposalIds.length; ++i) {
+            vm.store(
+                address(pwnToken),
+                PROPOSAL_REWARDS_SLOT.withMappingKey(votingContract).withMappingKey(proposalIds[i]),
+                bytes32(reward)
+            );
+        }
+
+        vm.mockCall(
+            votingContract,
+            abi.encodeWithSignature("getProposal(uint256)"),
+            abi.encode(false, true, proposalParameters, tally, actions, 0)
+        );
+        vm.mockCall(
+            votingContract,
+            abi.encodeWithSignature("getVoteOption(uint256,address)"),
+            abi.encode(IPWNTokenGovernance.VoteOption.Yes)
+        );
+    }
+
+
+    function test_shouldFail_whenZeroVotingContract() external {
+        vm.expectRevert(abi.encodeWithSelector(Error.ZeroVotingContract.selector));
+        vm.prank(voter);
+        pwnToken.claimProposalRewardBatch(address(0), proposalIds);
+    }
+
+    function test_shouldFail_whenNoRewardAssigned() external {
+        proposalIds[2] = 5; // set non-existing proposal id
+
+        vm.expectRevert(abi.encodeWithSelector(Error.ProposalRewardNotAssigned.selector, 5));
+        vm.prank(voter);
+        pwnToken.claimProposalRewardBatch(votingContract, proposalIds);
+    }
+
+    function test_shouldFail_whenProposalNotExecuted() external {
+        vm.mockCall(
+            votingContract,
+            abi.encodeWithSignature("getProposal(uint256)", proposalIds[2]),
+            abi.encode(true, false /* executed */, proposalParameters, tally, actions, 0)
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Error.ProposalNotExecuted.selector, proposalIds[2]));
+        vm.prank(voter);
+        pwnToken.claimProposalRewardBatch(votingContract, proposalIds);
+    }
+
+    function test_shouldFail_whenCallerHasNotVoted() external {
+        vm.mockCall(
+            votingContract,
+            abi.encodeWithSignature("getVoteOption(uint256,address)", proposalIds[2], voter),
+            abi.encode(IPWNTokenGovernance.VoteOption.None)
+        );
+
+        vm.expectRevert(abi.encodeWithSelector(Error.CallerHasNotVoted.selector));
+        vm.prank(voter);
+        pwnToken.claimProposalRewardBatch(votingContract, proposalIds);
+    }
+
+    function test_shouldFail_whenVoterAlreadyClaimedReward() external {
+        bytes32 claimedSlot = PROPOSAL_REWARDS_SLOT
+            .withMappingKey(votingContract)
+            .withMappingKey(proposalIds[2])
+            .withArrayIndex(1)
+            .withMappingKey(voter);
+        vm.store(address(pwnToken), claimedSlot, bytes32(uint256(1)));
+
+        vm.expectRevert(abi.encodeWithSelector(Error.ProposalRewardAlreadyClaimed.selector, proposalIds[2]));
+        vm.prank(voter);
+        pwnToken.claimProposalRewardBatch(votingContract, proposalIds);
+    }
+
+    function test_shouldStoreThatVoterClaimedReward() external {
+        vm.prank(voter);
+        pwnToken.claimProposalRewardBatch(votingContract, proposalIds);
+
+        for (uint256 i; i < proposalIds.length; ++i) {
+            bytes32 claimedSlot = PROPOSAL_REWARDS_SLOT
+                .withMappingKey(votingContract)
+                .withMappingKey(proposalIds[i])
+                .withArrayIndex(1)
+                .withMappingKey(voter);
+            bytes32 rewardClaimedValue = vm.load(address(pwnToken), claimedSlot);
+            assertEq(uint256(rewardClaimedValue), 1);
+        }
+    }
+
+    function test_shouldUseProposalSnapshotAsPastVotesTimepoint() external {
+        vm.expectCall(
+            votingToken,
+            abi.encodeWithSignature("getPastVotes(address,uint256)", voter, snapshotEpoch)
+        );
+
+        vm.prank(voter);
+        pwnToken.claimProposalRewardBatch(votingContract, proposalIds);
+    }
+
+    function test_shouldMintRewardToCaller() external {
+        uint256 totalPower = tally.no + tally.yes + tally.abstain;
+        uint256 originalTotalSupply = pwnToken.totalSupply();
+        uint256 originalBalance = pwnToken.balanceOf(voter);
+
+        vm.prank(voter);
+        pwnToken.claimProposalRewardBatch(votingContract, proposalIds);
+
+        uint256 voterReward = Math.mulDiv(reward, pastVotes, totalPower) * proposalIds.length;
+        assertEq(originalTotalSupply + voterReward, pwnToken.totalSupply());
+        assertEq(originalBalance + voterReward, pwnToken.balanceOf(voter));
+    }
+
+    function test_shouldEmit_VotingRewardClaimed() external {
+        uint256 totalPower = tally.no + tally.yes + tally.abstain;
+        uint256 voterReward = Math.mulDiv(reward, pastVotes, totalPower);
+
+        for (uint256 i; i < proposalIds.length; ++i) {
+            vm.expectEmit();
+            emit ProposalRewardClaimed(votingContract, proposalIds[i], voter, voterReward);
+        }
+
+        vm.prank(voter);
+        pwnToken.claimProposalRewardBatch(votingContract, proposalIds);
+    }
+
+}
+
+
+/*----------------------------------------------------------*|
 |*  # CLAIM PROPOSAL REWARD                                 *|
 |*----------------------------------------------------------*/
 
@@ -445,7 +596,7 @@ contract PWN_ClaimProposalReward_Test is PWN_Test {
             bytes32(uint256(0))
         );
 
-        vm.expectRevert(abi.encodeWithSelector(Error.ProposalRewardNotAssigned.selector));
+        vm.expectRevert(abi.encodeWithSelector(Error.ProposalRewardNotAssigned.selector, proposalId));
         vm.prank(voter);
         pwnToken.claimProposalReward(votingContract, proposalId);
     }
@@ -457,7 +608,7 @@ contract PWN_ClaimProposalReward_Test is PWN_Test {
             abi.encode(true, false /* executed */, proposalParameters, tally, actions, 0)
         );
 
-        vm.expectRevert(abi.encodeWithSelector(Error.ProposalNotExecuted.selector));
+        vm.expectRevert(abi.encodeWithSelector(Error.ProposalNotExecuted.selector, proposalId));
         vm.prank(voter);
         pwnToken.claimProposalReward(votingContract, proposalId);
     }
@@ -482,7 +633,7 @@ contract PWN_ClaimProposalReward_Test is PWN_Test {
             .withMappingKey(voter);
         vm.store(address(pwnToken), claimedSlot, bytes32(uint256(1)));
 
-        vm.expectRevert(abi.encodeWithSelector(Error.ProposalRewardAlreadyClaimed.selector));
+        vm.expectRevert(abi.encodeWithSelector(Error.ProposalRewardAlreadyClaimed.selector, proposalId));
         vm.prank(voter);
         pwnToken.claimProposalReward(votingContract, proposalId);
     }

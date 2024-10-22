@@ -7,10 +7,10 @@ library Error {
     error MintableSupplyExceeded();
     error ZeroVotingContract();
     error VotingRewardNotSet();
-    error ProposalNotExecuted();
+    error ProposalNotExecuted(uint256 proposalId);
     error CallerHasNotVoted();
-    error ProposalRewardAlreadyClaimed();
-    error ProposalRewardNotAssigned();
+    error ProposalRewardAlreadyClaimed(uint256 proposalId);
+    error ProposalRewardNotAssigned(uint256 proposalId);
     error InvalidVotingReward();
     error IncreaseAllowanceNotSupported();
     error DecreaseAllowanceNotSupported();
