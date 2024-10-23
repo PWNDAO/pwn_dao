@@ -698,6 +698,8 @@ contract VoteEscrowedPWN_Stake_MergeStakes_Test is VoteEscrowedPWN_Stake_Test {
         checkAddress(beneficiary1)
         checkAddress(beneficiary2)
     {
+        vm.assume(beneficiary1 != beneficiary2);
+
         _mockStake(staker, beneficiary1, stakeId1, initialEpoch, lockUpEpochs, amount);
         _mockStake(staker, beneficiary2, stakeId2, initialEpoch, lockUpEpochs, amount);
 
