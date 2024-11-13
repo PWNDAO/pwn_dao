@@ -120,7 +120,7 @@ contract StakedPWN is Ownable2Step, ERC721 {
     /// @dev The token transfer is allowed only if the transfers are enabled or caller is whitelisted.
     function _beforeTokenTransfer(
         address from, address to, uint256 /* firstTokenId */, uint256 /* batchSize */
-    ) override internal {
+    ) override internal view {
         // filter mints and burns from require condition
         if (!transfersEnabled && !transferAllowlist[_msgSender()] && from != address(0) && to != address(0)) {
             revert Error.TransfersDisabled();
