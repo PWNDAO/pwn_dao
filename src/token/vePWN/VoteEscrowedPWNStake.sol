@@ -320,6 +320,10 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint104 oldAmount = stake.amount;
         uint104 newAmount = oldAmount + uint104(additionalAmount); // safe cast
 
+        if (newAmount > type(uint88).max) {
+            revert Error.InvalidAmount();
+        }
+
         { // avoid stack too deep
             bool amountAdditionOnly = additionalEpochs == 0;
 

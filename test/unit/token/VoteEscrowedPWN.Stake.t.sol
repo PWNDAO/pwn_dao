@@ -864,6 +864,16 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
         vm.prank(staker);
         vePWN.increaseStake(stakeId, staker, additionalAmount, additionalEpochs);
+
+        // new amount over max
+        additionalAmount = bound(
+            _additionalAmount,
+            uint256((type(uint88).max) / 100 * 100 - amount + 1),
+            uint256(type(uint88).max / 100 * 100)
+        );
+        vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
+        vm.prank(staker);
+        vePWN.increaseStake(stakeId, staker, additionalAmount, additionalEpochs);
     }
 
     function testFuzz_shouldFail_whenIncorrectdAdditionalEpochs(uint256 _additionalEpochs) external {
@@ -906,8 +916,11 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         initialEpoch = uint16(bound(_initialEpoch, currentEpoch - 130, currentEpoch + 1));
         (lockUpEpochs, additionalAmount, additionalEpochs, ) =
             _boundIncreaseInputs(_lockUpEpochs, _additionalAmount, _additionalEpochs);
+
+        vm.assume(additionalAmount + amount <= type(uint88).max);
         vm.assume(additionalEpochs + additionalAmount > 0);
         vm.assume(additionalEpochs % 13 > 0);
+
         TestPowerChangeEpoch[] memory powerChanges =
             _mockStake(staker, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
 
@@ -933,7 +946,10 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         (lockUpEpochs, additionalAmount, additionalEpochs, remainingLockup) = _boundIncreaseInputs(
             _lockUpEpochs, _additionalAmount, _additionalEpochs
         );
+
+        vm.assume(additionalAmount + amount <= type(uint88).max);
         vm.assume(additionalEpochs + additionalAmount > 0);
+
         TestPowerChangeEpoch[] memory powerChanges =
             _mockStake(staker, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
 
@@ -976,6 +992,7 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         (lockUpEpochs, additionalAmount, additionalEpochs, remainingLockup) = _boundIncreaseInputs(
             _lockUpEpochs, _additionalAmount, _additionalEpochs
         );
+        vm.assume(additionalAmount + amount <= type(uint88).max);
         vm.assume(additionalEpochs + additionalAmount > 0);
 
         _mockStake(staker, stakeId + 1, initialEpoch, lockUpEpochs, uint104(amount));
@@ -1093,10 +1110,11 @@ contract VoteEscrowedPWN_Stake_IncreaseStake_Test is VoteEscrowedPWN_Stake_Test 
         assertEq(stakesInEpochs[1].ids.length, 0);
     }
 
-    function testFuzz_shouldTransferAdditionalPWNTokens(uint256 _additionalAmount) external {
+    function testFuzz_shouldTransferAdditionalPWNTokens(uint256 _amount, uint256 _additionalAmount) external {
+        amount = bound(_amount, 100, type(uint88).max / 100 * 100);
         _mockStake(staker, stakeId, initialEpoch, lockUpEpochs, uint104(amount));
 
-        additionalAmount = bound(_additionalAmount, 0, type(uint88).max / 100) * 100;
+        additionalAmount = bound(_additionalAmount, 0, type(uint88).max - amount) / 100 * 100;
         vm.expectCall(
             pwnToken,
             abi.encodeWithSignature("transferFrom(address,address,uint256)", staker, address(vePWN), additionalAmount),
