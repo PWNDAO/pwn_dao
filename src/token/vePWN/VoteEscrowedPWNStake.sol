@@ -237,7 +237,6 @@ abstract contract VoteEscrowedPWNStake is VoteEscrowedPWNBase {
         uint16 newInitialEpoch = epochClock.currentEpoch() + 1;
 
         // the first stake lockup end must be greater than or equal to the second stake lockup end
-        // both stake lockup ends must be greater than the current epoch
         if (finalEpoch1 < finalEpoch2 || finalEpoch1 <= newInitialEpoch) {
             revert Error.LockUpPeriodMismatch();
         }
