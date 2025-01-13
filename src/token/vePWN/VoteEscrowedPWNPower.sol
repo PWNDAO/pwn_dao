@@ -32,11 +32,11 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
     |*----------------------------------------------------------*/
 
     /// @notice Compute powers in epochs for given stake parameters.
-    /// @param initialEpoch The initial epoch of the stake power.
+    /// @param currentEpoch The current epoch of the simulation.
     /// @param amount The amount of PWN tokens to stake.
-    /// @param lockUpEpochs The number of epochs the stake is locked up.
-    /// @return powers The list of powers in epochs for the stake parameters.
-    function stakePowers(uint256 initialEpoch, uint256 amount, uint256 lockUpEpochs)
+    /// @param remainingLockup The number of remaining epochs in the stake.
+    /// @return powers The list of powers in epochs for the stake is simulation.
+    function simulateStakePowers(uint256 currentEpoch, uint256 amount, uint256 remainingLockup)
         external
         pure
         returns (EpochPower[] memory powers)
@@ -44,31 +44,44 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
         if (amount < 100 || amount % 100 > 0 || amount > type(uint88).max) {
             revert Error.InvalidAmount();
         }
-        if (lockUpEpochs < 1 || lockUpEpochs > EPOCHS_IN_YEAR * 10) {
+        if (remainingLockup < 1 || remainingLockup > EPOCHS_IN_YEAR * 10) {
             revert Error.InvalidLockUpPeriod();
         }
         // calculate how many epochs are needed
         uint256 epochs;
-        if (lockUpEpochs > EPOCHS_IN_YEAR * 5) {
+        if (remainingLockup > EPOCHS_IN_YEAR * 5) {
             epochs = 7;
         } else {
-            epochs = lockUpEpochs / EPOCHS_IN_YEAR + (lockUpEpochs % EPOCHS_IN_YEAR > 0 ? 2 : 1);
+            epochs = remainingLockup / EPOCHS_IN_YEAR + (remainingLockup % EPOCHS_IN_YEAR > 0 ? 2 : 1);
         }
 
         powers = new EpochPower[](epochs);
-        uint16 epoch = SafeCast.toUint16(initialEpoch);
-        uint8 remainingLockup = uint8(lockUpEpochs);
+        uint16 epoch = SafeCast.toUint16(currentEpoch);
+        uint8 _remainingLockup = uint8(remainingLockup);
         int104 _amount = SafeCast.toInt104(int256(uint256(amount)));
-        int104 power = _power(_amount, remainingLockup);
+        int104 power = _power(_amount, _remainingLockup);
         // calculate epoch powers
         powers[0] = EpochPower({ epoch: epoch, power: power });
         for (uint256 i = 1; i < epochs; ++i) {
-            uint8 epochsToNextPowerChange = _epochsToNextPowerChange(remainingLockup);
-            remainingLockup -= epochsToNextPowerChange;
+            uint8 epochsToNextPowerChange = _epochsToNextPowerChange(_remainingLockup);
+            _remainingLockup -= epochsToNextPowerChange;
             epoch += epochsToNextPowerChange;
-            power += _powerDecrease(_amount, remainingLockup);
+            power += _powerDecrease(_amount, _remainingLockup);
             powers[i] = EpochPower({ epoch: epoch, power: power });
         }
+    }
+
+    function _stakePowerAt(Stake memory stake, uint16 epoch) internal pure returns (int104) {
+        if (stake.initialEpoch > epoch) {
+            return 0; // not staked yet
+        }
+        if (stake.initialEpoch + stake.lockUpEpochs <= epoch) {
+            return 0; // lockup expired
+        }
+        return _power({
+            amount: SafeCast.toInt104(int256(uint256(stake.amount))),
+            lockUpEpochs: stake.lockUpEpochs - uint8(epoch - stake.initialEpoch)
+        });
     }
 
 
@@ -111,18 +124,10 @@ contract VoteEscrowedPWNPower is VoteEscrowedPWNBase {
         return SafeCast.toUint256(int256(power));
     }
 
-    function _stakePowerAt(Stake memory stake, uint16 epoch) internal pure returns (int104) {
-        if (stake.initialEpoch > epoch) {
-            return 0; // not staked yet
-        }
-        if (stake.initialEpoch + stake.lockUpEpochs <= epoch) {
-            return 0; // lockup expired
-        }
-        return _power({
-            amount: SafeCast.toInt104(int256(uint256(stake.amount))),
-            lockUpEpochs: stake.lockUpEpochs - uint8(epoch - stake.initialEpoch)
-        });
-    }
+
+    /*----------------------------------------------------------*|
+    |*  # STAKE BENEFICIARY                                     *|
+    |*----------------------------------------------------------*/
 
     /// @notice Get the list of stake ids the staker is a beneficiary of in an epoch.
     /// @param staker The address of the stakes beneficiary.

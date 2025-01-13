@@ -56,43 +56,43 @@ abstract contract VoteEscrowedPWN_Power_Test is VoteEscrowedPWN_Test {
 
 
 /*----------------------------------------------------------*|
-|*  # STAKE POWERS                                          *|
+|*  # SIMULATE STAKE POWERS                                 *|
 |*----------------------------------------------------------*/
 
-contract VoteEscrowedPWN_Power_StakePowers_Test is VoteEscrowedPWN_Power_Test {
+contract VoteEscrowedPWN_Power_SimulateStakePowers_Test is VoteEscrowedPWN_Power_Test {
 
     function test_shouldFail_whenInvalidAmount() external {
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
-        vePWN.stakePowers({ initialEpoch: currentEpoch, amount: 0, lockUpEpochs: EPOCHS_IN_YEAR });
+        vePWN.simulateStakePowers({ currentEpoch: currentEpoch, amount: 0, remainingLockup: EPOCHS_IN_YEAR });
 
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
-        vePWN.stakePowers({ initialEpoch: currentEpoch, amount: 99, lockUpEpochs: EPOCHS_IN_YEAR });
+        vePWN.simulateStakePowers({ currentEpoch: currentEpoch, amount: 99, remainingLockup: EPOCHS_IN_YEAR });
 
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
-        vePWN.stakePowers({
-            initialEpoch: currentEpoch, amount: uint256(type(uint88).max) + 1, lockUpEpochs: EPOCHS_IN_YEAR
+        vePWN.simulateStakePowers({
+            currentEpoch: currentEpoch, amount: uint256(type(uint88).max) + 1, remainingLockup: EPOCHS_IN_YEAR
         });
 
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidAmount.selector));
-        vePWN.stakePowers({ initialEpoch: currentEpoch, amount: 101, lockUpEpochs: EPOCHS_IN_YEAR });
+        vePWN.simulateStakePowers({ currentEpoch: currentEpoch, amount: 101, remainingLockup: EPOCHS_IN_YEAR });
     }
 
     function test_shouldFail_whenInvalidLockUpEpochs() external {
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
-        vePWN.stakePowers({ initialEpoch: currentEpoch, amount: 100, lockUpEpochs: 0 });
+        vePWN.simulateStakePowers({ currentEpoch: currentEpoch, amount: 100, remainingLockup: 0 });
 
         vm.expectRevert(abi.encodeWithSelector(Error.InvalidLockUpPeriod.selector));
-        vePWN.stakePowers({ initialEpoch: currentEpoch, amount: 100, lockUpEpochs: 10 * EPOCHS_IN_YEAR + 1 });
+        vePWN.simulateStakePowers({ currentEpoch: currentEpoch, amount: 100, remainingLockup: 10 * EPOCHS_IN_YEAR + 1 });
     }
 
-    function testFuzz_shouldReturnCorrectEpochPowers(uint256 initialEpoch, uint256 amount, uint256 lockUpEpochs)
+    function testFuzz_shouldReturnCorrectEpochPowers(uint256 epoch, uint256 amount, uint256 remainingLockup)
         external
     {
-        uint16 _initialEpoch = uint16(bound(initialEpoch, 1, uint256(type(uint16).max - 10 * EPOCHS_IN_YEAR - 1)));
+        uint16 _epoch = uint16(bound(epoch, 1, uint256(type(uint16).max - 10 * EPOCHS_IN_YEAR - 1)));
         uint104 _amount = uint104(_boundAmount(amount));
-        uint8 _lockUpEpochs = _boundRemainingLockups(lockUpEpochs);
+        uint8 _remainingLockup = _boundRemainingLockups(remainingLockup);
         // create power changes
-        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(_initialEpoch, _lockUpEpochs, _amount);
+        TestPowerChangeEpoch[] memory powerChanges = _createPowerChangesArray(_epoch, _remainingLockup, _amount);
         // make power values from changes
         VoteEscrowedPWN.EpochPower[] memory expectedPowers = new VoteEscrowedPWN.EpochPower[](powerChanges.length);
         for (uint256 i; i < powerChanges.length; ++i) {
@@ -102,9 +102,9 @@ contract VoteEscrowedPWN_Power_StakePowers_Test is VoteEscrowedPWN_Power_Test {
                 : expectedPowers[i - 1].power + powerChanges[i].powerChange;
         }
 
-        // call stakePowers
-        VoteEscrowedPWN.EpochPower[] memory powers = vePWN.stakePowers({
-            initialEpoch: _initialEpoch, amount: _amount, lockUpEpochs: _lockUpEpochs
+        // call simulateStakePowers
+        VoteEscrowedPWN.EpochPower[] memory powers = vePWN.simulateStakePowers({
+            currentEpoch: _epoch, amount: _amount, remainingLockup: _remainingLockup
         });
 
         // assert epoch powers
