@@ -39,15 +39,13 @@ The following are the contract addresses for PWN DAO on the Ethereum mainnet:
 
 ## Voter Incentives
 
-PWN DAO incentivizes participation by rewarding voters who support successful proposals with newly minted $PWN tokens. Non-participation may lead to inflationary penalties or reduced voting rewards.
+PWN DAO incentivizes participation by rewarding voters of successful proposals with newly minted $PWN tokens.
 
-## Tokens and Treasury
+## Tokens
 
 - **$PWN Token (PWN)**: The native governance token of the DAO.
 - **StakedPWN (stPWN)**: An NFT representing staked $PWN tokens, non-transferable unless governance enables transferability.
 - **VoteEscrowedPWN (vePWN)**: A non-transferable token representing the voting power of staked $PWN.
-
-PWN DAO's treasury is funded by protocol fees, initially set at 0%, with the ability to adjust fees over time. Funds are managed through governance decisions for protocol upgrades, ecosystem development, or community rewards.
 
 ## Infrastructure
 
