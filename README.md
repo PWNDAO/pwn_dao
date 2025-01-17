@@ -2,6 +2,8 @@
 
 **PWN DAO** is a decentralized autonomous organization designed to manage and enhance the PWN Protocol, a platform for peer-to-peer lending with unique governance features. This repository contains the core smart contracts and governance mechanisms for PWN DAO.
 
+For a detailed overview of PWN DAO, its governance model, and the PWN Protocol, please refer to the [PWN DAO Whitepaper](whitepaper/PWN_DAO___Whitepaper.pdf).
+
 ## Overview
 
 PWN DAO operates under a dual governance structure:
